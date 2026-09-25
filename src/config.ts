@@ -53,3 +53,11 @@ export const DEPTH = {
   fog: 100,
   overlay: 110,
 } as const;
+
+export const RESOURCES = {
+  startScrip: 400,
+  startFlux: 100,
+  /** Trickle income from the Stronghold so a player is never fully stalled. */
+  baseScripIncome: 4,
+  captureScripPerSec: 25,
+} as const;
