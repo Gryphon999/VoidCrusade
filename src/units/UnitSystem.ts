@@ -164,14 +164,42 @@ export class UnitSystem {
       if (!s.selected && frac >= 0.999) continue;
       if (s.owner === 'enemy' && !s.units.some((u) => u.isShown)) continue;
       let top = Infinity;
-      for (const u of s.units) top = Math.min(top, Projection.vy(u.y) - u.height);
-      const c = { x: s.center.x };
-      const w = 34;
-      const x = c.x - w / 2;
-      const y = top - 12;
-      const col = s.owner === 'enemy' ? 0xe03030 : frac > 0.6 ? 0x40d040 : frac > 0.3 ? 0xe0c020 : 0xe03020;
-      g.fillStyle(0x000000, 0.7).fillRect(x - 1, y - 1, w + 2, 5);
+      let x0 = Infinity;
+      let x1 = -Infinity;
+      let bottom = -Infinity;
+      for (const u of s.units) {
+        const gy = Projection.vy(u.y);
+        top = Math.min(top, gy - u.height);
+        bottom = Math.max(bottom, gy + 4);
+        x0 = Math.min(x0, u.x - 10);
+        x1 = Math.max(x1, u.x + 10);
+      }
+      const cx = (x0 + x1) / 2;
+      const w = Math.max(36, Math.min(70, s.maxSize * 7));
+      const x = cx - w / 2;
+      const y = top - 14;
+      const enemy = s.owner === 'enemy';
+      const col = enemy ? 0xd83030 : frac > 0.6 ? 0x48d848 : frac > 0.3 ? 0xe0c020 : 0xe03020;
+      // Frame with brass trim, HP fill, then one pip per soldier (filled = alive).
+      g.fillStyle(0x0a0a0c, 0.85).fillRect(x - 2, y - 2, w + 4, 10);
+      g.lineStyle(1, enemy ? 0x7a3040 : 0xb0903a, 0.9).strokeRect(x - 2, y - 2, w + 4, 10);
       g.fillStyle(col, 1).fillRect(x, y, w * Math.min(1, frac), 3);
+      const pip = w / s.maxSize;
+      for (let i = 0; i < s.maxSize; i++) {
+        g.fillStyle(i < s.units.length ? 0xe8e0c8 : 0x3a3a3a, 1).fillRect(x + i * pip + 0.5, y + 4.5, Math.max(1, pip - 1.5), 2);
+      }
+      if (s.selected) {
+        // Corner brackets around the squad.
+        const bx0 = x0 - 4;
+        const bx1 = x1 + 4;
+        const by0 = top - 2;
+        const by1 = bottom + 2;
+        const L = 8;
+        g.lineStyle(2, 0x60ff70, 0.9);
+        for (const [px, py, dx, dy] of [[bx0, by0, 1, 1], [bx1, by0, -1, 1], [bx0, by1, 1, -1], [bx1, by1, -1, -1]]) {
+          g.lineBetween(px, py, px + dx * L, py).lineBetween(px, py, px, py + dy * L);
+        }
+      }
     }
   }
 
@@ -278,7 +306,7 @@ export class UnitSystem {
     } else if (Math.abs(vx) + Math.abs(vy) > 8) {
       u.face(u.x + vx, u.y + vy);
     }
-    u.syncSprite();
+    u.syncSprite(dt);
   }
 
   destroyAll(): void {

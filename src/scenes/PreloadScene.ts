@@ -8,6 +8,7 @@ import { createFxTextures } from '../assets/FxTextures';
 import { createCaptureTextures } from '../assets/CaptureTextures';
 import { getCursors } from '../assets/Cursors';
 import { createPropTextures } from '../render/PropArt';
+import { createUnitAtlases } from '../render/puppet/UnitAtlas';
 import { MAP_BUILDERS } from '../maps';
 import { textStyle } from '../ui/uiStyle';
 
@@ -41,6 +42,7 @@ export class PreloadScene extends Phaser.Scene {
       ['Forging icons', () => createUITextures(this)],
       ['Raising fortifications', () => createBuildingTextures(this)],
       ['Mustering the Iron Void', () => createUnitTextures(this)],
+      ['Breeding the Null Horde', () => createUnitAtlases(this)],
       ['Distilling blood and fire', () => createFxTextures(this)],
       ['Charging Void-Nexus obelisks', () => createCaptureTextures(this)],
       ['Scattering the debris of war', () => createPropTextures(this)],

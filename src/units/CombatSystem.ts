@@ -41,6 +41,8 @@ export class CombatSystem {
         if (Phaser.Math.Distance.Between(u.x, u.y, victim.x, victim.y) > reach) continue;
         u.cooldown = u.def.cooldown * Phaser.Math.FloatBetween(0.85, 1.15);
         const dmg = u.def.damage * this.battle.modifiers[u.owner].damageMult;
+        u.face(victim.x, victim.y);
+        u.playAttack();
         this.fire(u.x, u.y, u.owner, victim, dmg, u.def.projectile, u.squad, u.aimPoint());
       }
     }

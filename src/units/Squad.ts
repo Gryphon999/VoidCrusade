@@ -62,21 +62,40 @@ export class Squad {
     this.y = y;
     this.maxSize = maxSize;
     this.offsets = Squad.formation(maxSize, Math.max(UNITS.formationSpacing, def.size * 2 + 8));
-    for (let i = 0; i < size; i++) this.addUnit(x + this.offsets[i].x, y + this.offsets[i].y);
+    this.heading = owner === 'player' ? -Math.PI / 4 : (Math.PI * 3) / 4;
+    for (let i = 0; i < size; i++) {
+      const u = this.addUnit(x, y);
+      const p = this.slotPos(u);
+      u.x = p.x;
+      u.y = p.y;
+    }
     this.updateCenter();
   }
 
+  /**
+   * Wedge formation in squad-local space (x = forward, y = right): a point man, then ranks of
+   * 2, 3, ... behind him, with a little per-soldier jitter so it never looks drilled.
+   */
   static formation(n: number, spacing: number): Pt[] {
-    const cols = n <= 2 ? n : n <= 4 ? 2 : n <= 6 ? 3 : 4;
-    const rows = Math.ceil(n / cols);
     const out: Pt[] = [];
-    for (let i = 0; i < n; i++) {
-      const c = i % cols;
-      const r = Math.floor(i / cols);
-      out.push({ x: (c - (cols - 1) / 2) * spacing, y: (r - (rows - 1) / 2) * spacing });
+    let row = 0;
+    while (out.length < n) {
+      const width = Math.min(row + 1, n - out.length);
+      for (let i = 0; i < width; i++) {
+        const j = out.length;
+        const jx = Math.sin(j * 12.9898) * 3;
+        const jy = Math.cos(j * 78.233) * 3;
+        out.push({ x: -row * spacing * 0.8 + jx, y: (i - (width - 1) / 2) * spacing + jy });
+      }
+      row++;
     }
+    const mx = out.reduce((a, p) => a + p.x, 0) / n;
+    for (const p of out) p.x -= mx;
     return out;
   }
+
+  /** Formation facing (radians, logical space). */
+  heading = 0;
 
   addUnit(x: number, y: number): Unit {
     const u = new Unit(this.battle, this, x, y, this.battle.modifiers[this.owner].hpMult);
@@ -218,6 +237,8 @@ export class Squad {
       this.path = [];
       this.x = c.x;
       this.y = c.y;
+      // Dress the line toward the enemy.
+      this.heading = Phaser.Math.Angle.RotateTo(this.heading, Math.atan2(tp.y - c.y, tp.x - c.x), 0.35);
     }
   }
 
@@ -232,6 +253,7 @@ export class Squad {
     const factor = Phaser.Math.Clamp(1 - (lag - 50) / 90, 0.15, 1);
     const step = this.def.speed * factor * dt;
     const d = Phaser.Math.Distance.Between(this.x, this.y, next.x, next.y);
+    if (d > 4) this.heading = Phaser.Math.Angle.RotateTo(this.heading, Math.atan2(next.y - this.y, next.x - this.x), 3 * dt);
     if (d <= step) {
       this.x = next.x;
       this.y = next.y;
@@ -248,8 +270,7 @@ export class Squad {
     if (this.reinforceTimer > 0) return;
     this.reinforceTimer = UNITS.reinforceInterval;
     this.pendingReinforce--;
-    const off = this.offsets[this.units.length] ?? { x: 0, y: 0 };
-    const u = this.addUnit(this.x + off.x, this.y + off.y);
+    const u = this.addUnit(this.x, this.y);
     u.sprite.setAlpha(0);
     this.battle.tweens.add({ targets: u.sprite, alpha: 1, duration: 400 });
   }
@@ -258,7 +279,9 @@ export class Squad {
   slotPos(u: Unit): Pt {
     if (this.order === 'hold' && this.coverSlots) return this.coverSlots[u.slot] ?? { x: this.x, y: this.y };
     const o = this.offsets[u.slot] ?? { x: 0, y: 0 };
-    return { x: this.x + o.x, y: this.y + o.y };
+    const c = Math.cos(this.heading);
+    const n = Math.sin(this.heading);
+    return { x: this.x + o.x * c - o.y * n, y: this.y + o.x * n + o.y * c };
   }
 
   containsPoint(wx: number, wy: number): boolean {

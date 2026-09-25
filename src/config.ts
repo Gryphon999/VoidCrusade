@@ -108,6 +108,7 @@ export const BUILDING_VISION = 200;
 
 export const FX = {
   maxDecals: 100,
+  maxCorpses: 140,
   decalAlpha: 0.7,
   shakeDuration: 300,
   shakeIntensity: 0.02,

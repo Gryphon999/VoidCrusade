@@ -3,7 +3,7 @@ import type { BattleScene } from '../scenes/BattleScene';
 import { Squad } from '../units/Squad';
 import { Building } from '../buildings/Building';
 import { UNIT_DEFS } from '../units/UnitDefs';
-import { unitTextureKey } from '../assets/UnitTextures';
+import { portraitKey as unitTextureKey } from '../render/puppet/UnitAtlas';
 import { buildingTextureKey } from '../assets/BuildingTextures';
 import { RESEARCH_DEFS } from '../systems/ResearchSystem';
 import { Button } from './Button';
@@ -163,7 +163,8 @@ export class SelectionPanel {
         b.queue.forEach((q, qi) => {
           const qx = PANEL.x + PANEL.w - 30 - (UNIT_QUEUE_MAX - 1 - qi) * 42;
           const box = this.scene.add.rectangle(qx, PANEL.y + 30, 38, 38, 0x05050c).setStrokeStyle(1, 0x5a5a7a);
-          const img = this.scene.add.image(qx, PANEL.y + 30, unitTextureKey(q)).setScale(1.3);
+          const img = this.scene.add.image(qx, PANEL.y + 30, unitTextureKey(q));
+          img.setScale(34 / Math.max(img.width, img.height));
           box.setInteractive({ useHandCursor: true }).on('pointerdown', () => prod.cancel(b, qi));
           queueIcons.add([box, img]);
         });
