@@ -2,22 +2,34 @@ import Phaser from 'phaser';
 import { makeCanvas } from '../CanvasUtil';
 import { PuppetRenderer } from './Puppet3D';
 import { ANIMS, ANIM_FRAMES, AnimName, UnitModel } from './Models';
-import { COMMANDER_MODEL, HEAVY_MODEL, RIFLEMAN_MODEL } from './IronVoidModels';
-import { BEHEMOTH_MODEL, CRAWLER_MODEL } from './HordeModels';
+import { BREACHER_MODEL, COMMANDER_MODEL, ENGINEER_MODEL, HEAVY_MODEL, MARKSMAN_MODEL, RANGER_MODEL, RIFLEMAN_MODEL } from './IronVoidModels';
+import { BEHEMOTH_MODEL, BURROWER_MODEL, CRAWLER_MODEL, LEAPER_MODEL, OVERLORD_MODEL, SHAMAN_MODEL, SPITTER_MODEL } from './HordeModels';
 import type { UnitId } from '../../units/UnitDefs';
 
 export const DIRECTIONS = 8;
 
 export const UNIT_MODELS: Record<UnitId, UnitModel> = {
   rifleman: RIFLEMAN_MODEL,
+  ranger: RANGER_MODEL,
+  breacher: BREACHER_MODEL,
+  marksman: MARKSMAN_MODEL,
+  engineer: ENGINEER_MODEL,
   heavy: HEAVY_MODEL,
   commander: COMMANDER_MODEL,
   crawler: CRAWLER_MODEL,
+  spitter: SPITTER_MODEL,
+  leaper: LEAPER_MODEL,
+  burrower: BURROWER_MODEL,
+  shaman: SHAMAN_MODEL,
   behemoth: BEHEMOTH_MODEL,
+  overlord: OVERLORD_MODEL,
 };
 
 /** Approximate on-screen height of each model (px at zoom 1) — for picking, bars and aim points. */
-export const MODEL_HEIGHT: Record<UnitId, number> = { rifleman: 34, heavy: 44, commander: 64, crawler: 24, behemoth: 80 };
+export const MODEL_HEIGHT: Record<UnitId, number> = {
+  rifleman: 34, ranger: 33, breacher: 40, marksman: 32, engineer: 36, heavy: 44, commander: 64,
+  crawler: 24, spitter: 30, leaper: 34, burrower: 22, shaman: 44, behemoth: 80, overlord: 74,
+};
 
 export function atlasKey(id: UnitId): string {
   return `units_${id}`;

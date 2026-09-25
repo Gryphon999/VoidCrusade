@@ -100,7 +100,7 @@ export class UnitSystem {
     let best: Target | null = null;
     let bestD = reach;
     for (const s of this.squads) {
-      if (!s.alive || s.owner !== enemy) continue;
+      if (!s.alive || s.owner !== enemy || s.hiddenFrom(owner)) continue;
       for (const u of s.units) {
         const d = Phaser.Math.Distance.Between(x, y, u.x, u.y);
         if (d < bestD) {
@@ -266,6 +266,11 @@ export class UnitSystem {
   /** Seek formation slot with arrival, separate from neighbours, slide along obstacles. */
   private steer(u: Unit, dt: number): void {
     const map = this.battle.map;
+    if (u.leapArc) {
+      if (u.updateLeap(dt)) this.battle.support.onLand(u);
+      u.syncSprite(dt);
+      return;
+    }
     let goal = u.squad.slotPos(u);
     if (!map.isPassableWorld(goal.x, goal.y)) goal = { x: u.squad.x, y: u.squad.y };
     let dx = goal.x - u.x;

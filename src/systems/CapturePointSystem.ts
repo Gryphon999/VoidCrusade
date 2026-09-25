@@ -25,13 +25,22 @@ export class CapturePointSystem {
     return this.points.filter((p) => p.owner === owner).length;
   }
 
-  /** Number of squads of each side inside a point's zone. */
+  /** Number of capturing squads of each side inside a point's zone (vehicles and burrowed squads don't count). */
   presence(p: CapturePoint): Record<Owner, number> {
     const out: Record<Owner, number> = { player: 0, enemy: 0 };
     for (const s of this.battle.units.squads) {
-      if (s.alive && s.units.some((u) => p.contains(u.x, u.y))) out[s.owner]++;
+      if (s.alive && s.def.canCapture && !s.burrowed && s.units.some((u) => p.contains(u.x, u.y))) out[s.owner]++;
     }
     return out;
+  }
+
+  /** Fastest capture rate among a side's squads in the zone (Rangers capture twice as fast). */
+  private captureRate(p: CapturePoint, side: Owner): number {
+    let r = 1;
+    for (const s of this.battle.units.squads) {
+      if (s.alive && s.owner === side && s.def.captureRate && s.units.some((u) => p.contains(u.x, u.y))) r = Math.max(r, s.def.captureRate);
+    }
+    return r;
   }
 
   /** True if any player squad is currently filling a bar (for the capture sound). */
@@ -41,14 +50,16 @@ export class CapturePointSystem {
   }
 
   update(dt: number): void {
-    const rate = dt / CAPTURE.captureTime;
+    const base = dt / CAPTURE.captureTime;
     for (const p of this.points) {
+      const rate = base;
       const n = this.presence(p);
       const present: Owner[] = (['player', 'enemy'] as Owner[]).filter((o) => n[o] > 0);
       p.contested = present.length === 2;
       const before = p.progress;
       if (present.length === 1) {
         const side = present[0];
+        const rate = base * this.captureRate(p, side);
         if (p.owner === side && (p.claimant === side || p.progress <= 0)) {
           p.claimant = side;
           p.progress = Math.min(1, p.progress + rate);

@@ -60,6 +60,19 @@ export class Squad {
   guard: Pt;
   /** Shift-queued destinations after the current path. */
   waypoints: { x: number; y: number; attack: boolean }[] = [];
+  // ---- Role state (driven by SupportSystem) ----
+  /** Underground (Burrowers): invisible to the enemy unless detected. */
+  burrowed = false;
+  /** Seen by an enemy detector this tick. */
+  detected = false;
+  /** Seconds out of combat (burrowing starts after a short calm). */
+  calm = 0;
+  leapCd = 0;
+  /** Structure the engineers were ordered to repair. */
+  repairTarget: Building | null = null;
+  /** Speed bonus from a friendly aura, and until when (battle seconds). */
+  auraSpeed = 0;
+  auraUntil = 0;
   private offsets: Pt[];
   private repathTimer = 0;
   private retargetTimer = 0;
@@ -154,6 +167,7 @@ export class Squad {
 
   /** Move order; with `queue` the destination is appended after the current path (shift-click). */
   moveTo(x: number, y: number, attackMove = false, queue = false): void {
+    this.repairTarget = null;
     if (queue && (this.order === 'move' || this.order === 'attackMove') && (this.path.length || this.waypoints.length)) {
       this.waypoints.push({ x, y, attack: attackMove });
       return;
@@ -218,9 +232,23 @@ export class Squad {
     return this.order === 'retreat';
   }
 
-  /** Movement speed multiplier (retreat sprint). */
+  /** Movement speed multiplier (retreat sprint, burrowing, auras). */
   get speedMult(): number {
-    return this.order === 'retreat' ? 1.5 : 1;
+    let m = this.order === 'retreat' ? 1.5 : 1;
+    if (this.burrowed && this.def.burrow) m *= this.def.burrow.speedMult;
+    if (this.auraUntil > this.battle.elapsed) m *= 1 + this.auraSpeed;
+    return m;
+  }
+
+  /** True if `viewer` cannot see this squad at all (burrowed and undetected). */
+  hiddenFrom(viewer: Owner): boolean {
+    return viewer !== this.owner && this.burrowed && !this.detected;
+  }
+
+  /** Orders engineers to walk over and repair a friendly structure. */
+  repair(b: Building): void {
+    this.stop();
+    this.repairTarget = b;
   }
 
   stop(): void {

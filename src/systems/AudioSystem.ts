@@ -153,6 +153,36 @@ class AudioEngine {
     this.burst(o, 0.08, 'bandpass', 900, 4, 2400);
   }
 
+  /** Flamer: a roaring whoosh of burning promethium. */
+  flamer(vol = 1, pan = 0): void {
+    if (!this.allow('flame', 110)) return;
+    const o = this.out(0.32 * vol, pan);
+    if (!o) return;
+    this.burst(o, 0.28, 'lowpass', 1400, 0.6, 500);
+    this.burst(o, 0.18, 'bandpass', 2600, 0.8, 900);
+  }
+
+  /** Sniper rifle: a hard supersonic crack with a long echo. */
+  sniperShot(vol = 1, pan = 0): void {
+    if (!this.allow('sniper', 120)) return;
+    const o = this.out(0.5 * vol, pan);
+    if (!o) return;
+    this.burst(o, 0.03, 'highpass', 3500, 0.6);
+    this.burst(o, 0.12, 'bandpass', 1200, 1.2, 400);
+    this.tone(o, 'sine', 180, 60, 0.12, 0, 0.6);
+    this.burst(o, 0.5, 'bandpass', 900, 3, 300, 0.12);
+  }
+
+  /** Psychic bolt: a warbling rising hiss. */
+  psychic(vol = 1, pan = 0): void {
+    if (!this.allow('psy', 120)) return;
+    const o = this.out(0.28 * vol, pan);
+    if (!o) return;
+    this.tone(o, 'sawtooth', 220, 660, 0.22, 0, 0.35);
+    this.tone(o, 'sine', 330, 990, 0.26, 0.02, 0.3);
+    this.burst(o, 0.2, 'bandpass', 3000, 4, 5000);
+  }
+
   melee(vol = 1, pan = 0): void {
     if (!this.allow('melee', 90)) return;
     const o = this.out(0.5 * vol, pan);

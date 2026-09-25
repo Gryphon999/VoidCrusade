@@ -30,12 +30,19 @@ export class Unit {
   occluded = false;
   /** Facing in logical space (radians, 0 = east). */
   angle: number;
+  /** Height above ground (leaps), px. */
+  lift = 0;
+  /** Multiplier for the next attack (leap landing, ambush). */
+  strikeMult = 1;
+  /** Active leap arc. */
+  leapArc: { x0: number; y0: number; x1: number; y1: number; t: number; dur: number } | null = null;
   readonly sprite: Phaser.GameObjects.Image;
   private ring: Phaser.GameObjects.Image;
   private shield: Phaser.GameObjects.Image;
   private shadow: Phaser.GameObjects.Image;
   private silhouette: Phaser.GameObjects.Image;
   private aura?: Phaser.GameObjects.Image;
+  private mound?: Phaser.GameObjects.Image;
   private shown = true;
   private frameKey = '';
   private walkT = Math.random() * 10;
@@ -134,8 +141,9 @@ export class Unit {
     if (this.shown === shown) return;
     this.shown = shown;
     this.sprite.setVisible(shown);
-    this.shadow.setVisible(shown);
+    this.shadow.setVisible(shown && !this.squad.burrowed);
     this.aura?.setVisible(shown);
+    this.mound?.setVisible(shown && this.squad.burrowed);
     if (!shown) {
       this.silhouette.setVisible(false);
       this.ring.setVisible(false);
@@ -145,6 +153,40 @@ export class Unit {
 
   get isShown(): boolean {
     return this.shown;
+  }
+
+  /** Underground look: a dirt hump with a faint ghost of the body. */
+  setBurrowed(on: boolean): void {
+    if (on && !this.mound) {
+      const k = Projection.tilt;
+      this.mound = this.sprite.scene.add.image(this.x, Projection.vy(this.y), 'fx_soft').setTint(0x3a2c20).setDepth(DEPTH.shadows + 0.4)
+        .setScale((this.def.size * 3.4) / 32, (this.def.size * 2.2 * k) / 32);
+    }
+    this.mound?.setVisible(on && this.shown);
+    this.sprite.setAlpha(on ? 0.3 : 1);
+    this.shadow.setVisible(!on && this.shown);
+  }
+
+  /** Starts a jump to (x, y); position is driven by the arc until landing. */
+  startLeap(x: number, y: number): void {
+    const d = Math.hypot(x - this.x, y - this.y);
+    this.leapArc = { x0: this.x, y0: this.y, x1: x, y1: y, t: 0, dur: 0.3 + d / 900 };
+    this.angle = Math.atan2(y - this.y, x - this.x);
+  }
+
+  /** Advances a leap; returns true on the frame it lands. */
+  updateLeap(dt: number): boolean {
+    const a = this.leapArc;
+    if (!a) return false;
+    a.t += dt;
+    const f = Math.min(1, a.t / a.dur);
+    this.x = a.x0 + (a.x1 - a.x0) * f;
+    this.y = a.y0 + (a.y1 - a.y0) * f;
+    this.lift = Math.sin(f * Math.PI) * (26 + Math.hypot(a.x1 - a.x0, a.y1 - a.y0) * 0.12);
+    if (f < 1) return false;
+    this.leapArc = null;
+    this.lift = 0;
+    return true;
   }
 
   setCover(cover: boolean): void {
@@ -170,6 +212,8 @@ export class Unit {
     } else if (this.fireT > 0) {
       anim = 'attack';
       frame = 1;
+    } else if (this.leapArc) {
+      anim = 'attack';
     } else if (speed > 12) {
       this.walkT += dt * (speed / this.def.speed) * 9;
       anim = 'walk';
@@ -197,16 +241,18 @@ export class Unit {
   syncSprite(dt = 0): void {
     this.animate(dt);
     const gy = Projection.vy(this.y);
-    this.sprite.setPosition(this.x, gy).setDepth(Projection.depth(this.y));
-    this.shadow.setPosition(this.x + 3, gy + 1);
+    this.sprite.setPosition(this.x, gy - this.lift).setDepth(Projection.depth(this.y));
+    this.shadow.setPosition(this.x + 3 + this.lift * 0.3, gy + 1);
+    this.mound?.setPosition(this.x, gy);
     this.ring.setPosition(this.x, gy);
     this.aura?.setPosition(this.x, gy);
     this.shield.setPosition(this.x, gy - this.height - 8);
-    if (this.occluded) this.silhouette.setPosition(this.x, gy);
+    if (this.occluded) this.silhouette.setPosition(this.x, gy - this.lift);
   }
 
   destroy(): void {
     for (const o of [this.sprite, this.ring, this.shield, this.shadow, this.silhouette]) o.destroy();
     this.aura?.destroy();
+    this.mound?.destroy();
   }
 }

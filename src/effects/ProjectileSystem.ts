@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { DEPTH, UNITS } from '../config';
 import type { ExplosionEffect } from './ExplosionEffect';
 
-export type ProjectileKind = 'bullet' | 'shell' | 'spit' | 'spine';
+export type ProjectileKind = 'bullet' | 'shell' | 'spit' | 'spine' | 'flame' | 'sniper' | 'psy';
 
 interface Shot {
   img: Phaser.GameObjects.Image;
@@ -18,11 +18,14 @@ interface Shot {
   onArrive: () => void;
 }
 
-const LOOK: Record<ProjectileKind, { tex: string; tint: number; add: boolean; arc: number; scale: number }> = {
-  bullet: { tex: 'fx_tracer', tint: 0xffe0a0, add: true, arc: 0, scale: 1 },
-  shell: { tex: 'fx_bolt', tint: 0xffb060, add: true, arc: 0, scale: 1.3 },
-  spit: { tex: 'fx_glob', tint: 0xb0ff60, add: true, arc: 34, scale: 1 },
-  spine: { tex: 'proj_spine', tint: 0xffffff, add: false, arc: 14, scale: 1.2 },
+const LOOK: Record<ProjectileKind, { tex: string; tint: number; add: boolean; arc: number; scale: number; speed: number }> = {
+  bullet: { tex: 'fx_tracer', tint: 0xffe0a0, add: true, arc: 0, scale: 1, speed: 1 },
+  shell: { tex: 'fx_bolt', tint: 0xffb060, add: true, arc: 0, scale: 1.3, speed: 1 },
+  spit: { tex: 'fx_glob', tint: 0xb0ff60, add: true, arc: 34, scale: 1, speed: 1 },
+  spine: { tex: 'proj_spine', tint: 0xffffff, add: false, arc: 14, scale: 1.2, speed: 1 },
+  flame: { tex: 'fx_soft', tint: 0xffa040, add: true, arc: 4, scale: 0.5, speed: 0.55 },
+  sniper: { tex: 'fx_tracer', tint: 0xe0f4ff, add: true, arc: 0, scale: 1.8, speed: 3 },
+  psy: { tex: 'fx_glob', tint: 0xd070ff, add: true, arc: 16, scale: 1.2, speed: 0.8 },
 };
 
 /** Pooled projectiles in view space: straight tracers/bolts, arcing globs and spines, with trails. */
@@ -31,6 +34,9 @@ export class ProjectileSystem {
   private live: Shot[] = [];
   private smoke: Phaser.GameObjects.Particles.ParticleEmitter;
   private acid: Phaser.GameObjects.Particles.ParticleEmitter;
+  private flame: Phaser.GameObjects.Particles.ParticleEmitter;
+  private streak: Phaser.GameObjects.Particles.ParticleEmitter;
+  private psy: Phaser.GameObjects.Particles.ParticleEmitter;
 
   constructor(private scene: Phaser.Scene, private explosions: ExplosionEffect) {
     this.smoke = scene.add.particles(0, 0, 'fx_soft', {
@@ -38,6 +44,18 @@ export class ProjectileSystem {
     }).setDepth(DEPTH.projectiles - 1);
     this.acid = scene.add.particles(0, 0, 'fx_dot', {
       emitting: false, scale: { start: 0.35, end: 0 }, alpha: { start: 0.8, end: 0 }, lifespan: 300, tint: 0x90ff40,
+      blendMode: Phaser.BlendModes.ADD,
+    }).setDepth(DEPTH.projectiles - 1);
+    this.flame = scene.add.particles(0, 0, 'fx_soft', {
+      emitting: false, scale: { start: 0.25, end: 0.8 }, alpha: { start: 0.9, end: 0 }, lifespan: { min: 180, max: 320 },
+      tint: [0xffe080, 0xffa030, 0xff5010], speed: { min: 5, max: 30 }, blendMode: Phaser.BlendModes.ADD,
+    }).setDepth(DEPTH.projectiles - 1);
+    this.streak = scene.add.particles(0, 0, 'fx_dot', {
+      emitting: false, scale: { start: 0.22, end: 0.05 }, alpha: { start: 0.7, end: 0 }, lifespan: 260, tint: 0xd8ecff,
+      blendMode: Phaser.BlendModes.ADD,
+    }).setDepth(DEPTH.projectiles - 1);
+    this.psy = scene.add.particles(0, 0, 'fx_dot', {
+      emitting: false, scale: { start: 0.4, end: 0 }, alpha: { start: 0.9, end: 0 }, lifespan: 340, tint: [0xd070ff, 0x9040ff],
       blendMode: Phaser.BlendModes.ADD,
     }).setDepth(DEPTH.projectiles - 1);
   }
@@ -51,7 +69,7 @@ export class ProjectileSystem {
     const dist = Phaser.Math.Distance.Between(from.x, from.y, to.x, to.y);
     this.live.push({
       img, kind, x0: from.x, y0: from.y, x1: to.x, y1: to.y, t: 0,
-      dur: Math.max(0.06, dist / UNITS.projectileSpeed), arc: look.arc * Math.min(1, dist / 250), trailT: 0, onArrive,
+      dur: Math.max(0.06, dist / (UNITS.projectileSpeed * look.speed)), arc: look.arc * Math.min(1, dist / 250), trailT: 0, onArrive,
     });
     this.place(this.live[this.live.length - 1]);
   }
@@ -78,6 +96,15 @@ export class ProjectileSystem {
         } else if (s.kind === 'spit') {
           s.trailT = 0.025;
           this.acid.emitParticleAt(s.img.x, s.img.y, 1);
+        } else if (s.kind === 'flame') {
+          s.trailT = 0.014;
+          this.flame.emitParticleAt(s.img.x + (Math.random() - 0.5) * 6, s.img.y + (Math.random() - 0.5) * 6, 1);
+        } else if (s.kind === 'sniper') {
+          s.trailT = 0.004;
+          this.streak.emitParticleAt(s.img.x, s.img.y, 1);
+        } else if (s.kind === 'psy') {
+          s.trailT = 0.02;
+          this.psy.emitParticleAt(s.img.x, s.img.y, 1);
         }
       }
       if (s.t < s.dur) continue;
@@ -85,6 +112,8 @@ export class ProjectileSystem {
       s.img.setVisible(false);
       this.pool.push(s.img);
       if (s.kind === 'shell') this.explosions.impact(s.x1, s.y1);
+      else if (s.kind === 'flame') this.flame.emitParticleAt(s.x1, s.y1, 4);
+      else if (s.kind === 'psy') this.psy.emitParticleAt(s.x1, s.y1, 6);
       s.onArrive();
     }
   }

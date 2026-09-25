@@ -8,9 +8,10 @@ import { Building } from '../buildings/Building';
 import type { BattleScene } from '../scenes/BattleScene';
 import { Projection } from '../render/Projection';
 import { DamageType, damageMult } from './Damage';
+import { ProjectileLook } from './UnitDefs';
 
 export type Victim = Unit | Building;
-type ProjKind = 'bullet' | 'shell' | 'spit' | 'melee' | 'spine';
+type ProjKind = ProjectileLook | 'spine';
 
 /** Weapon fire for squads and turrets: target selection, projectiles, damage application. */
 export class CombatSystem {
@@ -21,19 +22,23 @@ export class CombatSystem {
     for (const s of this.battle.units.squads) {
       if (!s.alive || s.order === 'move' || s.order === 'retreat') continue;
       const t = s.engaged;
-      if (!t) {
+      if (!t || s.burrowed || (isSquad(t) && t.hiddenFrom(s.owner))) {
         for (const u of s.units) u.cooldown = Math.max(0, u.cooldown - dt);
+        if (t && isSquad(t) && t.hiddenFrom(s.owner)) s.target = null;
         continue;
       }
       for (const u of s.units) {
         u.cooldown -= dt;
-        if (u.cooldown > 0) continue;
-        const victim = isSquad(t) ? this.nearestUnit(t, u.x, u.y) : t;
+        if (u.cooldown > 0 || u.leapArc) continue;
+        const victim = isSquad(t) ? (u.def.precision ? this.weakestUnit(t) : this.nearestUnit(t, u.x, u.y)) : t;
         if (!victim) continue;
         const reach = u.def.range + victim.radius;
-        if (Phaser.Math.Distance.Between(u.x, u.y, victim.x, victim.y) > reach) continue;
+        const dist = Phaser.Math.Distance.Between(u.x, u.y, victim.x, victim.y);
+        if (dist > reach) continue;
         u.cooldown = u.def.cooldown * Phaser.Math.FloatBetween(0.85, 1.15);
-        const dmg = u.def.damage * this.battle.modifiers[u.owner].damageMult;
+        let dmg = u.def.damage * this.battle.modifiers[u.owner].damageMult * u.strikeMult;
+        u.strikeMult = 1;
+        if (u.def.precision && dist < u.def.precision.closeRange) dmg *= 0.5;
         u.face(victim.x, victim.y);
         u.playAttack();
         this.fire(u.x, u.y, u.owner, victim, dmg, u.def.projectile, u.squad, u.aimPoint(), u.def.damageType);
@@ -57,6 +62,13 @@ export class CombatSystem {
     }
   }
 
+  /** Precision targeting: the lowest-HP soldier (heroes are single-soldier squads, so they are always picked). */
+  weakestUnit(s: Squad): Unit | null {
+    let best: Unit | null = null;
+    for (const u of s.units) if (!best || u.hp < best.hp) best = u;
+    return best;
+  }
+
   nearestUnit(s: Squad, x: number, y: number): Unit | null {
     let best: Unit | null = null;
     let bestD = Infinity;
@@ -75,7 +87,7 @@ export class CombatSystem {
     let best: Unit | null = null;
     let bestD = range;
     for (const s of this.battle.units.squads) {
-      if (s.owner !== enemy || !s.alive) continue;
+      if (s.owner !== enemy || !s.alive || s.hiddenFrom(owner)) continue;
       for (const u of s.units) {
         const d = Phaser.Math.Distance.Between(x, y, u.x, u.y);
         if (d < bestD) {
@@ -129,7 +141,8 @@ export class CombatSystem {
       this.battle.buildings.damage(victim, dmg);
       return;
     }
-    const mult = (this.battle.cover?.damageMultiplier(victim) ?? 1) * (victim.squad.retreating ? 0.6 : 1);
+    const cover = from?.def.ignoresCover ? 1 : this.battle.cover?.damageMultiplier(victim) ?? 1;
+    const mult = cover * (victim.squad.retreating ? 0.6 : 1);
     const killed = victim.takeDamage(dmg * mult);
     const squad = victim.squad;
     if (from && from.alive && squad.alive && !squad.engaged && squad.order !== 'move') squad.target = from;

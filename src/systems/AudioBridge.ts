@@ -48,6 +48,9 @@ export class AudioBridge {
       if (kind === 'bullet') AudioSystem.rifleShot(v, p);
       else if (kind === 'shell') AudioSystem.heavyShot(v, p);
       else if (kind === 'melee') AudioSystem.melee(v, p);
+      else if (kind === 'flame') AudioSystem.flamer(v, p);
+      else if (kind === 'sniper') AudioSystem.sniperShot(v, p);
+      else if (kind === 'psy') AudioSystem.psychic(v, p);
       else AudioSystem.spit(v, p);
     });
   }
@@ -64,10 +67,10 @@ export class AudioBridge {
     const view = this.battle.cameraSystem.visibleWorldRect();
     // Footfalls of heavy units and clanks from construction sites on screen.
     for (const sq of this.battle.units.squads) {
-      if (sq.def.id !== 'heavy' && sq.def.id !== 'commander' && sq.def.id !== 'behemoth') continue;
+      if (!['heavy', 'commander', 'behemoth', 'overlord', 'breacher'].includes(sq.def.id)) continue;
       const u = sq.units.find((q) => Math.hypot(q.vx, q.vy) > 12 && view.contains(q.x, q.y) && q.isShown);
       if (u) {
-        this.spatial(u.x, u.y, (v, p) => AudioSystem.footstep(v, p, sq.def.id === 'behemoth'));
+        this.spatial(u.x, u.y, (v, p) => AudioSystem.footstep(v, p, sq.def.id === 'behemoth' || sq.def.id === 'overlord'));
         break;
       }
     }

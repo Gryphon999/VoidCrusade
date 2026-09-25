@@ -84,7 +84,8 @@ export class FogOfWarSystem implements FogQueries {
   private applyVisibility(): void {
     for (const s of this.battle.units.squads) {
       if (s.owner !== 'enemy') continue;
-      for (const u of s.units) u.setShown(this.isVisibleWorld(u.x, u.y));
+      const hidden = s.hiddenFrom('player');
+      for (const u of s.units) u.setShown(!hidden && this.isVisibleWorld(u.x, u.y));
     }
     for (const b of this.battle.buildings.buildings) {
       if (b.owner !== 'enemy') continue;

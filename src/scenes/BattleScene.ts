@@ -20,6 +20,7 @@ import { BuildingSystem } from '../buildings/BuildingSystem';
 import { BuildingPlacementUI } from '../buildings/BuildingPlacementUI';
 import { UnitSystem } from '../units/UnitSystem';
 import { CombatSystem } from '../units/CombatSystem';
+import { SupportSystem } from '../units/SupportSystem';
 import { Unit } from '../units/Unit';
 import { Squad } from '../units/Squad';
 import { RESOURCES, SUPPLY } from '../config';
@@ -63,6 +64,7 @@ export class BattleScene extends Phaser.Scene {
   pathfinder!: Pathfinder;
   units!: UnitSystem;
   combat!: CombatSystem;
+  support!: SupportSystem;
   production!: ProductionSystem;
   research!: ResearchSystem;
   tech!: TechSystem;
@@ -115,6 +117,7 @@ export class BattleScene extends Phaser.Scene {
     this.buildings.buildSpeed.player = this.modifiers.player.buildSpeedMult;
     this.units = new UnitSystem(this);
     this.combat = new CombatSystem(this);
+    this.support = new SupportSystem(this);
     this.production = new ProductionSystem(this);
     this.research = new ResearchSystem(this);
     this.tech = new TechSystem(this, this.factions);
@@ -132,6 +135,7 @@ export class BattleScene extends Phaser.Scene {
     this.production.spawnFrom(hq, 'commander');
     this.production.spawnFrom(hq, 'rifleman');
     hive.rally = { x: hive.x - 120, y: hive.y + 160 };
+    this.production.spawnFrom(hive, 'overlord');
     this.production.spawnFrom(hive, 'crawler');
     this.ai = new AIController(this, data.difficulty ?? 'normal');
     this.fog = new FogOfWarSystem(this);
@@ -192,6 +196,7 @@ export class BattleScene extends Phaser.Scene {
     this.tech.update(dt);
     this.units.update(dt);
     this.combat.update(dt);
+    this.support.update(dt);
     this.cover?.update(dt);
     this.capture.update(dt);
     this.ai.update(dt);

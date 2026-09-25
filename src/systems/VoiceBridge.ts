@@ -3,6 +3,7 @@ import { EV } from '../events';
 import { MessageKey, dyn } from '../i18n';
 import { Voice, Speaker } from './VoiceSystem';
 import { Squad } from '../units/Squad';
+import { UnitId } from '../units/UnitDefs';
 import { Building } from '../buildings/Building';
 import { Unit } from '../units/Unit';
 import { CapturePoint } from './CapturePoint';
@@ -11,8 +12,12 @@ import { Owner } from '../types';
 import { Settings } from './Settings';
 import type { BattleScene } from '../scenes/BattleScene';
 
+const SPEAKERS: Partial<Record<UnitId, Speaker>> = {
+  commander: 'commander', heavy: 'heavy', ranger: 'ranger', breacher: 'breacher', marksman: 'marksman', engineer: 'engineer',
+};
+
 export function speakerFor(s: Squad): Speaker {
-  return s.def.id === 'commander' ? 'commander' : s.def.id === 'heavy' ? 'heavy' : 'rifleman';
+  return SPEAKERS[s.def.id] ?? 'rifleman';
 }
 
 /** Hooks battle events to voice lines (announcer alerts and squad acknowledgements). */
@@ -48,6 +53,11 @@ export class VoiceBridge {
     if (now - this.lastAlarm < 20000) return;
     this.lastAlarm = now;
     Voice.say('vo.underAttack', 'announcer', 'alert');
+  }
+
+  static repair(s: Squad): boolean {
+    if (!Settings.get().voiceEnabled || !Voice.hasVoice()) return false;
+    return Voice.say('vo.repair', speakerFor(s), 'ack', false);
   }
 
   static retreat(s: Squad): void {

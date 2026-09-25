@@ -23,6 +23,7 @@ export class EffectsSystem {
   readonly projectiles: ProjectileSystem;
   private flashes: Phaser.GameObjects.Particles.ParticleEmitter;
   private casings: Phaser.GameObjects.Particles.ParticleEmitter;
+  private sparkFx: Phaser.GameObjects.Particles.ParticleEmitter;
   private dustFx: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly detail = GFX[Settings.get().graphics].particleMult;
 
@@ -43,6 +44,10 @@ export class EffectsSystem {
     this.dustFx = scene.add.particles(0, 0, 'fx_soft', {
       emitting: false, lifespan: 600, speed: { min: 10, max: 40 }, scale: { start: 0.4, end: 1.2 }, alpha: { start: 0.45, end: 0 },
       tint: 0x8a7a66,
+    }).setDepth(DEPTH.effects);
+    this.sparkFx = scene.add.particles(0, 0, 'fx_dot', {
+      emitting: false, lifespan: { min: 200, max: 420 }, speed: { min: 40, max: 140 }, angle: { min: 200, max: 340 },
+      gravityY: 380, scale: { start: 0.28, end: 0 }, tint: [0xfff0a0, 0xffb040], blendMode: Phaser.BlendModes.ADD,
     }).setDepth(DEPTH.effects);
     const ev = scene.events;
     ev.on(EV.unitDied, (x: number, y: number, u: Unit) => this.onDeath(x, y, u));
@@ -88,13 +93,19 @@ export class EffectsSystem {
 
   /** Muzzle flash sprite + light, and a spent casing for kinetic weapons (view space). */
   muzzle(x: number, y: number, kind: string, towardX: number): void {
-    const col = kind === 'spit' ? 0x80ff50 : kind === 'spine' ? 0xd070ff : 0xffc060;
-    this.lights.flash(x, y + 6, kind === 'shell' ? 60 : 36, col, 90, 0.7);
-    if (kind === 'bullet' || kind === 'shell') {
+    const col = kind === 'spit' ? 0x80ff50 : kind === 'spine' || kind === 'psy' ? 0xd070ff : kind === 'flame' ? 0xff8030 : 0xffc060;
+    this.lights.flash(x, y + 6, kind === 'shell' || kind === 'flame' ? 60 : kind === 'sniper' ? 50 : 36, col, 90, 0.7);
+    if (kind === 'bullet' || kind === 'shell' || kind === 'sniper') {
       this.flashes.emitParticleAt(x, y, 1);
       this.casings.speedX = towardX > 0 ? -40 : 40;
       if (Math.random() < 0.6 * this.detail) this.casings.emitParticleAt(x, y, 1);
     }
+  }
+
+  /** Welding sparks (engineer repairs). */
+  sparks(x: number, y: number): void {
+    this.sparkFx.emitParticleAt(x, y, 4);
+    this.lights.flash(x, y, 26, 0xffd080, 80, 0.5);
   }
 
   /** Dust kicked up where a shot hits rock. */

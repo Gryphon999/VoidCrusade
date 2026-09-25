@@ -204,6 +204,17 @@ export class InputController {
     const w = this.world(p);
     if (sel.hasSquads) {
       const enemy = this.enemyAt(p);
+      const v = this.view(p);
+      const own = enemy ? undefined : this.battle.buildings.buildingAtView(v.x, v.y);
+      const fixers = own && own.owner === 'player' && (own.hp < own.maxHp || !own.isReady) ? sel.squads.filter((s) => s.def.repairRate) : [];
+      if (own && fixers.length) {
+        fixers.forEach((s) => s.repair(own));
+        const rest = sel.squads.filter((s) => !fixers.includes(s));
+        if (rest.length) this.moveSquads(rest, w.x, w.y, false, isShift(p));
+        this.battle.effects.orderMarker(own.x, own.y, false);
+        if (!VoiceBridge.repair(fixers[0])) this.acknowledge('move');
+        return;
+      }
       if (enemy) sel.squads.forEach((s) => s.attack(enemy));
       else this.moveSquads(sel.squads, w.x, w.y, false, isShift(p));
       this.battle.effects.orderMarker(w.x, w.y, !!enemy);

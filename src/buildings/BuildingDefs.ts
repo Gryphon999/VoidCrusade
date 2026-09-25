@@ -36,6 +36,8 @@ export interface BuildingDef {
   requires: BuildingRole[];
   produces: UnitId[];
   attack?: { damage: number; range: number; cooldown: number; damageType: DamageType };
+  /** Reveals burrowed enemies within this radius. */
+  detector?: number;
   /** HP regenerated per second (Null Horde structures). */
   regen?: number;
   description: string;
@@ -46,7 +48,7 @@ const Z: Resources = { scrip: 0, flux: 0 };
 export const BUILDING_DEFS: Record<BuildingId, BuildingDef> = {
   stronghold: {
     id: 'stronghold', name: 'Command Bastion', faction: 'ironvoid', role: 'hq', category: 'economy', tier: 1, cost: Z, fluxGen: 0, hp: 3000,
-    buildTime: 0, size: 4, height: 96, buildRadius: 12, requires: [], produces: ['commander'], supply: 10,
+    buildTime: 0, size: 4, height: 96, buildRadius: 12, requires: [], produces: ['commander', 'engineer'], supply: 10,
     description: 'Starting HQ. If it falls, the crusade is lost.',
   },
   generator: {
@@ -61,8 +63,8 @@ export const BUILDING_DEFS: Record<BuildingId, BuildingDef> = {
   },
   barracks: {
     id: 'barracks', name: 'Assault Barracks', faction: 'ironvoid', role: 'infantry', category: 'military', tier: 1, cost: { scrip: 150, flux: 50 },
-    fluxGen: 0, hp: 1000, buildTime: 15, size: 3, height: 62, buildRadius: 10, requires: ['power'], produces: ['rifleman'],
-    description: 'Trains Void Riflemen squads.',
+    fluxGen: 0, hp: 1000, buildTime: 15, size: 3, height: 62, buildRadius: 10, requires: ['power'], produces: ['rifleman', 'ranger', 'breacher', 'marksman'],
+    description: 'Trains Riflemen, Rangers, Breachers and Marksmen.',
   },
   mechanis: {
     id: 'mechanis', name: 'Mechanis Bay', faction: 'ironvoid', role: 'heavy', category: 'military', tier: 2, cost: { scrip: 200, flux: 100 },
@@ -87,7 +89,7 @@ export const BUILDING_DEFS: Record<BuildingId, BuildingDef> = {
   },
   hive: {
     id: 'hive', name: 'Null Hive', faction: 'nullhorde', role: 'hq', category: 'economy', tier: 1, cost: Z, fluxGen: 0, hp: 3000, buildTime: 0,
-    size: 4, height: 84, buildRadius: 12, requires: [], produces: [], supply: 10, regen: 4, description: 'Heart of the swarm.',
+    size: 4, height: 84, buildRadius: 12, requires: [], produces: ['overlord', 'shaman'], supply: 10, regen: 4, description: 'Heart of the swarm.',
   },
   spire: {
     id: 'spire', name: 'Flux Spire', faction: 'nullhorde', role: 'power', category: 'economy', tier: 1, cost: { scrip: 100, flux: 0 }, fluxGen: 10,
@@ -101,13 +103,13 @@ export const BUILDING_DEFS: Record<BuildingId, BuildingDef> = {
   },
   brood: {
     id: 'brood', name: 'Brood Pit', faction: 'nullhorde', role: 'infantry', category: 'military', tier: 1, cost: { scrip: 150, flux: 50 },
-    fluxGen: 0, hp: 900, buildTime: 15, size: 3, height: 38, buildRadius: 10, requires: ['power'], produces: ['crawler'],
-    regen: 3, description: 'Spawns Void Crawlers.',
+    fluxGen: 0, hp: 900, buildTime: 15, size: 3, height: 38, buildRadius: 10, requires: ['power'], produces: ['crawler', 'spitter', 'leaper'],
+    regen: 3, description: 'Spawns Crawlers, Spitters and Leapers.',
   },
   maw: {
     id: 'maw', name: 'Gestation Maw', faction: 'nullhorde', role: 'heavy', category: 'military', tier: 2, cost: { scrip: 200, flux: 100 },
     fluxGen: 0, hp: 1100, buildTime: 20, size: 3, height: 60, buildRadius: 10, requires: ['power', 'infantry'],
-    produces: ['behemoth'], regen: 3, description: 'Births Null Behemoths.',
+    produces: ['behemoth', 'burrower'], regen: 3, description: 'Births Behemoths and Burrowers.',
   },
   spine: {
     id: 'spine', name: 'Spine Tower', faction: 'nullhorde', role: 'defense', category: 'defense', tier: 1, cost: { scrip: 75, flux: 50 },
