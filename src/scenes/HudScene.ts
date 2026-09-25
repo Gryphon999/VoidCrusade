@@ -11,6 +11,8 @@ import { HUD } from '../ui/HudArt';
 import { showEndScreen } from '../ui/EndScreen';
 import { PauseMenu } from '../ui/PauseMenu';
 import { ResearchTree } from '../ui/ResearchTree';
+import { HintToast } from '../ui/HintToast';
+import { TutorialOverlay } from '../tutorial/TutorialOverlay';
 import { CONTROL_HOLD, SURVIVAL_WAVES } from '../systems/VictorySystem';
 import { textStyle } from '../ui/uiStyle';
 import { CursorKind, getCursors } from '../assets/Cursors';
@@ -45,6 +47,8 @@ export class HudScene extends Phaser.Scene {
   private pause!: PauseMenu;
   private tree!: ResearchTree;
   private objective!: Phaser.GameObjects.Text;
+  private tutorial: TutorialOverlay | null = null;
+  private hints!: HintToast;
   private treeTick = 0;
   private tooltip!: Tooltip;
   private notes!: Notifications;
@@ -86,16 +90,27 @@ export class HudScene extends Phaser.Scene {
     this.notes = new Notifications(this);
     this.pause = new PauseMenu(this, this.battle);
     this.tree = new ResearchTree(this, this.battle);
+    this.tutorial = this.battle.tutorial ? new TutorialOverlay(this, this.battle, this.battle.tutorial) : null;
     this.objective = this.add.text(GAME_WIDTH / 2, HUD.topH + 10, '', textStyle(15, HUD.goldHi)).setOrigin(0.5, 0).setStroke('#000', 4);
     this.addBlocker(new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT - HUD.bottomH), () => this.tree.isOpen);
     this.addBlocker(new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT), () => this.pause.isOpen);
     this.topBar.pauseButton.on('pointerdown', () => this.pause.toggle());
     this.input.keyboard?.on('keydown-P', () => this.pause.toggle());
     this.input.keyboard?.on('keydown-F10', () => this.pause.toggle());
+    // F1: encyclopedia over a paused battle.
+    this.input.keyboard?.on('keydown-F1', (e: KeyboardEvent) => {
+      e.preventDefault();
+      if (this.scene.isActive('EncyclopediaScene') || this.pause.isOpen || this.ended) return;
+      this.battle.scene.pause();
+      this.scene.launch('EncyclopediaScene', { onClose: () => this.battle.scene.resume() });
+      this.scene.bringToTop('EncyclopediaScene');
+    });
     this.input.keyboard?.on('keydown-ESC', () => {
       if (this.tree.isOpen) this.tree.close();
       else if (this.page && !this.battle.placement.isActive) this.setPage(null);
     });
+    this.hints = new HintToast(this, this.battle);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.hints.destroy());
     this.panel.refresh();
     this.wireEvents();
     // Language switch: rebuild the HUD in place (keeping the pause menu open if the battle is paused).
@@ -180,6 +195,7 @@ export class HudScene extends Phaser.Scene {
 
   /** True if a screen point is over an active HUD element. */
   isOverUI(x: number, y: number): boolean {
+    if (this.tutorial?.contains(x, y)) return true;
     return this.blockers.some((b) => b.active() && b.rect.contains(x, y));
   }
 
@@ -199,6 +215,10 @@ export class HudScene extends Phaser.Scene {
     this.selectedBefore = sel;
     this.panel.refresh();
     this.refreshCommands();
+  }
+
+  pageIs(p: CommandPage): boolean {
+    return this.page === p;
   }
 
   openTree(from?: Building): void {
@@ -230,7 +250,9 @@ export class HudScene extends Phaser.Scene {
     return '';
   }
 
-  update(): void {
+  update(_time: number, delta: number): void {
+    this.tutorial?.update(delta / 1000);
+    this.hints.update(delta / 1000);
     this.grain?.setTilePosition(Math.random() * 256, Math.random() * 256);
     this.notes.update();
     if (this.ended) return;

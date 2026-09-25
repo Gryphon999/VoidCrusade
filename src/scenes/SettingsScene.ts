@@ -29,7 +29,7 @@ export class SettingsScene extends Phaser.Scene {
     this.data0 = data;
     const s = Settings.get();
     const w = 820;
-    const h = 580;
+    const h = 680;
     const x = (GAME_WIDTH - w) / 2;
     const y = (GAME_HEIGHT - h) / 2;
     this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.6).setOrigin(0).setInteractive();
@@ -72,6 +72,14 @@ export class SettingsScene extends Phaser.Scene {
         shake.setLabel(t('settings.shake', { v: onOff(Settings.get().screenShake) }));
       },
     });
+    const hints = new Button(this, {
+      x: R + 140, y: ry + 114, w: 280, h: 34, label: t('settings.hints', { v: onOff(Settings.get().hints !== false) }),
+      onClick: () => {
+        Settings.set({ hints: Settings.get().hints === false });
+        hints.setLabel(t('settings.hints', { v: onOff(Settings.get().hints !== false) }));
+      },
+    });
+    new Button(this, { x: R + 140, y: ry + 158, w: 280, h: 34, label: t('settings.hintsReset'), onClick: () => Settings.set({ hintsSeen: [], hints: true, tutorialPrompted: false }) });
     this.addLeftRows(L);
     new Button(this, { x: GAME_WIDTH / 2, y: y + h - 34, w: 180, h: 38, label: t('common.close'), onClick: () => this.close() });
     this.input.keyboard?.once('keydown-ESC', () => this.close());

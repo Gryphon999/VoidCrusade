@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH, GOTHIC_FONT } from '../config';
-import { onLanguageChange, t } from '../i18n';
+import { headingFont, onLanguageChange, t } from '../i18n';
 import { CampaignState } from '../campaign/CampaignState';
 import { MenuBackground } from '../ui/MenuBackground';
 import { Button } from '../ui/Button';
-import { textStyle } from '../ui/uiStyle';
+import { drawPanel, textStyle } from '../ui/uiStyle';
+import { Settings } from '../systems/Settings';
 import { SkirmishSetup } from '../ui/SkirmishSetup';
 import { Ambience } from '../systems/Ambience';
 
@@ -45,15 +46,48 @@ export class MenuScene extends Phaser.Scene {
       [t('menu.newCampaign'), () => this.go('CampaignScene', { fresh: true })],
       ...(hasSave ? [[t('menu.continue'), () => this.go('CampaignScene', {})] as [string, () => void]] : []),
       [t('menu.skirmish'), () => this.openSkirmish()],
+      [t('menu.tutorial'), () => this.go('BattleScene', { mode: 'tutorial', difficulty: 'easy' })],
+      [t('menu.encyclopedia'), () => this.openEncyclopedia()],
       [t('menu.settings'), () => this.openSettings()],
     ];
     items.forEach(([label, fn], i) => {
-      const b = new Button(this, { x: GAME_WIDTH / 2, y: 360 + i * 62, w: 300, h: 48, label, onClick: () => !this.busy && fn() });
+      const b = new Button(this, { x: GAME_WIDTH / 2, y: 330 + i * 54, w: 300, h: 44, label, onClick: () => !this.busy && fn() });
       b.container.setAlpha(0);
       this.tweens.add({ targets: b.container, alpha: 1, duration: 500, delay: 900 + i * 120 });
     });
     this.add.text(GAME_WIDTH - 12, GAME_HEIGHT - 10, t('menu.hint'),
       textStyle(12, '#667')).setOrigin(1, 1);
+    this.input.keyboard?.on('keydown-F1', () => !this.busy && this.openEncyclopedia());
+    if (!Settings.get().tutorialPrompted) this.time.delayedCall(1600, () => this.promptTutorial());
+  }
+
+  /** Asked once per profile: offer the tutorial to new players. */
+  private promptTutorial(): void {
+    if (this.busy) return;
+    Settings.set({ tutorialPrompted: true });
+    this.busy = true;
+    const root = this.add.container(0, 0).setDepth(300);
+    const dim = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.6).setOrigin(0).setInteractive();
+    const g = this.add.graphics();
+    drawPanel(g, GAME_WIDTH / 2 - 260, GAME_HEIGHT / 2 - 110, 520, 220);
+    const title = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60, t('prompt.title'), { fontFamily: headingFont(), fontSize: '30px', color: '#ffd060' }).setOrigin(0.5);
+    const body = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 12, t('prompt.body'), { ...textStyle(15, '#d8d0c0'), align: 'center', wordWrap: { width: 460 } }).setOrigin(0.5);
+    const yes = new Button(this, { x: GAME_WIDTH / 2 - 110, y: GAME_HEIGHT / 2 + 60, w: 190, h: 42, label: t('prompt.yes'), onClick: () => {
+      root.destroy();
+      this.busy = false;
+      this.go('BattleScene', { mode: 'tutorial', difficulty: 'easy' });
+    } });
+    const no = new Button(this, { x: GAME_WIDTH / 2 + 110, y: GAME_HEIGHT / 2 + 60, w: 190, h: 42, label: t('prompt.no'), onClick: () => {
+      root.destroy();
+      this.busy = false;
+    } });
+    root.add([dim, g, title, body, yes.container, no.container]);
+  }
+
+  private openEncyclopedia(): void {
+    this.busy = true;
+    this.scene.launch('EncyclopediaScene', { onClose: () => (this.busy = false) });
+    this.scene.bringToTop('EncyclopediaScene');
   }
 
   private go(key: string, data: object): void {

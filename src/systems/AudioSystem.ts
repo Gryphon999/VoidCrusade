@@ -269,6 +269,14 @@ class AudioEngine {
     base.forEach((f, i) => this.tone(o, 'sine', f, f * 1.01, 0.9, i * 0.12, 0.6));
   }
 
+  /** Soft two-note bell for tips and tutorial steps. */
+  hint(): void {
+    if (!this.allow('hint', 400)) return;
+    const o = this.out(0.18);
+    if (!o) return;
+    [880, 1174.7].forEach((f, i) => this.tone(o, 'sine', f, f, 0.5, i * 0.1, 0.6));
+  }
+
   uiClick(): void {
     if (!this.allow('click', 30)) return;
     const o = this.out(0.25);

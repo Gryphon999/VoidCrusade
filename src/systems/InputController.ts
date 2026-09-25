@@ -246,6 +246,7 @@ export class InputController {
     }
     this.lastGroupTap = { n, at: now };
     b.selection.selectSquads(g);
+    b.events.emit(EV.groupRecalled, n);
   }
 
   /** Selects and centres on the next player squad with nothing to do. */
@@ -383,6 +384,7 @@ export class InputController {
 
   /** Spreads several squads in a grid around the destination; `queue` appends a waypoint. */
   moveSquads(squads: Squad[], x: number, y: number, attackMove: boolean, queue = false): void {
+    if (squads.some((s) => s.owner === 'player')) this.battle.events.emit(EV.orderGiven);
     const cols = Math.ceil(Math.sqrt(squads.length));
     const spacing = 90;
     squads.forEach((s, i) => {

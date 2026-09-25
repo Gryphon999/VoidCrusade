@@ -35,7 +35,11 @@ export class AIController {
     this.raidTimer = this.profile.raidInterval + AI.buildPhase * 0.5;
   }
 
+  /** Off in the tutorial (the outpost just defends itself). */
+  enabled = true;
+
   update(dt: number): void {
+    if (!this.enabled) return;
     this.raidTimer -= dt;
     this.thinkTimer -= dt;
     if (this.thinkTimer > 0) return;

@@ -4,6 +4,7 @@ import { Squad } from '../units/Squad';
 import { Building } from '../buildings/Building';
 import { portraitKey } from '../render/puppet/UnitAtlas';
 import { buildingIconKey } from '../render/buildings/BuildingArt';
+import { ABILITIES } from '../units/Abilities';
 import { RESEARCH_DEFS } from '../systems/ResearchSystem';
 import { HUD } from './HudArt';
 import { researchGlyph } from './GlyphIcons';
@@ -96,6 +97,15 @@ export class SelectionPanel {
     const cards = this.scene.add.container(0, 0);
     this.content.add(cards);
     this.upgrades(P.y + P.h - 14);
+    const abIds = [...new Set(squads.flatMap((q) => q.def.abilities ?? []))].slice(0, 3);
+    const abY = P.y + P.h - 18;
+    const abX = (i: number): number => P.x + P.w - 26 - (abIds.length - 1 - i) * 32;
+    abIds.forEach((id, i) => {
+      const frame = this.scene.add.rectangle(abX(i), abY, 28, 28, 0x0a0c12).setStrokeStyle(1, 0xc9a044);
+      const img = this.scene.add.image(abX(i), abY, ABILITIES[id].icon);
+      img.setScale(Math.min(24 / img.width, 24 / img.height));
+      this.content.add([frame, img]);
+    });
     const units = this.battle.units;
     let lastKey = '';
     this.updater = (): void => {
@@ -140,6 +150,16 @@ export class SelectionPanel {
         });
       }
       items.slice(0, 12).forEach((it, i) => this.bar(INFO_X + i * 34 + 1, P.y + 108, 28, 3, it.f));
+      // Cooldown sweep over each ability icon (the shortest cooldown among the selected casters).
+      abIds.forEach((id, i) => {
+        const casters = alive.filter((q) => q.def.abilities?.includes(id));
+        if (!casters.length) return;
+        const left = Math.min(...casters.map((q) => this.battle.abilities.cooldownLeft(q, id)));
+        if (left <= 0) return;
+        const f = left / ABILITIES[id].cooldown;
+        const a0 = -Math.PI / 2;
+        this.bars.fillStyle(0x000000, 0.62).slice(abX(i), abY, 14, a0, a0 + f * Math.PI * 2, false).fillPath();
+      });
     };
   }
 

@@ -31,8 +31,8 @@ export class PauseMenu {
     const root = this.scene.add.container(0, 0).setDepth(450);
     const dim = this.scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.55).setOrigin(0).setInteractive();
     const g = this.scene.add.graphics();
-    drawPanel(g, cx - 170, cy - 150, 340, 300);
-    const title = this.scene.add.text(cx, cy - 105, t('pause.title'), { fontFamily: headingFont(), fontSize: '48px', color: '#ffd060' }).setOrigin(0.5);
+    drawPanel(g, cx - 170, cy - 180, 340, 380);
+    const title = this.scene.add.text(cx, cy - 135, t('pause.title'), { fontFamily: headingFont(), fontSize: '48px', color: '#ffd060' }).setOrigin(0.5);
     root.add([dim, g, title]);
     const campaign = this.battle.battleData.mode === 'campaign';
     const items: [string, () => void][] = [
@@ -41,10 +41,15 @@ export class PauseMenu {
         this.scene.scene.launch('SettingsScene', {});
         this.scene.scene.bringToTop('SettingsScene');
       }],
+      [t('menu.encyclopedia'), () => {
+        this.scene.scene.launch('EncyclopediaScene', {});
+        this.scene.scene.bringToTop('EncyclopediaScene');
+      }],
+      [t('menu.tutorial'), () => this.startTutorial()],
       [campaign ? t('pause.retreat') : t('pause.quit'), () => this.quit(campaign)],
     ];
     items.forEach(([label, fn], i) => {
-      root.add(new Button(this.scene, { x: cx, y: cy - 30 + i * 60, w: 240, h: 44, label, onClick: fn }).container);
+      root.add(new Button(this.scene, { x: cx, y: cy - 70 + i * 56, w: 240, h: 44, label, onClick: fn }).container);
     });
     this.root = root;
   }
@@ -54,6 +59,14 @@ export class PauseMenu {
     this.root = null;
     this.battle.scene.resume();
     Voice.setPaused(false);
+  }
+
+  private startTutorial(): void {
+    this.root?.destroy();
+    this.root = null;
+    this.battle.scene.resume();
+    Voice.setPaused(false);
+    this.battle.scene.start('BattleScene', { mode: 'tutorial', difficulty: 'easy' });
   }
 
   private quit(campaign: boolean): void {

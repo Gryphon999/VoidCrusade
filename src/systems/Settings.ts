@@ -29,6 +29,8 @@ export interface GameSettings {
   wargear?: WargearPick;
   /** Contextual hint toasts (C5). */
   hints?: boolean;
+  /** Hint ids already shown once. */
+  hintsSeen?: string[];
   /** First-run tutorial prompt already shown. */
   tutorialPrompted?: boolean;
 }

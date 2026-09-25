@@ -29,6 +29,8 @@ import { MoraleSystem } from '../units/MoraleSystem';
 import { WorldSystem } from '../systems/WorldSystem';
 import { DropSystem } from '../systems/DropSystem';
 import { VictorySystem } from '../systems/VictorySystem';
+import { TutorialDirector } from '../tutorial/TutorialDirector';
+import { buildTutorialMap } from '../maps/tutorialMap';
 import { applyWargear, defaultPick, randomPick } from '../campaign/Wargear';
 import { Unit } from '../units/Unit';
 import { Squad } from '../units/Squad';
@@ -82,6 +84,7 @@ export class BattleScene extends Phaser.Scene {
   world!: WorldSystem;
   drops!: DropSystem;
   victory!: VictorySystem;
+  tutorial: TutorialDirector | null = null;
   /** Sides driven by the AI (abilities autocast, etc.). */
   aiOwners: Owner[] = ['enemy'];
   production!: ProductionSystem;
@@ -124,7 +127,8 @@ export class BattleScene extends Phaser.Scene {
     applyWargear(data.wargear ?? defaultPick(this.factions.player), this.modifiers.player);
     applyWargear(randomPick(this.factions.enemy), this.modifiers.enemy);
     Projection.setTilt(Settings.get().tilt);
-    this.map = new MapSystem(getMap(data.mapIndex ?? 0));
+    const tutorial = data.mode === 'tutorial';
+    this.map = new MapSystem(tutorial ? buildTutorialMap() : getMap(data.mapIndex ?? 0));
     this.cameras.main.setBackgroundColor(0x07060a);
     this.map.render(this);
     this.pathfinder = new Pathfinder(this.map);
@@ -166,14 +170,23 @@ export class BattleScene extends Phaser.Scene {
     hq.rally = { x: hq.x + 230, y: hq.y - 80 };
     this.production.spawnFrom(hq, 'commander');
     this.production.spawnFrom(hq, 'rifleman');
-    // Survival has no Horde base: waves come from its corner instead.
-    if (!survival) {
+    if (tutorial) this.production.spawnFrom(hq, 'rifleman');
+    // Survival has no Horde base: waves come from its corner instead; the tutorial has a small outpost.
+    if (tutorial) {
+      TutorialDirector.setupOutpost(this);
+    } else if (!survival) {
       const hive = this.buildings.spawn('hive', 'enemy', enemyBase.tx, enemyBase.ty, true);
       hive.rally = { x: hive.x - 120, y: hive.y + 160 };
       this.production.spawnFrom(hive, 'overlord');
       this.production.spawnFrom(hive, 'crawler');
     }
     this.ai = new AIController(this, data.difficulty ?? 'normal');
+    this.tutorial = null;
+    if (tutorial) {
+      this.ai.enabled = false;
+      this.aiOwners = [];
+      this.tutorial = new TutorialDirector(this);
+    }
     this.fog = new FogOfWarSystem(this);
     this.audio = new AudioBridge(this);
     this.atmosphere = new Atmosphere(this);
@@ -195,6 +208,7 @@ export class BattleScene extends Phaser.Scene {
     });
 
     this.scene.launch('HudScene', { battle: this });
+    this.tutorial?.start();
     this.hud = this.scene.get('HudScene') as HudScene;
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       // Scene events survive a restart, so drop every gameplay listener registered this battle.
@@ -250,6 +264,7 @@ export class BattleScene extends Phaser.Scene {
     this.morale.update(dt);
     this.world.update(dt);
     this.victory.update(dt);
+    this.tutorial?.update();
     this.cover?.update(dt);
     this.capture.update(dt);
     this.ai.update(dt);

@@ -17,6 +17,7 @@ import { MAP_BUILDERS } from '../src/maps';
 import { ABILITIES } from '../src/units/Abilities';
 import { WARGEAR } from '../src/campaign/Wargear';
 import { PERSONALITIES } from '../src/ai/Personality';
+import { ENC_TRAITS, HINT_IDS, MECHANICS, TUTORIAL_STEP_IDS } from '../src/tutorial/data';
 
 const files: string[] = [];
 const walk = (d: string): void => {
@@ -57,6 +58,14 @@ for (const m of ['annihilation', 'control', 'survival']) dyn.push(`mode.${m}`, `
 for (const p of ['random', ...PERSONALITIES]) dyn.push(`ai.${p}`);
 for (const s of ['weapon', 'armor', 'relic']) dyn.push(`wargear.slot.${s}`);
 for (const q of ['low', 'medium', 'high']) dyn.push(`gfx.${q}`);
+for (const id of TUTORIAL_STEP_IDS) dyn.push(`tut.${id}.title`, `tut.${id}.text`, `tut.${id}.vo`);
+for (const id of MECHANICS) dyn.push(`enc.m.${id}.title`, `enc.m.${id}.text`);
+for (const id of HINT_IDS) dyn.push(`hint.${id}`);
+for (const id of ENC_TRAITS) dyn.push(`enc.t.${id}`);
+for (const k of ['units', 'buildings', 'abilities', 'mechanics']) dyn.push(`enc.tab.${k}`);
+for (const k of ['ironvoid', 'nullhorde']) dyn.push(`enc.faction.${k}`);
+for (const k of ['infantry', 'vehicle', 'monster', 'hero']) dyn.push(`enc.cat.${k}`);
+for (const k of ['none', 'point', 'enemy', 'building']) dyn.push(`enc.target.${k}`);
 dyn.forEach((k) => used.add(k));
 
 const E = en as Record<string, string>;

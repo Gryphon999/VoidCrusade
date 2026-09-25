@@ -26,6 +26,8 @@ export const TIER_UPGRADES: Record<2 | 3, TierUpgrade> = {
 export class TechSystem {
   private tier: Record<Owner, Tier> = { player: 1, enemy: 1 };
   private active: Partial<Record<Owner, { up: TierUpgrade; t: number }>> = {};
+  /** Tier-up speed factor (the tutorial speeds it up). */
+  speed = 1;
 
   constructor(private battle: BattleScene, private factions: Record<Owner, Faction>) {}
 
@@ -94,7 +96,7 @@ export class TechSystem {
         delete this.active[o];
         continue;
       }
-      a.t += dt;
+      a.t += dt * this.speed;
       if (a.t >= a.up.time) {
         delete this.active[o];
         this.tier[o] = a.up.to;

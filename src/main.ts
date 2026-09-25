@@ -8,6 +8,7 @@ import { BattleScene } from './scenes/BattleScene';
 import { HudScene } from './scenes/HudScene';
 import { SettingsScene } from './scenes/SettingsScene';
 import { SubtitleScene } from './scenes/SubtitleScene';
+import { EncyclopediaScene } from './scenes/EncyclopediaScene';
 import { AudioSystem } from './systems/AudioSystem';
 import { Settings } from './systems/Settings';
 import { detectLanguage, setLanguage } from './i18n';
@@ -33,7 +34,7 @@ const config: Phaser.Types.Core.GameConfig = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   disableContextMenu: true,
-  scene: [BootScene, PreloadScene, MenuScene, CampaignScene, BattleScene, HudScene, SettingsScene, SubtitleScene],
+  scene: [BootScene, PreloadScene, MenuScene, CampaignScene, BattleScene, HudScene, SettingsScene, EncyclopediaScene, SubtitleScene],
 };
 
 const game = new Phaser.Game(config);

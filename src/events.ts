@@ -23,5 +23,8 @@ export const EV = {
   squadBroken: 'squad-broken',
   dropIncoming: 'drop-incoming',
   mapEvent: 'map-event',
+  groupRecalled: 'group-recalled',
+  orderGiven: 'order-given',
+  tutorialStep: 'tutorial-step',
   message: 'hud-message',
 } as const;
