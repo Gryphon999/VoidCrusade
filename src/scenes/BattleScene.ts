@@ -28,6 +28,7 @@ import { Owner, opponent } from '../types';
 import { EffectsSystem } from '../effects/EffectsSystem';
 import { Projection } from '../render/Projection';
 import { Settings } from '../systems/Settings';
+import { PropSystem } from '../render/PropSystem';
 import type { HudScene } from './HudScene';
 
 export type { BattleData } from './BattleTypes';
@@ -91,6 +92,7 @@ export class BattleScene extends Phaser.Scene {
     }
     Projection.setTilt(Settings.get().tilt);
     this.map = new MapSystem(getMap(data.mapIndex ?? 0));
+    this.cameras.main.setBackgroundColor(0x07060a);
     this.map.render(this);
     this.pathfinder = new Pathfinder(this.map);
     this.cover = new CoverSystem(this);
@@ -107,6 +109,7 @@ export class BattleScene extends Phaser.Scene {
     this.production = new ProductionSystem(this);
     this.research = new ResearchSystem(this);
     this.capture = new CapturePointSystem(this);
+    new PropSystem(this, this.map.def.id.length * 7919 + (data.mapIndex ?? 0));
     this.selection = new SelectionSystem(this);
     this.effects = new EffectsSystem(this);
     this.placement = new BuildingPlacementUI(this, this.buildings, (x, y) => this.cameraSystem.screenToWorld(x, y));

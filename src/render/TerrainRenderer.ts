@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { DEPTH, PROJECTION, TILE, TILE_SIZE } from '../config';
 import { Projection } from './Projection';
-import { TileArtSet, createTileArt } from './TileArt';
+import { TerrainPainter } from './TerrainPainter';
+import { biomeForMap } from './Biomes';
 import { makeCanvas } from './CanvasUtil';
 import type { MapSystem } from '../systems/MapSystem';
 
@@ -16,12 +17,6 @@ interface Chunk {
   tex: Phaser.Textures.CanvasTexture;
 }
 
-export function tileHash(x: number, y: number): number {
-  let h = (x * 374761393 + y * 668265263) >>> 0;
-  h = ((h ^ (h >>> 13)) * 1274126177) >>> 0;
-  return h ^ (h >>> 16);
-}
-
 /**
  * Bakes the projected terrain (ground squashed by the tilt, cliffs raised as walls) into
  * 1024px canvas chunks once, then only repaints dirty regions (e.g. rubble).
@@ -29,7 +24,7 @@ export function tileHash(x: number, y: number): number {
  */
 export class TerrainRenderer {
   private chunks: Chunk[] = [];
-  private art: TileArtSet;
+  private painter: TerrainPainter;
   private dirty: Phaser.Geom.Rectangle | null = null;
   private occluders: Phaser.GameObjects.Image[] = [];
   readonly viewTop: number;
@@ -37,7 +32,9 @@ export class TerrainRenderer {
   private static serial = 0;
 
   constructor(private scene: Phaser.Scene, private map: MapSystem) {
-    this.art = createTileArt();
+    let seed = 17;
+    for (const ch of map.def.id) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+    this.painter = new TerrainPainter(map, biomeForMap(map.def.id), seed, CHUNK);
     this.viewTop = -PROJECTION.cliffHeight - 40;
     this.viewBottom = Projection.vy(map.worldHeight) + 8;
     const id = TerrainRenderer.serial++;
@@ -87,52 +84,9 @@ export class TerrainRenderer {
       ctx.clip();
       ctx.fillStyle = '#07060a';
       ctx.fillRect(clip.x, clip.y, clip.width, clip.height);
-      this.paintGround(ctx, tx0, rows[0], tx1, rows[1]);
-      this.paintCliffs(ctx, Math.max(0, tx0 - 1), rows[0], Math.min(this.map.width - 1, tx1 + 1), rows[1]);
+      this.painter.paint(ctx, c.x0, c.y0, tx0, rows[0], tx1, rows[1]);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.restore();
-    }
-  }
-
-  private paintGround(ctx: CanvasRenderingContext2D, tx0: number, ty0: number, tx1: number, ty1: number): void {
-    const k = Projection.tilt;
-    for (let ty = ty0; ty <= ty1; ty++) {
-      for (let tx = tx0; tx <= tx1; tx++) {
-        const t = this.map.getTile(tx, ty);
-        const h = tileHash(tx, ty);
-        const set = t === TILE.ROAD ? this.art.road : t === TILE.RUINS ? this.art.ruins : this.art.ground;
-        const img = set[h % set.length];
-        ctx.drawImage(img, tx * T, ty * T * k, T, T * k + 0.5);
-      }
-    }
-  }
-
-  private paintCliffs(ctx: CanvasRenderingContext2D, tx0: number, ty0: number, tx1: number, ty1: number): void {
-    const k = Projection.tilt;
-    const ch = PROJECTION.cliffHeight;
-    for (let ty = ty0; ty <= ty1; ty++) {
-      for (let tx = tx0; tx <= tx1; tx++) {
-        if (!this.isCliff(tx, ty)) continue;
-        const x = tx * T;
-        const baseY = (ty + 1) * T * k;
-        if (!this.isCliff(tx, ty + 1)) {
-          // Contact shadow on the ground, then the wall face.
-          const g = ctx.createLinearGradient(0, baseY, 0, baseY + 22);
-          g.addColorStop(0, 'rgba(0,0,0,0.55)');
-          g.addColorStop(1, 'rgba(0,0,0,0)');
-          ctx.fillStyle = g;
-          ctx.fillRect(x - 4, baseY, T + 8, 22);
-          const front = this.art.cliffFront[tileHash(tx, ty) % this.art.cliffFront.length];
-          ctx.drawImage(front, x, baseY - ch, T, ch);
-        }
-        const top = this.art.cliffTop[tileHash(tx, ty) % this.art.cliffTop.length];
-        const ty0v = ty * T * k - ch;
-        ctx.drawImage(top, x, ty0v, T, T * k + 0.5);
-        ctx.fillStyle = 'rgba(255,220,170,0.18)';
-        if (!this.isCliff(tx, ty - 1)) ctx.fillRect(x, ty0v, T, 2);
-        ctx.fillStyle = 'rgba(0,0,0,0.35)';
-        if (!this.isCliff(tx - 1, ty)) ctx.fillRect(x, ty0v, 2, T * k + ch);
-        if (!this.isCliff(tx + 1, ty)) ctx.fillRect(x + T - 2, ty0v, 2, T * k + ch);
-      }
     }
   }
 

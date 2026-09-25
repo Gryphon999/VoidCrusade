@@ -7,6 +7,7 @@ import { createUnitTextures } from '../assets/UnitTextures';
 import { createFxTextures } from '../assets/FxTextures';
 import { createCaptureTextures } from '../assets/CaptureTextures';
 import { getCursors } from '../assets/Cursors';
+import { createPropTextures } from '../render/PropArt';
 import { MAP_BUILDERS } from '../maps';
 import { textStyle } from '../ui/uiStyle';
 
@@ -42,6 +43,7 @@ export class PreloadScene extends Phaser.Scene {
       ['Mustering the Iron Void', () => createUnitTextures(this)],
       ['Distilling blood and fire', () => createFxTextures(this)],
       ['Charging Void-Nexus obelisks', () => createCaptureTextures(this)],
+      ['Scattering the debris of war', () => createPropTextures(this)],
       ['Charting battlefields', () => MAP_BUILDERS.forEach((b) => b())],
       ['Calibrating targeting reticles', () => getCursors()],
     ];

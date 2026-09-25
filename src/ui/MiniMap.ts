@@ -2,14 +2,9 @@ import Phaser from 'phaser';
 import { COLORS, GAME_HEIGHT, GAME_WIDTH, MINIMAP, TILE, TILE_SIZE } from '../config';
 import { EV } from '../events';
 import { ownerColor } from '../systems/CapturePoint';
+import { biomeForMap } from '../render/Biomes';
 import type { BattleScene } from '../scenes/BattleScene';
 
-const TERRAIN_COLORS: Record<number, number> = {
-  [TILE.GROUND]: 0x3a3a3e,
-  [TILE.CLIFF]: 0x0c0804,
-  [TILE.ROAD]: 0x5a5246,
-  [TILE.RUINS]: 0x4c4640,
-};
 
 /** Bottom-right overview map: terrain, unit/building dots, camera viewport, click-to-scroll. */
 export class MiniMap {
@@ -68,6 +63,10 @@ export class MiniMap {
   private drawTerrain(): void {
     const g = this.terrain.clear();
     const tiles = this.battle.map.getTiles();
+    const pal = biomeForMap(this.battle.map.def.id).minimap;
+    const TERRAIN_COLORS: Record<number, number> = {
+      [TILE.GROUND]: pal.ground, [TILE.CLIFF]: pal.cliff, [TILE.ROAD]: pal.road, [TILE.RUINS]: pal.ruins,
+    };
     const tw = TILE_SIZE * this.sx;
     const th = TILE_SIZE * this.sy;
     for (let ty = 0; ty < tiles.length; ty++) {
