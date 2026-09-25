@@ -23,3 +23,33 @@ export const COLORS = {
 
 export const FONT_FAMILY = '"Trebuchet MS", Verdana, sans-serif';
 export const GOTHIC_FONT = '"UnifrakturMaguntia", "Old English Text MT", "Blackletter", Georgia, serif';
+
+export const TILE = {
+  GROUND: 0,
+  CLIFF: 1,
+  ROAD: 2,
+  RUINS: 3,
+} as const;
+export type TileType = (typeof TILE)[keyof typeof TILE];
+
+export const CAMERA = {
+  scrollSpeed: 900, // px/sec at zoom 1
+  edgeSize: 20,
+  minZoom: 0.5,
+  maxZoom: 2,
+  zoomStep: 0.1,
+} as const;
+
+// Render depths (world layer ordering).
+export const DEPTH = {
+  terrain: 0,
+  decals: 5,
+  capture: 8,
+  buildings: 10,
+  selection: 15,
+  units: 20,
+  projectiles: 30,
+  effects: 40,
+  fog: 100,
+  overlay: 110,
+} as const;

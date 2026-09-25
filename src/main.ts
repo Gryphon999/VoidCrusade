@@ -25,4 +25,5 @@ const config: Phaser.Types.Core.GameConfig = {
   scene: [BootScene, PreloadScene, MenuScene, CampaignScene, BattleScene],
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+if (import.meta.env.DEV) (window as unknown as { game: Phaser.Game }).game = game;
