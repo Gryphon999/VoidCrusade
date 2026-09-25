@@ -24,7 +24,7 @@ export class AudioBridge {
 
   private spatial(x: number, y: number, play: (vol: number, pan: number) => void, range = 1500): void {
     const cam = this.battle.cameras.main;
-    const v = cam.worldView;
+    const v = this.battle.cameraSystem.visibleWorldRect();
     const cx = v.centerX;
     const cy = v.centerY;
     const d = Phaser.Math.Distance.Between(x, y, cx, cy);

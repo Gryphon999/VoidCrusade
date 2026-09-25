@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { CAPTURE, COLORS, DEPTH, TILE_SIZE } from '../config';
 import { Owner } from '../types';
+import { Projection } from '../render/Projection';
 
 export function ownerColor(o: Owner | null): number {
   return o === 'player' ? COLORS.player : o === 'enemy' ? COLORS.enemy : COLORS.neutral;
@@ -20,14 +21,15 @@ export class CapturePoint {
   private runes: Phaser.GameObjects.Image;
 
   constructor(scene: Phaser.Scene, readonly index: number, readonly x: number, readonly y: number) {
+    const vy = Projection.vy(y);
+    const k = Projection.tilt;
     this.zone = scene.add.graphics().setDepth(DEPTH.capture);
-    this.aura = scene.add.image(x, y, 'aura').setDepth(DEPTH.capture).setBlendMode(Phaser.BlendModes.ADD);
-    this.aura.setScale(2.2);
-    scene.tweens.add({ targets: this.aura, scale: 2.7, alpha: 0.55, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    scene.add.image(x, y - 40, 'obelisk').setDepth(DEPTH.units + 2);
-    this.runes = scene.add.image(x, y - 40, 'obelisk').setDepth(DEPTH.units + 3).setBlendMode(Phaser.BlendModes.ADD);
-    this.runes.setAlpha(0.35);
-    scene.tweens.add({ targets: this.runes, alpha: 0.8, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.aura = scene.add.image(x, vy, 'aura').setDepth(DEPTH.capture).setBlendMode(Phaser.BlendModes.ADD);
+    this.aura.setScale(2.2, 2.2 * k);
+    scene.tweens.add({ targets: this.aura, scaleX: 2.7, scaleY: 2.7 * k, alpha: 0.55, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    scene.add.image(x, vy, 'obelisk').setOrigin(0.5, 112 / 120).setDepth(Projection.depth(y));
+    this.runes = scene.add.image(x, vy, 'obelisk').setOrigin(0.5, 112 / 120).setDepth(Projection.depth(y) + 0.1)
+      .setBlendMode(Phaser.BlendModes.ADD);
     this.bar = scene.add.graphics().setDepth(DEPTH.overlay - 2);
     this.refresh();
   }
@@ -41,14 +43,16 @@ export class CapturePoint {
     this.aura.setTint(col);
     this.runes.setTint(col);
     const g = this.zone.clear();
-    g.fillStyle(col, 0.08).fillRect(this.x - this.half, this.y - this.half, this.half * 2, this.half * 2);
-    g.lineStyle(2, col, 0.6);
     const h = this.half;
+    const k = Projection.tilt;
+    const cy = Projection.vy(this.y);
+    g.fillStyle(col, 0.08).fillRect(this.x - h, cy - h * k, h * 2, h * 2 * k);
+    g.lineStyle(2, col, 0.6);
     const seg = 16;
     for (let t = -h; t < h; t += seg * 2) {
       const e = Math.min(t + seg, h);
-      g.lineBetween(this.x + t, this.y - h, this.x + e, this.y - h).lineBetween(this.x + t, this.y + h, this.x + e, this.y + h);
-      g.lineBetween(this.x - h, this.y + t, this.x - h, this.y + e).lineBetween(this.x + h, this.y + t, this.x + h, this.y + e);
+      g.lineBetween(this.x + t, cy - h * k, this.x + e, cy - h * k).lineBetween(this.x + t, cy + h * k, this.x + e, cy + h * k);
+      g.lineBetween(this.x - h, cy + t * k, this.x - h, cy + e * k).lineBetween(this.x + h, cy + t * k, this.x + h, cy + e * k);
     }
     this.drawBar();
   }
@@ -58,7 +62,7 @@ export class CapturePoint {
     if (this.progress <= 0 || (this.claimant === this.owner && this.progress >= 1)) return;
     const w = 80;
     const x = this.x - w / 2;
-    const y = this.y - 118;
+    const y = Projection.vy(this.y) - 124;
     g.fillStyle(0x000000, 0.75).fillRect(x - 2, y - 2, w + 4, 10);
     g.fillStyle(this.contested ? 0xffd040 : ownerColor(this.claimant), 1).fillRect(x, y, w * this.progress, 6);
   }

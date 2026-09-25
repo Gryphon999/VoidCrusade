@@ -106,6 +106,16 @@ export class BuildingSystem {
     if (idx >= 0) this.buildings.splice(idx, 1);
   }
 
+  /** Front-most building whose drawn volume covers a view-space point. */
+  buildingAtView(vx: number, vy: number): Building | undefined {
+    let best: Building | undefined;
+    for (const b of this.buildings) {
+      if (!b.alive || !b.view.viewBounds().contains(vx, vy)) continue;
+      if (!best || b.view.depth > best.view.depth) best = b;
+    }
+    return best;
+  }
+
   buildingAt(wx: number, wy: number): Building | undefined {
     return this.buildings.find((b) => b.alive && b.containsPoint(wx, wy));
   }

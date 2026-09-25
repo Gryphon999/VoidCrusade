@@ -2,19 +2,21 @@ import Phaser from 'phaser';
 import { DEPTH, TILE_SIZE } from '../config';
 import { BuildingSystem } from './BuildingSystem';
 import { BUILDING_DEFS, BuildingId } from './BuildingDefs';
-import { buildingTextureKey } from '../assets/BuildingTextures';
+import { ensureBuildingVolumes, volumeTextureKey } from '../assets/BuildingTextures';
+import { Projection } from '../render/Projection';
 import { EV } from '../events';
 
-/** Ghost preview + click-to-place for player construction. */
+/** Ghost preview + click-to-place for player construction. Positions are logical world coords. */
 export class BuildingPlacementUI {
   private active: BuildingId | null = null;
   private ghost: Phaser.GameObjects.Image;
   private overlay: Phaser.GameObjects.Graphics;
   private tile = { tx: 0, ty: 0 };
 
-  constructor(private scene: Phaser.Scene, private buildings: BuildingSystem) {
-    this.ghost = scene.add.image(0, 0, buildingTextureKey('generator')).setVisible(false).setAlpha(0.6);
-    this.ghost.setDepth(DEPTH.overlay);
+  constructor(private scene: Phaser.Scene, private buildings: BuildingSystem, private toWorld: (px: number, py: number) => Phaser.Math.Vector2) {
+    ensureBuildingVolumes(scene, Projection.tilt);
+    this.ghost = scene.add.image(0, 0, volumeTextureKey('generator', Projection.tilt)).setVisible(false).setAlpha(0.6);
+    this.ghost.setOrigin(0.5, 1).setDepth(DEPTH.overlay);
     this.overlay = scene.add.graphics().setDepth(DEPTH.overlay - 1);
     scene.input.keyboard?.on('keydown-ESC', () => this.cancel());
   }
@@ -29,9 +31,9 @@ export class BuildingPlacementUI {
 
   start(id: BuildingId): void {
     this.active = id;
-    this.ghost.setTexture(buildingTextureKey(id)).setVisible(true);
+    this.ghost.setTexture(volumeTextureKey(id, Projection.tilt)).setVisible(true);
     const p = this.scene.input.activePointer;
-    const w = this.scene.cameras.main.getWorldPoint(p.x, p.y);
+    const w = this.toWorld(p.x, p.y);
     this.updatePointer(w.x, w.y);
   }
 
@@ -46,18 +48,20 @@ export class BuildingPlacementUI {
     const def = BUILDING_DEFS[this.active];
     this.tile = this.buildings.snap(wx, wy, this.active);
     const px = def.size * TILE_SIZE;
+    const k = Projection.tilt;
     const x = this.tile.tx * TILE_SIZE;
     const y = this.tile.ty * TILE_SIZE;
     const check = this.buildings.validate('player', this.active, this.tile.tx, this.tile.ty);
     const color = check.ok ? 0x30ff60 : 0xff3030;
-    this.ghost.setPosition(x + px / 2, y + px / 2).setTint(color);
+    this.ghost.setPosition(x + px / 2, Projection.vy(y + px)).setTint(color);
     const g = this.overlay.clear();
-    // Buildable areas around friendly structures.
+    // Buildable areas around friendly structures (circles on the ground → ellipses).
     for (const b of this.buildings.getOwned('player')) {
-      g.lineStyle(2, 0x3a8dff, 0.25).strokeCircle(b.x, b.y, b.def.buildRadius * TILE_SIZE);
+      const r = b.def.buildRadius * TILE_SIZE;
+      g.lineStyle(2, 0x3a8dff, 0.25).strokeEllipse(b.x, Projection.vy(b.y), r * 2, r * 2 * k);
     }
-    g.fillStyle(color, 0.25).fillRect(x, y, px, px);
-    g.lineStyle(2, color, 0.9).strokeRect(x, y, px, px);
+    g.fillStyle(color, 0.25).fillRect(x, Projection.vy(y), px, px * k);
+    g.lineStyle(2, color, 0.9).strokeRect(x, Projection.vy(y), px, px * k);
   }
 
   /** Attempts to place at the current ghost position. Returns true if placed. */

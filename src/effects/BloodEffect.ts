@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { DEPTH, FX } from '../config';
 import { DragProcessor } from './DragProcessor';
+import { Projection } from '../render/Projection';
 
 const BLOOD_COLORS = [0x8a0000, 0xa00808, 0x6a0000, 0xc01010];
 
@@ -42,18 +43,18 @@ export class BloodEffect {
   /** Big splatter on death: 8-16 droplets plus a permanent decal. */
   spawnDeath(x: number, y: number, amount: number): void {
     const n = Phaser.Math.Clamp(Math.round(amount), 8, 16);
-    this.emitter.explode(n, x, y);
+    this.emitter.explode(n, x, Projection.vy(y) - 8);
     this.addDecal(x, y, 6 + n * 0.8);
   }
 
   /** Small splatter when a unit takes damage. */
   spawnHit(x: number, y: number): void {
-    this.hitEmitter.explode(Phaser.Math.Between(3, 5), x, y);
+    this.hitEmitter.explode(Phaser.Math.Between(3, 5), x, Projection.vy(y) - 12);
     if (Math.random() < 0.15) this.addDecal(x, y, 4);
   }
 
   private addDecal(x: number, y: number, size: number): void {
-    const g = this.scene.add.graphics({ x, y });
+    const g = this.scene.add.graphics({ x, y: Projection.vy(y) });
     const main = Phaser.Utils.Array.GetRandom(BLOOD_COLORS.slice(0, 3)) as number;
     g.fillStyle(0x3a0000, 1).fillEllipse(0, 0, size * 1.6, size * 1.2);
     g.fillStyle(main, 1);
@@ -69,7 +70,8 @@ export class BloodEffect {
       const d = size * (0.9 + Math.random() * 1.2);
       g.fillCircle(Math.cos(a) * d, Math.sin(a) * d, 1 + Math.random() * 2);
     }
-    g.setAlpha(FX.decalAlpha).setRotation(Math.random() * Math.PI * 2);
+    // Squashed so the splat lies flat on the tilted ground.
+    g.setAlpha(FX.decalAlpha).setScale(1, Projection.tilt);
     this.decalLayer.add(g);
     this.decals.push(g);
     while (this.decals.length > FX.maxDecals) this.decals.shift()?.destroy();

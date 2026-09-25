@@ -40,18 +40,32 @@ export const CAMERA = {
   zoomStep: 0.1,
 } as const;
 
-// Render depths (world layer ordering).
+// Render depths (world layer ordering). Upright objects use depthForY() so that
+// whatever stands further south (larger ground Y) is drawn in front.
 export const DEPTH = {
   terrain: 0,
   decals: 5,
   capture: 8,
-  buildings: 10,
-  selection: 15,
-  units: 20,
-  projectiles: 30,
-  effects: 40,
-  fog: 100,
-  overlay: 110,
+  groundFx: 9,
+  selection: 10,
+  shadows: 11,
+  /** Base for Y-sorted objects: depth = sorted + groundY (ground Y is at most ~3100). */
+  sorted: 1000,
+  projectiles: 5000,
+  effects: 5100,
+  bars: 8000,
+  silhouettes: 8100,
+  fog: 9000,
+  overlay: 9500,
+} as const;
+
+export const PROJECTION = {
+  /** Vertical squash of the ground plane (~0.65 is a 55-60 degree camera pitch). */
+  defaultTilt: 0.65,
+  minTilt: 0.55,
+  maxTilt: 0.8,
+  /** Height of cliff walls in screen px. */
+  cliffHeight: 26,
 } as const;
 
 export const RESOURCES = {

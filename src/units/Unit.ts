@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { DEPTH } from '../config';
+import { Projection } from '../render/Projection';
 import { Owner } from '../types';
 import { UnitDef } from './UnitDefs';
 import { unitTextureKey } from '../assets/UnitTextures';
@@ -27,7 +28,11 @@ export class Unit {
   readonly sprite: Phaser.GameObjects.Image;
   private ring: Phaser.GameObjects.Image;
   private shield: Phaser.GameObjects.Image;
+  private shadow: Phaser.GameObjects.Image;
+  private silhouette: Phaser.GameObjects.Image;
   private shown = true;
+  /** True when a cliff or building is drawn over this unit. */
+  occluded = false;
 
   constructor(scene: Phaser.Scene, squad: Squad, x: number, y: number, hpMult: number) {
     this.def = squad.def;
@@ -38,12 +43,34 @@ export class Unit {
     this.maxHp = this.def.hp * hpMult;
     this.hp = this.maxHp;
     this.cooldown = Math.random() * this.def.cooldown;
-    this.ring = scene.add.image(x, y, 'sel_ring').setDepth(DEPTH.selection).setVisible(false);
-    this.ring.setScale((this.def.size * 2 + 8) / 28);
-    this.sprite = scene.add.image(x, y, unitTextureKey(this.def.id)).setDepth(DEPTH.units);
+    const k = Projection.tilt;
+    this.shadow = scene.add.image(x, Projection.vy(y), 'fx_soft').setTint(0x000000).setAlpha(0.6).setDepth(DEPTH.shadows);
+    this.shadow.setScale((this.def.size * 2.6) / 32, (this.def.size * 2.6 * k) / 32);
+    this.ring = scene.add.image(x, Projection.vy(y), 'sel_ring').setDepth(DEPTH.selection).setVisible(false);
+    this.ring.setScale((this.def.size * 2 + 8) / 28, ((this.def.size * 2 + 8) / 28) * k);
+    this.sprite = scene.add.image(x, Projection.vy(y), unitTextureKey(this.def.id)).setDepth(Projection.depth(y));
     this.sprite.rotation = this.owner === 'player' ? -Math.PI / 4 : (Math.PI * 3) / 4;
-    this.shield = scene.add.image(x, y - this.def.size - 8, 'icon_cover').setDepth(DEPTH.units + 1);
+    this.silhouette = scene.add.image(x, y, unitTextureKey(this.def.id)).setDepth(DEPTH.silhouettes);
+    this.silhouette.setTintFill(0x9ad0ff).setAlpha(0.35).setVisible(false);
+    this.shield = scene.add.image(x, y, 'icon_cover').setDepth(DEPTH.bars - 1);
     this.shield.setVisible(false);
+  }
+
+  /** Visual height of the model in view px. */
+  get height(): number {
+    return this.def.size * 2.4;
+  }
+
+  /** Chest-height point in view space (projectile origin / impact). */
+  aimPoint(): { x: number; y: number } {
+    return { x: this.x, y: Projection.vy(this.y) - this.height * 0.5 };
+  }
+
+  /** True if a view-space point lies on this unit's drawn body. */
+  containsView(vx: number, vy: number): boolean {
+    const gy = Projection.vy(this.y);
+    const r = this.def.size + 5;
+    return vx >= this.x - r && vx <= this.x + r && vy >= gy - this.height - 4 && vy <= gy + 5;
   }
 
   get radius(): number {
@@ -63,11 +90,8 @@ export class Unit {
   }
 
   face(tx: number, ty: number): void {
-    this.sprite.rotation = Phaser.Math.Angle.RotateTo(
-      this.sprite.rotation,
-      Phaser.Math.Angle.Between(this.x, this.y, tx, ty),
-      0.25,
-    );
+    const k = Projection.tilt;
+    this.sprite.rotation = Phaser.Math.Angle.RotateTo(this.sprite.rotation, Math.atan2((ty - this.y) * k, tx - this.x), 0.25);
   }
 
   setSelected(sel: boolean): void {
@@ -78,7 +102,9 @@ export class Unit {
     if (this.shown === shown) return;
     this.shown = shown;
     this.sprite.setVisible(shown);
+    this.shadow.setVisible(shown);
     if (!shown) {
+      this.silhouette.setVisible(false);
       this.ring.setVisible(false);
       this.shield.setVisible(false);
     }
@@ -93,15 +119,22 @@ export class Unit {
     this.shield.setVisible(cover && this.shown);
   }
 
+  setOccluded(occ: boolean): void {
+    this.occluded = occ;
+    this.silhouette.setVisible(occ && this.shown);
+  }
+
   syncSprite(): void {
-    this.sprite.setPosition(this.x, this.y);
-    this.ring.setPosition(this.x, this.y);
-    this.shield.setPosition(this.x, this.y - this.def.size - 8);
+    const gy = Projection.vy(this.y);
+    const bodyY = gy - this.def.size * 0.9;
+    this.sprite.setPosition(this.x, bodyY).setDepth(Projection.depth(this.y));
+    this.shadow.setPosition(this.x + 2, gy + 1);
+    this.ring.setPosition(this.x, gy);
+    this.shield.setPosition(this.x, gy - this.height - 8);
+    if (this.occluded) this.silhouette.setPosition(this.x, bodyY).setRotation(this.sprite.rotation);
   }
 
   destroy(): void {
-    this.sprite.destroy();
-    this.ring.destroy();
-    this.shield.destroy();
+    for (const o of [this.sprite, this.ring, this.shield, this.shadow, this.silhouette]) o.destroy();
   }
 }

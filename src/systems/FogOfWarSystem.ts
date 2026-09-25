@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { DEPTH, FOG, TILE_SIZE } from '../config';
 import type { BattleScene, FogQueries } from '../scenes/BattleScene';
+import { Projection } from '../render/Projection';
 
 const UNEXPLORED = 0;
 const EXPLORED = 1;
@@ -20,7 +21,8 @@ export class FogOfWarSystem implements FogQueries {
     this.cols = Math.ceil(battle.map.worldWidth / this.cellPx);
     this.rows = Math.ceil(battle.map.worldHeight / this.cellPx);
     this.state = new Uint8Array(this.cols * this.rows);
-    this.gfx = battle.add.graphics().setDepth(DEPTH.fog);
+    // Drawn in logical coordinates and squashed onto the tilted ground.
+    this.gfx = battle.add.graphics().setDepth(DEPTH.fog).setScale(1, Projection.tilt);
     this.recompute();
   }
 

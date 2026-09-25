@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
-import { DEPTH, MAP_H, MAP_W, TILE, TILE_SIZE, TileType } from '../config';
+import { MAP_H, MAP_W, TILE, TILE_SIZE, TileType } from '../config';
 import { MapDef } from '../maps/MapBuilder';
-import { TILESET_KEY } from '../assets/TileTextures';
+import { TerrainRenderer } from '../render/TerrainRenderer';
 
 /** Owns the battle terrain: tile data, rendering, and passability queries. */
 export class MapSystem {
@@ -13,8 +13,7 @@ export class MapSystem {
   private tiles: number[][];
   /** Tiles occupied by buildings (blocks movement). */
   private occupied: Uint8Array;
-  private tilemap?: Phaser.Tilemaps.Tilemap;
-  private layer?: Phaser.Tilemaps.TilemapLayer;
+  private terrain?: TerrainRenderer;
 
   constructor(def: MapDef) {
     this.def = def;
@@ -22,14 +21,14 @@ export class MapSystem {
     this.occupied = new Uint8Array(MAP_W * MAP_H);
   }
 
-  /** Renders the terrain as a tilemap layer using the generated tileset texture. */
+  /** Bakes the projected terrain. */
   render(scene: Phaser.Scene): void {
-    this.tilemap = scene.make.tilemap({ data: this.tiles, tileWidth: TILE_SIZE, tileHeight: TILE_SIZE });
-    const tileset = this.tilemap.addTilesetImage(TILESET_KEY, TILESET_KEY, TILE_SIZE, TILE_SIZE, 0, 0);
-    if (!tileset) throw new Error('Tileset texture missing');
-    const layer = this.tilemap.createLayer(0, tileset, 0, 0);
-    if (!layer) throw new Error('Failed to create tile layer');
-    this.layer = layer.setDepth(DEPTH.terrain);
+    this.terrain = new TerrainRenderer(scene, this);
+  }
+
+  /** Repaints any tiles changed this frame. */
+  flushRender(): void {
+    this.terrain?.flush();
   }
 
   inBounds(tx: number, ty: number): boolean {
@@ -45,7 +44,7 @@ export class MapSystem {
   setTile(tx: number, ty: number, t: TileType): void {
     if (!this.inBounds(tx, ty)) return;
     this.tiles[ty][tx] = t;
-    this.layer?.putTileAt(t, tx, ty);
+    this.terrain?.markDirty(tx, ty);
   }
 
   /** Terrain-only passability: cliffs are impassable. */

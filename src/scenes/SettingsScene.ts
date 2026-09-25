@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { Difficulty, GAME_HEIGHT, GAME_WIDTH, GOTHIC_FONT } from '../config';
+import { Difficulty, GAME_HEIGHT, GAME_WIDTH, GOTHIC_FONT, PROJECTION } from '../config';
 import { Settings } from '../systems/Settings';
 import { Slider } from '../ui/Slider';
 import { Button } from '../ui/Button';
@@ -21,7 +21,7 @@ export class SettingsScene extends Phaser.Scene {
   create(data: { onClose?: () => void }): void {
     const s = Settings.get();
     const w = 520;
-    const h = 400;
+    const h = 470;
     const x = (GAME_WIDTH - w) / 2;
     const y = (GAME_HEIGHT - h) / 2;
     this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.6).setOrigin(0).setInteractive();
@@ -30,12 +30,15 @@ export class SettingsScene extends Phaser.Scene {
     this.add.text(GAME_WIDTH / 2, y + 42, 'Settings', { fontFamily: GOTHIC_FONT, fontSize: '44px', color: '#ffd060' }).setOrigin(0.5);
     new Slider(this, x + 60, y + 120, 340, 'Music volume', s.musicVolume, (v) => Settings.set({ musicVolume: v }));
     new Slider(this, x + 60, y + 190, 340, 'SFX volume', s.sfxVolume, (v) => Settings.set({ sfxVolume: v }));
-    this.add.text(x + 60, y + 232, 'Difficulty', textStyle(16));
-    const desc = this.add.text(GAME_WIDTH / 2, y + 318, DIFF_TEXT[s.difficulty], textStyle(13, '#99a')).setOrigin(0.5);
+    const span = PROJECTION.maxTilt - PROJECTION.minTilt;
+    new Slider(this, x + 60, y + 260, 340, 'Camera tilt (next battle)', (s.tilt - PROJECTION.minTilt) / span,
+      (v) => Settings.set({ tilt: PROJECTION.minTilt + v * span }));
+    this.add.text(x + 60, y + 302, 'Difficulty', textStyle(16));
+    const desc = this.add.text(GAME_WIDTH / 2, y + 388, DIFF_TEXT[s.difficulty], textStyle(13, '#99a')).setOrigin(0.5);
     const buttons: Button[] = [];
     DIFFS.forEach((d, i) => {
       const b = new Button(this, {
-        x: x + 120 + i * 140, y: y + 278, w: 124, h: 38, label: d[0].toUpperCase() + d.slice(1),
+        x: x + 120 + i * 140, y: y + 348, w: 124, h: 38, label: d[0].toUpperCase() + d.slice(1),
         onClick: () => {
           Settings.set({ difficulty: d });
           buttons.forEach((o, j) => o.setActive(j === i));

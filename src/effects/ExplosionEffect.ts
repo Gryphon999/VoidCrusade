@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { DEPTH, FX } from '../config';
 import { DragProcessor } from './DragProcessor';
+import { Projection } from '../render/Projection';
 
 /** Fireball, shockwave, lingering smoke and screen shake for destroyed buildings. */
 export class ExplosionEffect {
@@ -33,11 +34,13 @@ export class ExplosionEffect {
     this.sparks.setDepth(DEPTH.effects + 3);
   }
 
-  explode(x: number, y: number, radius: number): void {
+  /** Explosion at a logical ground point, centred `lift` px above the ground. */
+  explode(x: number, groundY: number, radius: number, lift = radius * 0.4): void {
+    const y = Projection.vy(groundY) - lift;
     this.fire.explode(Phaser.Math.Between(20, 30), x, y);
     this.sparks.explode(18, x, y);
-    const ring = this.scene.add.graphics({ x, y }).setDepth(DEPTH.effects + 1);
-    ring.lineStyle(6, 0xffa040, 1).strokeCircle(0, 0, radius * 0.5);
+    const ring = this.scene.add.graphics({ x, y: Projection.vy(groundY) }).setDepth(DEPTH.groundFx);
+    ring.lineStyle(6, 0xffa040, 1).strokeEllipse(0, 0, radius, radius * Projection.tilt);
     this.scene.tweens.add({ targets: ring, scale: 3, alpha: 0, duration: 500, onComplete: () => ring.destroy() });
     this.smoke(x, y, radius);
     const view = this.scene.cameras.main.worldView;
@@ -47,6 +50,7 @@ export class ExplosionEffect {
   }
 
   /** Small burst when a projectile hits a structure. */
+  /** Small burst at a view-space point. */
   impact(x: number, y: number): void {
     this.sparks.explode(4, x, y);
   }

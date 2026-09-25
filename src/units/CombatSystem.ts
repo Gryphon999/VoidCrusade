@@ -6,6 +6,7 @@ import { Unit } from './Unit';
 import { Squad, isSquad } from './Squad';
 import { Building } from '../buildings/Building';
 import type { BattleScene } from '../scenes/BattleScene';
+import { Projection } from '../render/Projection';
 
 export type Victim = Unit | Building;
 type ProjKind = 'bullet' | 'shell' | 'spit' | 'melee' | 'spine';
@@ -40,7 +41,7 @@ export class CombatSystem {
         if (Phaser.Math.Distance.Between(u.x, u.y, victim.x, victim.y) > reach) continue;
         u.cooldown = u.def.cooldown * Phaser.Math.FloatBetween(0.85, 1.15);
         const dmg = u.def.damage * this.battle.modifiers[u.owner].damageMult;
-        this.fire(u.x, u.y, u.owner, victim, dmg, u.def.projectile, u.squad);
+        this.fire(u.x, u.y, u.owner, victim, dmg, u.def.projectile, u.squad, u.aimPoint());
       }
     }
     this.updateTurrets(dt);
@@ -56,9 +57,8 @@ export class CombatSystem {
       if (!victim) continue;
       b.attackCooldown = atk.cooldown;
       b.aimAt(victim.x, victim.y);
-      const tip = b.gunTip;
       const dmg = atk.damage * this.battle.modifiers[b.owner].turretDamageMult;
-      this.fire(tip.x, tip.y, b.owner, victim, dmg, b.def.faction === 'ironvoid' ? 'bullet' : 'spine', null);
+      this.fire(b.x, b.y, b.owner, victim, dmg, b.def.faction === 'ironvoid' ? 'bullet' : 'spine', null, b.gunTip);
     }
   }
 
@@ -92,33 +92,38 @@ export class CombatSystem {
     return best;
   }
 
-  /** Launches an attack. Projectiles fly to the victim's position and deal damage on impact. */
-  fire(x: number, y: number, owner: Owner, victim: Victim, dmg: number, kind: ProjKind, from: Squad | null): void {
+  /**
+   * Launches an attack from logical point (x, y). Projectiles fly in view space from `muzzle`
+   * to the victim's body and deal damage on impact.
+   */
+  fire(x: number, y: number, owner: Owner, victim: Victim, dmg: number, kind: ProjKind, from: Squad | null,
+    muzzle: { x: number; y: number }): void {
+    const aim = victim instanceof Building ? victim.view.aimPoint() : victim.aimPoint();
     const los = this.battle.cover?.hasLineOfSight(x, y, victim.x, victim.y) ?? true;
     this.battle.events.emit(EV.unitFired, x, y, kind, owner);
     if (kind === 'melee') {
-      const fx = this.battle.add.image(victim.x, victim.y, 'fx_slash').setDepth(DEPTH.effects);
-      fx.rotation = Phaser.Math.Angle.Between(x, y, victim.x, victim.y);
+      const fx = this.battle.add.image(aim.x, aim.y, 'fx_slash').setDepth(DEPTH.effects);
+      fx.rotation = Phaser.Math.Angle.Between(muzzle.x, muzzle.y, aim.x, aim.y);
       this.battle.tweens.add({ targets: fx, alpha: 0, scale: 1.6, duration: 220, onComplete: () => fx.destroy() });
       this.applyDamage(victim, dmg, from);
       return;
     }
     const img = this.pool.pop() ?? this.battle.add.image(0, 0, PROJ_TEX[kind]).setDepth(DEPTH.projectiles);
-    img.setTexture(PROJ_TEX[kind]).setPosition(x, y).setVisible(true).setAlpha(1);
-    let tx = victim.x + Phaser.Math.Between(-4, 4);
-    let ty = victim.y + Phaser.Math.Between(-4, 4);
+    img.setTexture(PROJ_TEX[kind]).setPosition(muzzle.x, muzzle.y).setVisible(true).setAlpha(1);
+    let tx = aim.x + Phaser.Math.Between(-4, 4);
+    let ty = aim.y + Phaser.Math.Between(-4, 4);
     let blocked = false;
     if (!los) {
       // Projectile smacks into the cliff at a point along the line.
       const p = this.battle.cover?.blockPoint(x, y, victim.x, victim.y);
       if (p) {
         tx = p.x;
-        ty = p.y;
+        ty = Projection.vy(p.y) - 12;
         blocked = true;
       }
     }
-    img.rotation = Phaser.Math.Angle.Between(x, y, tx, ty);
-    const dist = Phaser.Math.Distance.Between(x, y, tx, ty);
+    img.rotation = Phaser.Math.Angle.Between(muzzle.x, muzzle.y, tx, ty);
+    const dist = Phaser.Math.Distance.Between(muzzle.x, muzzle.y, tx, ty);
     this.battle.tweens.add({
       targets: img,
       x: tx,

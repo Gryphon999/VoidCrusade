@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { DEPTH, UNITS } from '../config';
+import { DEPTH, TILE, TILE_SIZE, UNITS } from '../config';
+import { Projection } from '../render/Projection';
 import { EV } from '../events';
 import { Owner, opponent } from '../types';
 import { UNIT_DEFS, UnitId } from './UnitDefs';
@@ -15,9 +16,10 @@ export class UnitSystem {
   readonly squads: Squad[] = [];
   private grid = new Map<number, Unit[]>();
   private bars: Phaser.GameObjects.Graphics;
+  private occlusionTimer = 0;
 
   constructor(private battle: BattleScene) {
-    this.bars = battle.add.graphics().setDepth(DEPTH.units + 5);
+    this.bars = battle.add.graphics().setDepth(DEPTH.bars);
   }
 
   spawnSquad(id: UnitId, owner: Owner, x: number, y: number, size?: number): Squad {
@@ -58,6 +60,28 @@ export class UnitSystem {
 
   squadsInRect(r: Phaser.Geom.Rectangle, owner: Owner): Squad[] {
     return this.squads.filter((s) => s.alive && s.owner === owner && s.units.some((u) => r.contains(u.x, u.y)));
+  }
+
+  /** Squad whose drawn body is under a view-space point (front-most first). */
+  squadAtView(vx: number, vy: number, owner?: Owner): Squad | undefined {
+    let best: Squad | undefined;
+    let bestY = -Infinity;
+    for (const s of this.squads) {
+      if (!s.alive || (owner && s.owner !== owner)) continue;
+      for (const u of s.units) {
+        if (u.y > bestY && u.containsView(vx, vy)) {
+          best = s;
+          bestY = u.y;
+        }
+      }
+    }
+    return best;
+  }
+
+  /** Squads with any soldier's body inside a view-space rectangle (drag box). */
+  squadsInViewRect(r: Phaser.Geom.Rectangle, owner: Owner): Squad[] {
+    return this.squads.filter((s) => s.alive && s.owner === owner
+      && s.units.some((u) => r.contains(u.x, Projection.vy(u.y) - u.height * 0.5)));
   }
 
   /** Nearest visible enemy squad or building within `reach` of (x, y). */
@@ -116,6 +140,11 @@ export class UnitSystem {
       for (const u of s.units) this.steer(u, dt);
     }
     this.drawBars();
+    this.occlusionTimer -= dt;
+    if (this.occlusionTimer <= 0) {
+      this.occlusionTimer = 0.2;
+      this.updateOcclusion();
+    }
     for (let i = this.squads.length - 1; i >= 0; i--) {
       const s = this.squads[i];
       if (!s.alive || s.units.length === 0) {
@@ -135,14 +164,34 @@ export class UnitSystem {
       if (!s.selected && frac >= 0.999) continue;
       if (s.owner === 'enemy' && !s.units.some((u) => u.isShown)) continue;
       let top = Infinity;
-      for (const u of s.units) top = Math.min(top, u.y - u.radius);
-      const c = s.center;
+      for (const u of s.units) top = Math.min(top, Projection.vy(u.y) - u.height);
+      const c = { x: s.center.x };
       const w = 34;
       const x = c.x - w / 2;
       const y = top - 12;
       const col = s.owner === 'enemy' ? 0xe03030 : frac > 0.6 ? 0x40d040 : frac > 0.3 ? 0xe0c020 : 0xe03020;
       g.fillStyle(0x000000, 0.7).fillRect(x - 1, y - 1, w + 2, 5);
       g.fillStyle(col, 1).fillRect(x, y, w * Math.min(1, frac), 3);
+    }
+  }
+
+  /** Player soldiers hidden behind a raised cliff or a building show a silhouette. */
+  private updateOcclusion(): void {
+    const map = this.battle.map;
+    const blds = this.battle.buildings.buildings.map((b) => ({ r: b.view.viewBounds(), d: b.view.depth }));
+    for (const s of this.squads) {
+      if (s.owner !== 'player') continue;
+      for (const u of s.units) {
+        const t = map.worldToTile(u.x, u.y);
+        const nearFront = (u.y % TILE_SIZE) > TILE_SIZE * 0.35;
+        let occ = map.getTile(t.tx, t.ty + 1) === TILE.CLIFF && nearFront;
+        if (!occ) {
+          const d = Projection.depth(u.y);
+          const p = u.aimPoint();
+          occ = blds.some((b) => b.d > d && b.r.contains(p.x, p.y));
+        }
+        if (occ !== u.occluded) u.setOccluded(occ);
+      }
     }
   }
 

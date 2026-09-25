@@ -131,3 +131,36 @@ export function createBuildingTextures(scene: Phaser.Scene): void {
   bakeTexture(scene, 'bld_turret_gun', 90, 48, drawTurretGun);
   bakeTexture(scene, 'bld_spine_gun', 90, 48, drawSpineGun);
 }
+
+/** Key of the 2.5D (extruded) building image for the current tilt. */
+export function volumeTextureKey(id: BuildingId, tilt: number): string {
+  return `bld3d_${id}_${Math.round(tilt * 100)}`;
+}
+
+/**
+ * Bakes extruded building images for a tilt: a lit roof (the top-down art squashed by the tilt)
+ * raised on a front wall of `def.height` px. Origin of the result is the footprint's bottom edge.
+ */
+export function ensureBuildingVolumes(scene: Phaser.Scene, tilt: number): void {
+  for (const def of Object.values(BUILDING_DEFS)) {
+    const key = volumeTextureKey(def.id, tilt);
+    if (scene.textures.exists(key)) continue;
+    const w = def.size * TILE_SIZE;
+    const roofH = Math.round(w * tilt);
+    const h = def.height;
+    const rt = scene.make.renderTexture({ x: 0, y: 0, width: w, height: roofH + h }, false);
+    const g = scene.make.graphics({ x: 0, y: 0 }, false);
+    const wall = def.faction === 'ironvoid' ? 0x2c3038 : 0x3a1220;
+    g.fillStyle(wall, 1).fillRect(4, roofH, w - 8, h);
+    g.fillStyle(0x000000, 0.35).fillRect(4, roofH + h - 6, w - 8, 6);
+    g.fillStyle(0xffffff, 0.08).fillRect(4, roofH, w - 8, 3);
+    for (let x = 16; x < w - 12; x += 22) g.fillStyle(0x000000, 0.25).fillRect(x, roofH + 6, 3, h - 12);
+    rt.draw(g, 0, 0);
+    const roof = scene.make.image({ x: w / 2, y: roofH / 2, key: buildingTextureKey(def.id) }, false);
+    roof.setScale(1, tilt);
+    rt.draw(roof);
+    rt.saveTexture(key);
+    g.destroy();
+    roof.destroy();
+  }
+}

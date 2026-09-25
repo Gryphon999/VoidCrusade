@@ -115,7 +115,7 @@ export class MiniMap {
 
   /** Per-frame: camera viewport rectangle. */
   update(): void {
-    const v = this.battle.cameras.main.worldView;
+    const v = this.battle.cameraSystem.visibleWorldRect();
     this.view.clear().lineStyle(1, 0xffffff, 0.9).strokeRect(v.x * this.sx, v.y * this.sy, v.width * this.sx, v.height * this.sy);
   }
 }

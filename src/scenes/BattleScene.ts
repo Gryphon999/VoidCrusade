@@ -26,6 +26,8 @@ import { EV } from '../events';
 import { Building } from '../buildings/Building';
 import { Owner, opponent } from '../types';
 import { EffectsSystem } from '../effects/EffectsSystem';
+import { Projection } from '../render/Projection';
+import { Settings } from '../systems/Settings';
 import type { HudScene } from './HudScene';
 
 export type { BattleData } from './BattleTypes';
@@ -87,6 +89,7 @@ export class BattleScene extends Phaser.Scene {
         squadSizeBonus: bonus.squadSizeBonus, maxSquadsBonus: bonus.maxSquadsBonus, buildSpeedMult: bonus.buildSpeedMult,
       });
     }
+    Projection.setTilt(Settings.get().tilt);
     this.map = new MapSystem(getMap(data.mapIndex ?? 0));
     this.map.render(this);
     this.pathfinder = new Pathfinder(this.map);
@@ -106,7 +109,7 @@ export class BattleScene extends Phaser.Scene {
     this.capture = new CapturePointSystem(this);
     this.selection = new SelectionSystem(this);
     this.effects = new EffectsSystem(this);
-    this.placement = new BuildingPlacementUI(this, this.buildings);
+    this.placement = new BuildingPlacementUI(this, this.buildings, (x, y) => this.cameraSystem.screenToWorld(x, y));
 
     const { playerBase, enemyBase } = this.map.def;
     const hq = this.buildings.spawn('stronghold', 'player', playerBase.tx, playerBase.ty, true);
@@ -177,6 +180,12 @@ export class BattleScene extends Phaser.Scene {
     this.audio.update();
     this.selection.prune();
     this.cameraSystem.update(dt);
+    this.map.flushRender();
+    if (this.placement.isActive) {
+      const p = this.input.activePointer;
+      const w = this.cameraSystem.screenToWorld(p.x, p.y);
+      this.placement.updatePointer(w.x, w.y);
+    }
     this.inputController.update();
   }
 }

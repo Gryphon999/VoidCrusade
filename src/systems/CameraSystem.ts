@@ -1,9 +1,14 @@
 import Phaser from 'phaser';
-import { CAMERA } from '../config';
+import { CAMERA, PROJECTION } from '../config';
+import { Projection } from '../render/Projection';
 
 type ScrollKeys = Record<'up' | 'down' | 'left' | 'right' | 'w' | 'a' | 's' | 'd', Phaser.Input.Keyboard.Key>;
 
-/** RTS camera: keyboard + edge scroll, middle-mouse drag pan, wheel zoom, clamped to the map. */
+/**
+ * RTS camera: keyboard + edge scroll, middle-mouse drag pan, wheel zoom, clamped to the map.
+ * The Phaser camera works in projected view space; use worldToScreen/screenToWorld to convert
+ * to and from logical (top-down) world coordinates.
+ */
 export class CameraSystem {
   private cam: Phaser.Cameras.Scene2D.Camera;
   private keys?: ScrollKeys;
@@ -13,7 +18,8 @@ export class CameraSystem {
 
   constructor(private scene: Phaser.Scene, worldW: number, worldH: number) {
     this.cam = scene.cameras.main;
-    this.cam.setBounds(0, 0, worldW, worldH);
+    const top = PROJECTION.cliffHeight + 40;
+    this.cam.setBounds(0, -top, worldW, Projection.vy(worldH) + top);
     const kb = scene.input.keyboard;
     if (kb) {
       const K = Phaser.Input.Keyboard.KeyCodes;
@@ -28,8 +34,34 @@ export class CameraSystem {
     scene.input.on('pointerup', this.onPointerUp, this);
   }
 
+  /** Centers the camera on a logical world point. */
   centerOn(x: number, y: number): void {
-    this.cam.centerOn(x, y);
+    this.cam.centerOn(x, Projection.vy(y));
+  }
+
+  /** Screen (canvas) pixel → logical ground point. */
+  screenToWorld(px: number, py: number): Phaser.Math.Vector2 {
+    const v = this.cam.getWorldPoint(px, py);
+    return new Phaser.Math.Vector2(v.x, Projection.groundY(v.y));
+  }
+
+  /** Screen pixel → projected view-space point (what sprites are positioned in). */
+  screenToView(px: number, py: number): Phaser.Math.Vector2 {
+    return this.cam.getWorldPoint(px, py);
+  }
+
+  /** Logical world point (optionally lifted by z) → screen pixel. */
+  worldToScreen(x: number, y: number, z = 0): Phaser.Math.Vector2 {
+    const c = this.cam;
+    const vx = x;
+    const vy = Projection.vy(y, z);
+    return new Phaser.Math.Vector2((vx - c.worldView.x) * c.zoom, (vy - c.worldView.y) * c.zoom);
+  }
+
+  /** Logical-world rectangle currently visible on screen. */
+  visibleWorldRect(): Phaser.Geom.Rectangle {
+    const v = this.cam.worldView;
+    return new Phaser.Geom.Rectangle(v.x, Projection.groundY(v.y), v.width, Projection.groundY(v.height));
   }
 
   update(dtSec: number): void {

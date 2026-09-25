@@ -56,8 +56,7 @@ export class InputController {
     if (this.mode === 'attackMove') kind = 'attack';
     else if (this.mode === 'move') kind = 'move';
     else if (b.selection.hasSquads && !b.placement.isActive && !this.overUI(p)) {
-      const w = this.world(p);
-      kind = this.enemyAt(w.x, w.y) ? 'attack' : 'move';
+      kind = this.enemyAt(p) ? 'attack' : 'move';
     }
     b.hud?.setCursor(kind);
   }
@@ -78,15 +77,22 @@ export class InputController {
     return this.battle.hud?.isOverUI(p.x, p.y) ?? false;
   }
 
+  /** Pointer → logical ground point (through the tilted projection). */
   private world(p: Phaser.Input.Pointer): Phaser.Math.Vector2 {
-    return this.battle.cameras.main.getWorldPoint(p.x, p.y);
+    return this.battle.cameraSystem.screenToWorld(p.x, p.y);
   }
 
-  /** Visible enemy squad or building under a world point. */
-  enemyAt(wx: number, wy: number): Target | null {
-    const s = this.battle.units.squadAt(wx, wy, 'enemy');
+  /** Pointer → projected view point (where sprites are drawn). */
+  private view(p: Phaser.Input.Pointer): Phaser.Math.Vector2 {
+    return this.battle.cameraSystem.screenToView(p.x, p.y);
+  }
+
+  /** Visible enemy squad or building drawn under the pointer. */
+  enemyAt(p: Phaser.Input.Pointer): Target | null {
+    const v = this.view(p);
+    const s = this.battle.units.squadAtView(v.x, v.y, 'enemy');
     if (s && s.units.some((u) => u.isShown)) return s;
-    const b = this.battle.buildings.buildingAt(wx, wy);
+    const b = this.battle.buildings.buildingAtView(v.x, v.y);
     return b && b.owner === 'enemy' && b.discovered ? b : null;
   }
 
@@ -96,16 +102,17 @@ export class InputController {
     if (p.rightButtonDown()) {
       if (b.placement.isActive) b.placement.cancel();
       else if (this.mode !== 'none') this.setMode('none');
-      else this.issueRightClick(this.world(p));
+      else this.issueRightClick(p);
       return;
     }
     if (p.leftButtonDown()) this.downAt = new Phaser.Math.Vector2(p.x, p.y);
   }
 
-  private issueRightClick(w: Phaser.Math.Vector2): void {
+  private issueRightClick(p: Phaser.Input.Pointer): void {
     const sel = this.battle.selection;
+    const w = this.world(p);
     if (sel.hasSquads) {
-      const enemy = this.enemyAt(w.x, w.y);
+      const enemy = this.enemyAt(p);
       if (enemy) sel.squads.forEach((s) => s.attack(enemy));
       else this.moveSquads(sel.squads, w.x, w.y, false);
       this.battle.effects.orderMarker(w.x, w.y, !!enemy);
@@ -144,7 +151,7 @@ export class InputController {
       return;
     }
     if (this.mode !== 'none' && !dragged) {
-      const enemy = this.enemyAt(w.x, w.y);
+      const enemy = this.enemyAt(p);
       if (enemy && this.mode === 'attackMove') b.selection.squads.forEach((s) => s.attack(enemy));
       else this.moveSquads(b.selection.squads, w.x, w.y, this.mode === 'attackMove');
       b.effects.orderMarker(w.x, w.y, this.mode === 'attackMove');
@@ -153,21 +160,23 @@ export class InputController {
       return;
     }
     if (dragged) {
-      const a = b.cameras.main.getWorldPoint(start.x, start.y);
-      const rect = new Phaser.Geom.Rectangle(Math.min(a.x, w.x), Math.min(a.y, w.y), Math.abs(w.x - a.x), Math.abs(w.y - a.y));
-      const found = b.units.squadsInRect(rect, 'player');
+      const a = b.cameraSystem.screenToView(start.x, start.y);
+      const v = this.view(p);
+      const rect = new Phaser.Geom.Rectangle(Math.min(a.x, v.x), Math.min(a.y, v.y), Math.abs(v.x - a.x), Math.abs(v.y - a.y));
+      const found = b.units.squadsInViewRect(rect, 'player');
       if (found.length || !shift) b.selection.selectSquads(found, shift);
       if (found.length) this.acknowledge();
       return;
     }
-    const squad = b.units.squadAt(w.x, w.y, 'player');
+    const v = this.view(p);
+    const squad = b.units.squadAtView(v.x, v.y, 'player');
     if (squad) {
       if (shift) b.selection.toggleSquad(squad);
       else b.selection.selectSquads([squad]);
       this.acknowledge();
       return;
     }
-    const building = b.buildings.buildingAt(w.x, w.y);
+    const building = b.buildings.buildingAtView(v.x, v.y);
     if (building && building.owner === 'player') b.selection.selectBuilding(building);
     else if (!shift) b.selection.clear();
   }
@@ -180,8 +189,8 @@ export class InputController {
     const p = this.battle.input.activePointer;
     if (!p.leftButtonDown()) return;
     if (Phaser.Math.Distance.Between(this.downAt.x, this.downAt.y, p.x, p.y) <= DRAG_THRESHOLD) return;
-    const a = this.battle.cameras.main.getWorldPoint(this.downAt.x, this.downAt.y);
-    const w = this.world(p);
+    const a = this.battle.cameraSystem.screenToView(this.downAt.x, this.downAt.y);
+    const w = this.view(p);
     g.clear().fillStyle(0x40ff60, 0.12).lineStyle(1, 0x40ff60, 0.9);
     g.fillRect(Math.min(a.x, w.x), Math.min(a.y, w.y), Math.abs(w.x - a.x), Math.abs(w.y - a.y));
     g.strokeRect(Math.min(a.x, w.x), Math.min(a.y, w.y), Math.abs(w.x - a.x), Math.abs(w.y - a.y));
