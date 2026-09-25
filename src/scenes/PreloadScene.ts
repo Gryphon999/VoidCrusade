@@ -4,6 +4,7 @@ import { createUITextures } from '../assets/UITextures';
 import { createBuildingTextures } from '../assets/BuildingTextures';
 import { createUnitTextures } from '../assets/UnitTextures';
 import { createFxTextures } from '../assets/FxTextures';
+import { createCaptureTextures } from '../assets/CaptureTextures';
 
 export class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -16,6 +17,7 @@ export class PreloadScene extends Phaser.Scene {
     createBuildingTextures(this);
     createUnitTextures(this);
     createFxTextures(this);
+    createCaptureTextures(this);
     this.scene.start('MenuScene');
   }
 }

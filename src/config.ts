@@ -98,3 +98,11 @@ export const FX = {
   shakeDuration: 300,
   shakeIntensity: 0.02,
 } as const;
+
+export const CAPTURE = {
+  /** Half-size of the square capture zone, in tiles (3x3 zone). */
+  zoneHalfTiles: 1.5,
+  captureTime: 5,
+  /** No-build margin around the zone, in tiles. */
+  reserveTiles: 2,
+} as const;

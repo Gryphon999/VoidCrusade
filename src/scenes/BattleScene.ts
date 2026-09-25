@@ -8,6 +8,7 @@ import { InputController } from '../systems/InputController';
 import { Pathfinder } from '../systems/Pathfinder';
 import { ProductionSystem } from '../systems/ProductionSystem';
 import { ResearchSystem } from '../systems/ResearchSystem';
+import { CapturePointSystem } from '../systems/CapturePointSystem';
 import { ModifierTable, defaultModifiers } from '../systems/Modifiers';
 import { BuildingSystem } from '../buildings/BuildingSystem';
 import { BuildingPlacementUI } from '../buildings/BuildingPlacementUI';
@@ -44,6 +45,7 @@ export class BattleScene extends Phaser.Scene {
   combat!: CombatSystem;
   production!: ProductionSystem;
   research!: ResearchSystem;
+  capture!: CapturePointSystem;
   modifiers!: ModifierTable;
   cover?: CoverQueries;
   effects!: EffectsSystem;
@@ -68,6 +70,7 @@ export class BattleScene extends Phaser.Scene {
     this.combat = new CombatSystem(this);
     this.production = new ProductionSystem(this);
     this.research = new ResearchSystem(this);
+    this.capture = new CapturePointSystem(this);
     this.selection = new SelectionSystem(this);
     this.effects = new EffectsSystem(this);
     this.placement = new BuildingPlacementUI(this, this.buildings);
@@ -102,6 +105,7 @@ export class BattleScene extends Phaser.Scene {
     this.research.update(dt);
     this.units.update(dt);
     this.combat.update(dt);
+    this.capture.update(dt);
     this.selection.prune();
     this.cameraSystem.update(dt);
     this.inputController.update();
