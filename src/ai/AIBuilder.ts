@@ -8,6 +8,18 @@ import type { BattleScene } from '../scenes/BattleScene';
 export class AIBuilder {
   constructor(private battle: BattleScene, private owner: Owner) {}
 
+  /** Fortifies a captured point with an outpost (Listening Post / Spore Node). */
+  placeOnPoint(id: BuildingId, px: number, py: number): boolean {
+    const bs = this.battle.buildings;
+    const c = { tx: Math.floor(px / TILE_SIZE), ty: Math.floor(py / TILE_SIZE) };
+    for (let dy = -2; dy <= 1; dy++) {
+      for (let dx = -2; dx <= 1; dx++) {
+        if (bs.validate(this.owner, id, c.tx + dx, c.ty + dy).ok) return !!bs.tryPlace(this.owner, id, c.tx + dx, c.ty + dy);
+      }
+    }
+    return false;
+  }
+
   /** Places a building at the best valid site. `forward` prefers sites toward the enemy. */
   place(id: BuildingId, forward: boolean): boolean {
     const bs = this.battle.buildings;

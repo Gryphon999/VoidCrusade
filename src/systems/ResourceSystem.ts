@@ -32,8 +32,10 @@ export class ResourceSystem {
   tick(dt: number): void {
     for (const o of ['player', 'enemy'] as const) {
       const m = this.multiplier[o];
+      // Income can be negative (Flux upkeep) but stockpiles never go below zero.
+      const fi = this.income[o].flux;
       this.resources[o].scrip += this.income[o].scrip * m * dt;
-      this.resources[o].flux += this.income[o].flux * m * dt;
+      this.resources[o].flux = Math.max(0, this.resources[o].flux + (fi > 0 ? fi * m : fi) * dt);
     }
   }
 
@@ -69,7 +71,8 @@ export class ResourceSystem {
   }
 
   removeIncome(owner: Owner, type: ResourceType, amount: number): void {
-    this.income[owner][type] = Math.max(0, this.income[owner][type] - amount);
+    this.income[owner][type] -= amount;
+    if (this.income[owner][type] > -1e-6 && this.income[owner][type] < 1e-6) this.income[owner][type] = 0;
   }
 
   getResources(owner: Owner): Resources {

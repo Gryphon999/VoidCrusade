@@ -177,8 +177,13 @@ export class SupportSystem {
       return;
     }
     const n = s.units.length;
-    if (b.state === 'constructing') b.updateConstruction(dt * 0.35 * n, this.battle.buildings.buildSpeed[s.owner]);
-    else b.heal((s.def.repairRate ?? 0) * n * dt);
+    if (b.state === 'constructing') {
+      // Field sites are built by the engineers alone; base structures just go up faster.
+      const rate = b.needsBuilder ? 0.55 + 0.2 * n : 0.35 * n;
+      if (b.updateConstruction(dt * rate, this.battle.buildings.buildSpeed[s.owner])) this.battle.buildings.completeBy(b);
+    } else {
+      b.heal((s.def.repairRate ?? 0) * n * dt);
+    }
     for (const u of s.units) {
       u.face(b.x, b.y);
       if (Math.random() < dt * 2) {

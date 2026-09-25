@@ -64,7 +64,7 @@ export const en = {
   'tip.5': 'Press B to select your Command Bastion, then pick a build page: A Economy, S Military, D Defence, F Tech.',
   // HUD
   'hud.pause': 'Pause',
-  'hud.rate': '{n}  +{r}/s',
+  'hud.rate': '{n}  {r}/s',
   'hud.empty': 'Select a squad or structure\nB — Command Bastion · Ctrl+A — whole army · . — idle squad',
   'hud.army': 'Army {n}/{max}',
   'hud.squads': 'squad|squads',

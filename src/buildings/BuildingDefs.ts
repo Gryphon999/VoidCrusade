@@ -4,10 +4,14 @@ import { DamageType } from '../units/Damage';
 
 export type BuildingId =
   | 'stronghold' | 'generator' | 'depot' | 'barracks' | 'mechanis' | 'foundry' | 'turret' | 'relay' | 'research'
-  | 'hive' | 'spire' | 'nest' | 'brood' | 'maw' | 'vat' | 'spine';
+  | 'wall' | 'gate' | 'listening' | 'minefield' | 'bunker' | 'armoury' | 'hospital' | 'sensor' | 'shield' | 'missile' | 'beacon'
+  | 'hive' | 'spire' | 'nest' | 'brood' | 'maw' | 'vat' | 'spine'
+  | 'thornwall' | 'sporenode' | 'sporemine' | 'evolution' | 'pool' | 'organ' | 'acidspire' | 'portal';
 
 /** Functional role — lets the AI and rules treat both factions uniformly. */
-export type BuildingRole = 'hq' | 'power' | 'supply' | 'infantry' | 'heavy' | 'vehicles' | 'defense' | 'relay' | 'research';
+export type BuildingRole =
+  | 'hq' | 'power' | 'supply' | 'infantry' | 'heavy' | 'vehicles' | 'defense' | 'relay' | 'research'
+  | 'wall' | 'gate' | 'outpost' | 'mine' | 'bunker' | 'armoury' | 'hospital' | 'sensor' | 'shield' | 'longrange' | 'beacon';
 
 /** Build-menu page a structure appears on. */
 export type BuildCategory = 'economy' | 'military' | 'defense' | 'tech';
@@ -35,9 +39,38 @@ export interface BuildingDef {
   buildRadius: number;
   requires: BuildingRole[];
   produces: UnitId[];
-  attack?: { damage: number; range: number; cooldown: number; damageType: DamageType };
+  attack?: {
+    damage: number; range: number; cooldown: number; damageType: DamageType;
+    splash?: number; minRange?: number; projectile?: 'bullet' | 'spine' | 'rocket' | 'acidlob';
+  };
   /** Reveals burrowed enemies within this radius. */
   detector?: number;
+  /** Fog-of-war vision radius override (px). */
+  vision?: number;
+  /** Placement grid in tiles (defaults to BUILD.snap). */
+  snap?: number;
+  /** Engineers can raise it anywhere (no build radius); it then needs a builder standing by to progress. */
+  fieldBuild?: boolean;
+  /** Must be placed inside a capture zone the owner holds (one per point). */
+  onPoint?: boolean;
+  /** Extra Scrip/s for the point it stands on. */
+  incomeBonus?: number;
+  /** Low barrier: blocks movement and shelters the tiles next to it. */
+  wall?: boolean;
+  /** Opens for its owner's units. */
+  gate?: boolean;
+  /** Number of infantry squads that can garrison it. */
+  garrison?: number;
+  /** Heals nearby soldiers; `revive` = seconds per fallen member restored (costs Scrip). */
+  heal?: { radius: number; hps: number; revive?: number };
+  /** Activated dome that stops ranged shots; costs Flux and has a cooldown. */
+  shield?: { radius: number; duration: number; cooldown: number; cost: number };
+  /** Flux drained per second while it stands. */
+  upkeep?: number;
+  /** Hidden explosive trap. */
+  mine?: { trigger: number; damage: number; splash: number; damageType: DamageType };
+  /** Invisible to the enemy unless detected. */
+  stealth?: boolean;
   /** HP regenerated per second (Null Horde structures). */
   regen?: number;
   description: string;
@@ -92,6 +125,67 @@ export const BUILDING_DEFS: Record<BuildingId, BuildingDef> = {
     fluxGen: 0, hp: 1000, buildTime: 25, size: 3, height: 72, buildRadius: 10, requires: ['power', 'infantry'], produces: [],
     description: 'Unlocks upgrades.',
   },
+  wall: {
+    id: 'wall', name: 'Barricade', faction: 'ironvoid', role: 'wall', category: 'defense', tier: 1, cost: { scrip: 15, flux: 0 },
+    fluxGen: 0, hp: 450, buildTime: 4, size: 1, height: 26, buildRadius: 0, requires: [], produces: [], snap: 1,
+    fieldBuild: true, wall: true, description: 'Cheap plasteel barricade. Blocks movement; troops behind it are in cover. Shift-click to lay a line.',
+  },
+  gate: {
+    id: 'gate', name: 'Blast Gate', faction: 'ironvoid', role: 'gate', category: 'defense', tier: 1, cost: { scrip: 40, flux: 0 },
+    fluxGen: 0, hp: 800, buildTime: 6, size: 2, height: 40, buildRadius: 0, requires: [], produces: [], snap: 1,
+    fieldBuild: true, wall: true, gate: true, description: 'A gate in your barricades that opens only for your own troops.',
+  },
+  listening: {
+    id: 'listening', name: 'Listening Post', faction: 'ironvoid', role: 'outpost', category: 'economy', tier: 1, cost: { scrip: 80, flux: 20 },
+    fluxGen: 0, hp: 600, buildTime: 10, size: 2, height: 64, buildRadius: 0, requires: [], produces: [], snap: 1,
+    fieldBuild: true, onPoint: true, incomeBonus: 10, attack: { damage: 10, range: 220, cooldown: 1, damageType: 'bullet' },
+    description: 'Fortifies a captured Void-Nexus: +10 Scrip/s, a light gun, and the enemy captures it half as fast.',
+  },
+  minefield: {
+    id: 'minefield', name: 'Tank Mines', faction: 'ironvoid', role: 'mine', category: 'defense', tier: 1, cost: { scrip: 40, flux: 10 },
+    fluxGen: 0, hp: 60, buildTime: 4, size: 1, height: 6, buildRadius: 0, requires: [], produces: [], snap: 1,
+    fieldBuild: true, stealth: true, mine: { trigger: 40, damage: 170, splash: 64, damageType: 'explosive' },
+    description: 'Hidden explosives. Detonate under the first enemy to step close. Revealed by detectors.',
+  },
+  bunker: {
+    id: 'bunker', name: 'Bunker', faction: 'ironvoid', role: 'bunker', category: 'defense', tier: 2, cost: { scrip: 150, flux: 0 },
+    fluxGen: 0, hp: 1500, buildTime: 15, size: 2, height: 40, buildRadius: 6, requires: [], produces: [], snap: 2,
+    fieldBuild: true, garrison: 1,
+    description: 'Ferrocrete strongpoint. One infantry squad inside fires safely (+40 range). Flamers can burn them out.',
+  },
+  armoury: {
+    id: 'armoury', name: 'Armoury', faction: 'ironvoid', role: 'armoury', category: 'military', tier: 2, cost: { scrip: 200, flux: 100 },
+    fluxGen: 0, hp: 1000, buildTime: 20, size: 3, height: 60, buildRadius: 10, requires: ['power'], produces: [],
+    description: 'Forges wargear and weapon upgrades for your infantry and commander.',
+  },
+  hospital: {
+    id: 'hospital', name: 'Field Hospital', faction: 'ironvoid', role: 'hospital', category: 'tech', tier: 2, cost: { scrip: 150, flux: 80 },
+    fluxGen: 0, hp: 900, buildTime: 18, size: 3, height: 50, buildRadius: 10, requires: ['power'], produces: [],
+    heal: { radius: 260, hps: 4, revive: 12 },
+    description: 'Heals infantry nearby and slowly returns fallen soldiers to their squads (costs Scrip).',
+  },
+  sensor: {
+    id: 'sensor', name: 'Sensor Array', faction: 'ironvoid', role: 'sensor', category: 'tech', tier: 3, cost: { scrip: 150, flux: 150 },
+    fluxGen: 0, hp: 600, buildTime: 15, size: 2, height: 96, buildRadius: 8, requires: ['power'], produces: [],
+    detector: 900, vision: 800, description: 'Wide-area auspex. Huge vision radius and reveals burrowed enemies and mines within 900 px.',
+  },
+  shield: {
+    id: 'shield', name: 'Shield Projector', faction: 'ironvoid', role: 'shield', category: 'tech', tier: 3, cost: { scrip: 200, flux: 200 },
+    fluxGen: 0, hp: 800, buildTime: 20, size: 2, height: 72, buildRadius: 8, requires: ['power'], produces: [],
+    shield: { radius: 280, duration: 12, cooldown: 40, cost: 60 }, upkeep: 3,
+    description: 'Raises a void dome that stops every ranged shot fired into it for 12 s. Drains 3 Flux/s.',
+  },
+  missile: {
+    id: 'missile', name: 'Missile Battery', faction: 'ironvoid', role: 'longrange', category: 'defense', tier: 3, cost: { scrip: 200, flux: 150 },
+    fluxGen: 0, hp: 900, buildTime: 18, size: 2, height: 58, buildRadius: 6, requires: ['power'], produces: [],
+    attack: { damage: 70, range: 560, cooldown: 4, damageType: 'explosive', splash: 50, minRange: 150, projectile: 'rocket' },
+    description: 'Long-range rocket launcher. Splash damage, cannot hit targets closer than 150 px.',
+  },
+  beacon: {
+    id: 'beacon', name: 'Orbital Beacon', faction: 'ironvoid', role: 'beacon', category: 'tech', tier: 3, cost: { scrip: 300, flux: 250 },
+    fluxGen: 0, hp: 1200, buildTime: 30, size: 3, height: 110, buildRadius: 10, requires: ['power'], produces: [],
+    description: 'Uplink to the fleet in orbit. Unlocks the Commander\'s Void Barrage and drop-pod reinforcements.',
+  },
   hive: {
     id: 'hive', name: 'Null Hive', faction: 'nullhorde', role: 'hq', category: 'economy', tier: 1, cost: Z, fluxGen: 0, hp: 3000, buildTime: 0,
     size: 4, height: 84, buildRadius: 12, requires: [], produces: ['overlord', 'shaman'], supply: 10, regen: 4, description: 'Heart of the swarm.',
@@ -126,10 +220,53 @@ export const BUILDING_DEFS: Record<BuildingId, BuildingDef> = {
     fluxGen: 0, hp: 650, buildTime: 10, size: 2, height: 54, buildRadius: 6, requires: ['power'], produces: [],
     attack: { damage: 20, range: 260, cooldown: 0.9, damageType: 'bullet' }, regen: 2, description: 'Hurls bone spines.',
   },
+  thornwall: {
+    id: 'thornwall', name: 'Thorn Wall', faction: 'nullhorde', role: 'wall', category: 'defense', tier: 1, cost: { scrip: 15, flux: 0 },
+    fluxGen: 0, hp: 400, buildTime: 4, size: 1, height: 30, buildRadius: 2, requires: [], produces: [], snap: 1, regen: 1,
+    wall: true, description: 'A hedge of bone thorns. Blocks movement and shelters the swarm.',
+  },
+  sporenode: {
+    id: 'sporenode', name: 'Spore Node', faction: 'nullhorde', role: 'outpost', category: 'economy', tier: 1, cost: { scrip: 80, flux: 20 },
+    fluxGen: 0, hp: 550, buildTime: 10, size: 2, height: 60, buildRadius: 0, requires: [], produces: [], snap: 1, regen: 2,
+    onPoint: true, incomeBonus: 10, attack: { damage: 10, range: 220, cooldown: 1, damageType: 'acid', projectile: 'spine' },
+    description: 'Roots into a held Void-Nexus: +10 Scrip/s, spits spines, halves the enemy\'s capture speed.',
+  },
+  sporemine: {
+    id: 'sporemine', name: 'Spore Mine', faction: 'nullhorde', role: 'mine', category: 'defense', tier: 1, cost: { scrip: 40, flux: 10 },
+    fluxGen: 0, hp: 60, buildTime: 4, size: 1, height: 10, buildRadius: 12, requires: [], produces: [], snap: 1,
+    stealth: true, mine: { trigger: 44, damage: 140, splash: 72, damageType: 'acid' },
+    description: 'A buried pod that bursts into acid when prey walks by. Revealed by detectors.',
+  },
+  evolution: {
+    id: 'evolution', name: 'Evolution Pit', faction: 'nullhorde', role: 'research', category: 'tech', tier: 2, cost: { scrip: 250, flux: 150 },
+    fluxGen: 0, hp: 1000, buildTime: 25, size: 3, height: 64, buildRadius: 10, requires: ['power', 'infantry'], produces: [], regen: 3,
+    description: 'Mutates the swarm: sharper claws, thicker carapace, faster growth.',
+  },
+  pool: {
+    id: 'pool', name: 'Healing Pool', faction: 'nullhorde', role: 'hospital', category: 'tech', tier: 2, cost: { scrip: 150, flux: 80 },
+    fluxGen: 0, hp: 850, buildTime: 18, size: 3, height: 36, buildRadius: 10, requires: ['power'], produces: [], regen: 3,
+    heal: { radius: 260, hps: 5, revive: 12 }, description: 'Regrows the flesh of nearby beasts and spawns replacements for the fallen.',
+  },
+  organ: {
+    id: 'organ', name: 'Sensory Organ', faction: 'nullhorde', role: 'sensor', category: 'tech', tier: 3, cost: { scrip: 150, flux: 150 },
+    fluxGen: 0, hp: 550, buildTime: 15, size: 2, height: 90, buildRadius: 8, requires: ['power'], produces: [], regen: 2,
+    detector: 900, vision: 800, description: 'A towering eye-stalk. Sees far and exposes hidden enemies.',
+  },
+  acidspire: {
+    id: 'acidspire', name: 'Acid Spire', faction: 'nullhorde', role: 'longrange', category: 'defense', tier: 3, cost: { scrip: 200, flux: 150 },
+    fluxGen: 0, hp: 900, buildTime: 18, size: 2, height: 80, buildRadius: 6, requires: ['power'], produces: [], regen: 2,
+    attack: { damage: 60, range: 520, cooldown: 3.5, damageType: 'acid', splash: 55, minRange: 140, projectile: 'acidlob' },
+    description: 'Long-range spire that arcs globs of acid onto attackers.',
+  },
+  portal: {
+    id: 'portal', name: 'Hive Portal', faction: 'nullhorde', role: 'beacon', category: 'tech', tier: 3, cost: { scrip: 300, flux: 250 },
+    fluxGen: 0, hp: 1200, buildTime: 30, size: 3, height: 100, buildRadius: 10, requires: ['power'], produces: [], regen: 4,
+    description: 'A rift in the void that lets the swarm burst out anywhere. Unlocks brood drops and the Overlord\'s Spawn Brood.',
+  },
 };
 
 /** Buildings the player may construct, in build-menu order. */
-export const PLAYER_BUILD_LIST: BuildingId[] = ['generator', 'depot', 'relay', 'barracks', 'mechanis', 'foundry', 'turret', 'research'];
+export const PLAYER_BUILD_LIST: BuildingId[] = buildList('ironvoid');
 
 export function buildList(faction: Faction): BuildingId[] {
   return (Object.values(BUILDING_DEFS) as BuildingDef[]).filter((d) => d.faction === faction && d.role !== 'hq').map((d) => d.id);

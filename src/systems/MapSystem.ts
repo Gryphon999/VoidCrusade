@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { MAP_H, MAP_W, TILE, TILE_SIZE, TileType } from '../config';
 import { MapDef } from '../maps/MapBuilder';
 import { TerrainRenderer } from '../render/TerrainRenderer';
+import { Owner } from '../types';
 
 /** Owns the battle terrain: tile data, rendering, and passability queries. */
 export class MapSystem {
@@ -55,14 +56,16 @@ export class MapSystem {
     return this.inBounds(tx, ty) && this.tiles[ty][tx] !== TILE.CLIFF;
   }
 
-  /** Passable for units: not a cliff and not covered by a building. */
-  isPassable(tx: number, ty: number): boolean {
-    return this.isTerrainPassable(tx, ty) && this.occupied[ty * MAP_W + tx] === 0 && this.blocked[ty * MAP_W + tx] === 0;
+  /** Passable for units: not a cliff and not covered by a building (own gates are open to `owner`). */
+  isPassable(tx: number, ty: number, owner?: Owner): boolean {
+    if (!this.isTerrainPassable(tx, ty) || this.blocked[ty * MAP_W + tx] !== 0) return false;
+    const o = this.occupied[ty * MAP_W + tx];
+    return o === 0 || (!!owner && ((o === 2 && owner === 'player') || (o === 3 && owner === 'enemy')));
   }
 
-  isPassableWorld(wx: number, wy: number): boolean {
+  isPassableWorld(wx: number, wy: number, owner?: Owner): boolean {
     const t = this.worldToTile(wx, wy);
-    return this.isPassable(t.tx, t.ty);
+    return this.isPassable(t.tx, t.ty, owner);
   }
 
   isOccupied(tx: number, ty: number): boolean {
@@ -80,12 +83,21 @@ export class MapSystem {
     return this.inBounds(tx, ty) && this.blocked[ty * MAP_W + tx] !== 0;
   }
 
-  setOccupied(tx: number, ty: number, w: number, h: number, value: boolean): void {
+  /** Marks a building footprint; a gate's footprint stays passable for `gateOwner`'s units. */
+  setOccupied(tx: number, ty: number, w: number, h: number, value: boolean, gateOwner?: Owner): void {
+    const v = !value ? 0 : gateOwner === 'player' ? 2 : gateOwner === 'enemy' ? 3 : 1;
     for (let y = ty; y < ty + h; y++) {
       for (let x = tx; x < tx + w; x++) {
-        if (this.inBounds(x, y)) this.occupied[y * MAP_W + x] = value ? 1 : 0;
+        if (this.inBounds(x, y)) this.occupied[y * MAP_W + x] = v;
       }
     }
+  }
+
+  /** True if the tile is a gate owned by `owner`. */
+  isGateFor(tx: number, ty: number, owner: Owner): boolean {
+    if (!this.inBounds(tx, ty)) return false;
+    const o = this.occupied[ty * MAP_W + tx];
+    return (o === 2 && owner === 'player') || (o === 3 && owner === 'enemy');
   }
 
   worldToTile(wx: number, wy: number): { tx: number; ty: number } {

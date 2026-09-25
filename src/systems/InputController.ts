@@ -217,6 +217,16 @@ export class InputController {
           return;
         }
       }
+      // Infantry right-clicking a friendly bunker shelters inside.
+      if (own && own.def.garrison) {
+        const inf = sel.squads.filter((s) => this.battle.structures.canGarrison(s, own));
+        if (inf.length) {
+          inf.slice(0, own.def.garrison - own.garrison.length).forEach((s) => s.enterBunker(own));
+          this.battle.effects.orderMarker(own.x, own.y, false);
+          this.acknowledge('move');
+          return;
+        }
+      }
       // Engineers right-clicking a wreck strip it for Scrip.
       const wreck = enemy ? null : this.battle.wrecks.wreckAtView(v.x, v.y);
       const salvagers = wreck ? sel.squads.filter((s) => s.def.repairRate) : [];
@@ -271,6 +281,11 @@ export class InputController {
     const shift = isShift(p);
     const w = this.world(p);
     if (b.placement.isActive) {
+      if (dragged && b.placement.draggable) {
+        const a = b.cameraSystem.screenToWorld(start.x, start.y);
+        if (b.placement.placeLine(a.x, a.y, w.x, w.y) > 0 && !shift) b.placement.cancel();
+        return;
+      }
       b.placement.updatePointer(w.x, w.y);
       b.placement.confirm(shift);
       return;

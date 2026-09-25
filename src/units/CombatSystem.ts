@@ -11,7 +11,7 @@ import { DamageType, damageMult } from './Damage';
 import { ProjectileLook } from './UnitDefs';
 
 export type Victim = Unit | Building;
-type ProjKind = ProjectileLook | 'spine';
+type ProjKind = ProjectileLook | 'spine' | 'rocket';
 
 /** Weapon fire for squads and turrets: target selection, projectiles, damage application. */
 export class CombatSystem {
@@ -20,7 +20,7 @@ export class CombatSystem {
 
   update(dt: number): void {
     for (const s of this.battle.units.squads) {
-      if (!s.alive || s.order === 'move' || s.order === 'retreat' || s.embarked) continue;
+      if (!s.alive || s.order === 'move' || s.order === 'retreat' || s.carrier) continue;
       const t = s.engaged;
       // Artillery only fires once deployed.
       const armed = !s.def.deploy || s.deployState === 'deployed';
@@ -55,12 +55,14 @@ export class CombatSystem {
       if (!atk || !b.isReady) continue;
       b.attackCooldown -= dt;
       if (b.attackCooldown > 0) continue;
-      const victim = this.nearestEnemyUnit(b.owner, b.x, b.y, atk.range);
+      const victim = this.nearestEnemyUnit(b.owner, b.x, b.y, atk.range, atk.minRange ?? 0);
       if (!victim) continue;
       b.attackCooldown = atk.cooldown;
       b.aimAt(victim.x, victim.y);
       const dmg = atk.damage * this.battle.modifiers[b.owner].turretDamageMult;
-      this.fire(b.x, b.y, b.owner, victim, dmg, b.def.faction === 'ironvoid' ? 'bullet' : 'spine', null, b.gunTip, atk.damageType);
+      const look = atk.projectile ?? (b.def.faction === 'ironvoid' ? 'bullet' : 'spine');
+      this.fire(b.x, b.y, b.owner, victim, dmg, look, null, b.gunTip, atk.damageType,
+        { splash: atk.splash, indirect: look === 'rocket' || look === 'acidlob' });
     }
   }
 
@@ -84,7 +86,7 @@ export class CombatSystem {
     return best;
   }
 
-  nearestEnemyUnit(owner: Owner, x: number, y: number, range: number): Unit | null {
+  nearestEnemyUnit(owner: Owner, x: number, y: number, range: number, minRange = 0): Unit | null {
     const enemy = opponent(owner);
     let best: Unit | null = null;
     let bestD = range;
@@ -92,7 +94,7 @@ export class CombatSystem {
       if (s.owner !== enemy || !s.alive || s.hiddenFrom(owner)) continue;
       for (const u of s.units) {
         const d = Phaser.Math.Distance.Between(x, y, u.x, u.y);
-        if (d < bestD) {
+        if (d < bestD && d >= minRange) {
           bestD = d;
           best = u;
         }
@@ -106,11 +108,11 @@ export class CombatSystem {
    * to the victim's body and deal damage on impact.
    */
   fire(x: number, y: number, owner: Owner, victim: Victim, dmg: number, kind: ProjKind, from: Squad | null,
-    muzzle: { x: number; y: number }, type: DamageType): void {
+    muzzle: { x: number; y: number }, type: DamageType, opts: { splash?: number; indirect?: boolean } = {}): void {
     const aim = victim instanceof Building ? victim.view.aimPoint() : victim.aimPoint();
-    const lobbed = !!from && (from.def.indirect || from.def.flying);
+    const lobbed = opts.indirect || (!!from && (!!from.def.indirect || !!from.def.flying || !!from.garrisonIn));
     const los = lobbed || (this.battle.cover?.hasLineOfSight(x, y, victim.x, victim.y) ?? true);
-    const splash = from?.def.splash ?? 0;
+    const splash = opts.splash ?? from?.def.splash ?? 0;
     const gx = victim.x;
     const gy = victim.y;
     this.battle.events.emit(EV.unitFired, x, y, kind, owner);
@@ -136,7 +138,7 @@ export class CombatSystem {
       }
     }
     // Indirect shells land where the target stood.
-    if (lobbed && from?.def.indirect) {
+    if (lobbed && (opts.indirect || from?.def.indirect)) {
       tx = gx + Phaser.Math.Between(-10, 10);
       ty = Projection.vy(gy);
     }
@@ -145,13 +147,23 @@ export class CombatSystem {
         this.battle.effects.dust(tx, ty);
         return;
       }
+      // Void shields swallow ranged shots aimed at anything under the dome.
+      if (this.battle.structures.shielded(gx, gy, opponent(owner))) {
+        this.battle.effects.shieldHit(tx, ty);
+        return;
+      }
       this.applyDamage(victim, dmg, from, type);
       if (splash) this.splash(gx, gy, splash, dmg * 0.5, owner, from, type, victim);
     });
   }
 
+  /** Area damage with no primary victim (mines, drop impacts). */
+  splashAt(x: number, y: number, r: number, dmg: number, owner: Owner, from: Squad | null, type: DamageType): void {
+    this.splash(x, y, r, dmg, owner, from, type, null);
+  }
+
   /** Area damage around a logical point (half damage at the rim). */
-  private splash(x: number, y: number, r: number, dmg: number, owner: Owner, from: Squad | null, type: DamageType, skip: Victim): void {
+  private splash(x: number, y: number, r: number, dmg: number, owner: Owner, from: Squad | null, type: DamageType, skip: Victim | null): void {
     const foe = opponent(owner);
     for (const s of this.battle.units.squads) {
       if (!s.alive || s.owner !== foe || s.embarked) continue;
@@ -171,11 +183,13 @@ export class CombatSystem {
     if (!victim.alive) return;
     if (type) dmg *= damageMult(type, victim instanceof Building ? 'building' : victim.def.armor);
     if (victim instanceof Building) {
+      if (type === 'flame' && victim.garrison.length) this.battle.structures.burnGarrison(victim, dmg, from);
       this.battle.buildings.damage(victim, dmg);
       return;
     }
     const cover = from?.def.ignoresCover ? 1 : this.battle.cover?.damageMultiplier(victim) ?? 1;
-    const mult = cover * (victim.squad.retreating ? 0.6 : 1);
+    const armour = victim.def.category === 'infantry' ? this.battle.modifiers[victim.owner].infantryArmorMult : 1;
+    const mult = cover * armour * (victim.squad.retreating ? 0.6 : 1);
     const killed = victim.takeDamage(dmg * mult);
     const squad = victim.squad;
     if (from && from.alive && squad.alive && !squad.engaged && squad.order !== 'move') squad.target = from;

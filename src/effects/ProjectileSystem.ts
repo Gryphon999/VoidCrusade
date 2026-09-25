@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { DEPTH, UNITS } from '../config';
 import type { ExplosionEffect } from './ExplosionEffect';
 
-export type ProjectileKind = 'bullet' | 'shell' | 'spit' | 'spine' | 'flame' | 'sniper' | 'psy' | 'lob' | 'acidlob' | 'cannon';
+export type ProjectileKind = 'bullet' | 'shell' | 'spit' | 'spine' | 'flame' | 'sniper' | 'psy' | 'lob' | 'acidlob' | 'cannon' | 'rocket';
 
 interface Shot {
   img: Phaser.GameObjects.Image;
@@ -29,6 +29,7 @@ const LOOK: Record<ProjectileKind, { tex: string; tint: number; add: boolean; ar
   lob: { tex: 'fx_bolt', tint: 0xffc070, add: true, arc: 170, scale: 1.7, speed: 0.5 },
   acidlob: { tex: 'fx_glob', tint: 0xa0ff50, add: true, arc: 160, scale: 2.2, speed: 0.45 },
   cannon: { tex: 'fx_bolt', tint: 0xffe0a0, add: true, arc: 0, scale: 2, speed: 1.6 },
+  rocket: { tex: 'fx_bolt', tint: 0xfff0c0, add: true, arc: 60, scale: 1.4, speed: 0.8 },
 };
 
 /** Kinds that arc high regardless of distance (indirect fire). */
@@ -66,6 +67,12 @@ export class ProjectileSystem {
     }).setDepth(DEPTH.projectiles - 1);
   }
 
+  /** Splash of acid at a view-space point (spore mines). */
+  burst(x: number, y: number): void {
+    this.acid.emitParticleAt(x, y, 24);
+    this.psy.emitParticleAt(x, y, 6);
+  }
+
   /** Launches a projectile from `from` to `to` (view space); `onArrive` fires on impact. */
   launch(kind: ProjectileKind, from: { x: number; y: number }, to: { x: number; y: number }, onArrive: () => void): void {
     const look = LOOK[kind];
@@ -96,8 +103,8 @@ export class ProjectileSystem {
       this.place(s);
       s.trailT -= dt;
       if (s.trailT <= 0) {
-        if (s.kind === 'shell' || s.kind === 'lob' || s.kind === 'cannon') {
-          s.trailT = s.kind === 'shell' ? 0.03 : 0.018;
+        if (s.kind === 'shell' || s.kind === 'lob' || s.kind === 'cannon' || s.kind === 'rocket') {
+          s.trailT = s.kind === 'shell' ? 0.03 : s.kind === 'rocket' ? 0.01 : 0.018;
           this.smoke.emitParticleAt(s.img.x, s.img.y, 1);
         } else if (s.kind === 'spit' || s.kind === 'acidlob') {
           s.trailT = 0.025;
@@ -118,7 +125,7 @@ export class ProjectileSystem {
       s.img.setVisible(false);
       this.pool.push(s.img);
       if (s.kind === 'shell') this.explosions.impact(s.x1, s.y1);
-      else if (s.kind === 'lob' || s.kind === 'cannon') this.explosions.blast(s.x1, s.y1, s.kind === 'lob' ? 1 : 0.6);
+      else if (s.kind === 'lob' || s.kind === 'cannon' || s.kind === 'rocket') this.explosions.blast(s.x1, s.y1, s.kind === 'lob' ? 1 : 0.6);
       else if (s.kind === 'acidlob') this.acid.emitParticleAt(s.x1, s.y1, 18);
       else if (s.kind === 'flame') this.flame.emitParticleAt(s.x1, s.y1, 4);
       else if (s.kind === 'psy') this.psy.emitParticleAt(s.x1, s.y1, 6);

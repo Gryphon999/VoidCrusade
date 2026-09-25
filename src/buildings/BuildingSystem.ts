@@ -25,6 +25,8 @@ export class BuildingSystem {
   buildSpeed: Record<Owner, number> = { player: 1, enemy: 1 };
   /** Current tech tier per owner (wired to TechSystem by the battle). */
   tierOf: (owner: Owner) => number = () => 3;
+  /** Capture point whose zone contains a world point (wired by the battle). */
+  pointAt?: (x: number, y: number) => { x: number; y: number; owner: Owner | null } | null;
 
   constructor(
     private scene: Phaser.Scene,
@@ -37,7 +39,7 @@ export class BuildingSystem {
     const def = BUILDING_DEFS[id];
     const b = new Building(this.scene, def, owner, tx, ty, instant);
     this.buildings.push(b);
-    this.map.setOccupied(tx, ty, def.size, def.size, true);
+    this.map.setOccupied(tx, ty, def.size, def.size, true, def.gate ? owner : undefined);
     if (b.isReady) this.onComplete(b, false);
     this.scene.events.emit(EV.buildingPlaced, b);
     return b;
@@ -45,20 +47,30 @@ export class BuildingSystem {
 
   /** Snaps a world position to the placement grid for a building of the given size. */
   snap(wx: number, wy: number, id: BuildingId): { tx: number; ty: number } {
-    const size = BUILDING_DEFS[id].size;
-    const off = Math.floor((BUILD.snap - size) / 2);
-    const cx = Math.floor(wx / TILE_SIZE / BUILD.snap) * BUILD.snap;
-    const cy = Math.floor(wy / TILE_SIZE / BUILD.snap) * BUILD.snap;
+    const def = BUILDING_DEFS[id];
+    const size = def.size;
+    const grid = def.snap ?? BUILD.snap;
+    if (grid < size) {
+      // Fine grid: centre the footprint on the cursor.
+      return { tx: Math.round(wx / TILE_SIZE - size / 2), ty: Math.round(wy / TILE_SIZE - size / 2) };
+    }
+    const off = Math.floor((grid - size) / 2);
+    const cx = Math.floor(wx / TILE_SIZE / grid) * grid;
+    const cy = Math.floor(wy / TILE_SIZE / grid) * grid;
     return { tx: cx + off, ty: cy + off };
   }
 
-  validate(owner: Owner, id: BuildingId, tx: number, ty: number): PlacementCheck {
+  /**
+   * Placement rules. `field` = raised by engineers: no build radius needed (only fieldBuild structures).
+   * Outposts go inside a capture zone the owner holds.
+   */
+  validate(owner: Owner, id: BuildingId, tx: number, ty: number, field = false): PlacementCheck {
     const def = BUILDING_DEFS[id];
     for (let y = ty; y < ty + def.size; y++) {
       for (let x = tx; x < tx + def.size; x++) {
         if (!this.map.isTerrainPassable(x, y)) return { ok: false, reason: 'err.blocked' };
         if (this.map.isOccupied(x, y)) return { ok: false, reason: 'err.occupied' };
-        if (this.reserved.has(y * this.map.width + x)) return { ok: false, reason: 'err.nexus' };
+        if (!def.onPoint && this.reserved.has(y * this.map.width + x)) return { ok: false, reason: 'err.nexus' };
       }
     }
     if (this.tierOf(owner) < def.tier) return { ok: false, reason: 'err.tier', params: { n: `${def.tier}` } };
@@ -66,33 +78,50 @@ export class BuildingSystem {
     if (missing) return { ok: false, reason: 'err.requires', params: { what: roleName(missing) } };
     const cx = tx + def.size / 2;
     const cy = ty + def.size / 2;
-    const inRange = this.buildings.some((b) => {
-      if (b.owner !== owner || !b.alive) return false;
-      const d = Phaser.Math.Distance.Between(cx, cy, b.tx + b.def.size / 2, b.ty + b.def.size / 2);
-      return d <= b.def.buildRadius;
-    });
-    if (!inRange) return { ok: false, reason: 'err.outside' };
+    if (def.onPoint) {
+      const pt = this.pointAt?.(cx * TILE_SIZE, cy * TILE_SIZE);
+      if (!pt || pt.owner !== owner) return { ok: false, reason: 'err.onPoint' };
+      if (this.buildings.some((b) => b.alive && b.def.onPoint && Phaser.Math.Distance.Between(b.x, b.y, pt.x, pt.y) < TILE_SIZE * 3)) {
+        return { ok: false, reason: 'err.pointTaken' };
+      }
+    } else if (!(field && def.fieldBuild)) {
+      const inRange = this.buildings.some((b) => {
+        if (b.owner !== owner || !b.alive) return false;
+        const d = Phaser.Math.Distance.Between(cx, cy, b.tx + b.def.size / 2, b.ty + b.def.size / 2);
+        return d <= b.def.buildRadius;
+      });
+      if (!inRange) return { ok: false, reason: 'err.outside' };
+    }
     if (!this.resources.canAfford(owner, def.cost)) return { ok: false, reason: 'err.resources' };
     return { ok: true };
   }
 
   /** Validates, pays for and starts constructing a building. */
-  tryPlace(owner: Owner, id: BuildingId, tx: number, ty: number): Building | null {
-    if (!this.validate(owner, id, tx, ty).ok) return null;
+  tryPlace(owner: Owner, id: BuildingId, tx: number, ty: number, field = false): Building | null {
+    if (!this.validate(owner, id, tx, ty, field).ok) return null;
     this.resources.spend(owner, BUILDING_DEFS[id].cost);
-    return this.spawn(id, owner, tx, ty, false);
+    const b = this.spawn(id, owner, tx, ty, false);
+    // Outside the base, construction only advances while engineers work on it.
+    if (field) b.needsBuilder = true;
+    return b;
   }
 
   update(dt: number): void {
     for (const b of this.buildings) {
       if (!b.alive) continue;
-      if (b.updateConstruction(dt, this.buildSpeed[b.owner])) this.onComplete(b, true);
+      if (!b.needsBuilder && b.updateConstruction(dt, this.buildSpeed[b.owner])) this.onComplete(b, true);
       b.view.update(dt);
       if (b.def.regen && b.isReady) b.heal(b.def.regen * dt);
     }
   }
 
+  /** Called when an engineer-built site finishes (construction driven by SupportSystem). */
+  completeBy(b: Building): void {
+    this.onComplete(b, true);
+  }
+
   private onComplete(b: Building, announce: boolean): void {
+    b.completed = true;
     if (b.def.fluxGen > 0) this.resources.addIncome(b.owner, 'flux', b.def.fluxGen);
     if (announce) this.scene.events.emit(EV.buildingComplete, b);
   }

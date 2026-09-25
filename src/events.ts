@@ -17,5 +17,6 @@ export const EV = {
   tierUp: 'tier-up',
   wreckChanged: 'wreck-changed',
   transportChanged: 'transport-changed',
+  shieldRaised: 'shield-raised',
   message: 'hud-message',
 } as const;

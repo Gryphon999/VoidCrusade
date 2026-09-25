@@ -10,7 +10,10 @@ import type { BattleScene } from '../scenes/BattleScene';
 const OWNER = 'enemy';
 
 /** Initial build order (roles), executed first 60s then continued as funds allow. */
-const BUILD_ORDER: BuildingRole[] = ['power', 'power', 'infantry', 'supply', 'defense', 'power', 'supply', 'heavy', 'defense', 'vehicles', 'supply', 'infantry', 'defense', 'supply'];
+const BUILD_ORDER: BuildingRole[] = [
+  'power', 'power', 'infantry', 'supply', 'defense', 'power', 'supply', 'heavy', 'defense', 'research', 'vehicles', 'supply',
+  'hospital', 'infantry', 'longrange', 'defense', 'sensor', 'supply',
+];
 
 /**
  * Null Horde opponent. Behaviours, in priority order:
@@ -45,6 +48,18 @@ export class AIController {
     else if (this.raidTimer <= 0) this.raid();
     this.defend();
     this.expand();
+    this.fortify();
+  }
+
+  /** Roots an outpost into each held point that lacks one. */
+  private fortify(): void {
+    const def = defForRole(this.battle.factions[OWNER], 'outpost');
+    if (!def || this.battle.resources.getResources(OWNER).scrip < def.cost.scrip + 150) return;
+    for (const p of this.battle.capture.points) {
+      if (p.owner !== OWNER || this.battle.structures.fortified(p.x, p.y, OWNER)) continue;
+      if (this.battle.buildings.buildings.some((b) => b.alive && b.def.onPoint && Phaser.Math.Distance.Between(b.x, b.y, p.x, p.y) < 192)) continue;
+      if (this.builder.placeOnPoint(def.id, p.x, p.y)) return;
+    }
   }
 
   private get hq(): Building {

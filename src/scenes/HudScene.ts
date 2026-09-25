@@ -25,7 +25,7 @@ import { Owner } from '../types';
 import { AudioSystem } from '../systems/AudioSystem';
 import { MessageKey, onLanguageChange, t } from '../i18n';
 import { buildingName, unitName } from '../i18n/names';
-import { BuildCategory } from '../buildings/BuildingDefs';
+import { CommandPage } from '../ui/Commands';
 
 interface Blocker {
   rect: Phaser.Geom.Rectangle;
@@ -48,7 +48,7 @@ export class HudScene extends Phaser.Scene {
   private lastAlarm = -99999;
   private cursor = '';
   /** Build-menu page shown while the HQ is selected. */
-  private page: BuildCategory | null = null;
+  private page: CommandPage = null;
   private selectedBefore: unknown = null;
 
   constructor() {
@@ -188,7 +188,7 @@ export class HudScene extends Phaser.Scene {
     this.refreshCommands();
   }
 
-  private setPage(p: BuildCategory | null): void {
+  private setPage(p: CommandPage): void {
     this.page = p;
     this.refreshCommands();
   }

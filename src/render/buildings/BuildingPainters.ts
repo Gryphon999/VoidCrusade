@@ -265,6 +265,217 @@ const foundry: BuildingPainter = (o, S, H, _r, a) => {
   a.lights.push({ x: S / 2, y: S - 12, z: H + 18 }, { x: S / 2, y: S - 20, z: 30 });
 };
 
+/** Barricade: a slab of plasteel with hazard chevrons on a sandbag footing. */
+const wall: BuildingPainter = (o, S, H, rnd) => {
+  o.groundShadow(0, 0, S, S);
+  for (let i = 0; i < 4; i++) o.blob(8 + i * 16, S / 2 + 6, 3, 10, 6, 0x6a5a40);
+  o.box(4, S / 2 - 8, 0, S - 8, 16, H - 4, 0x5a616c);
+  o.box(2, S / 2 - 10, H - 4, S - 4, 20, 4, 0x4a515c);
+  for (let i = 0; i < 4; i++) o.frontRect(8 + i * 13, S / 2 + 8, 6, 6, 5, i % 2 ? '#1a1a1a' : '#d8b030');
+  if (rnd() < 0.5) o.box(10 + rnd() * 30, S / 2 - 6, H, 8, 8, 3, 0x3a3a3a);
+};
+
+/** Blast Gate: two armoured pylons and a lintel; the door leaf is a separate sprite that slides open. */
+const gate: BuildingPainter = (o, S, H, _r, a) => {
+  o.groundShadow(0, 0, S, S);
+  for (const x of [4, S - 22]) {
+    o.box(x, S / 2 - 14, 0, 18, 28, H, 0x5a616c);
+    o.box(x - 2, S / 2 - 16, H, 22, 32, 5, 0x4a515c);
+    o.light(x + 9, S / 2 + 14, H - 6, 1.8, 0xffb040);
+  }
+  o.box(18, S / 2 - 10, H - 10, S - 36, 20, 10, 0x4a515c);
+  for (let i = 0; i < 6; i++) o.frontRect(20 + i * ((S - 40) / 6), S / 2 + 10, H - 8, (S - 40) / 12, 5, i % 2 ? '#1a1a1a' : '#d8b030');
+  a.lights.push({ x: 13, y: S / 2 + 14, z: H - 6 }, { x: S - 13, y: S / 2 + 14, z: H - 6 });
+};
+
+/** Listening Post: a sandbagged mast with antennae, a dish and a pintle gun. */
+const listening: BuildingPainter = (o, S, H, _r, a) => {
+  o.groundShadow(0, 0, S, S);
+  for (let i = 0; i < 10; i++) {
+    const t = (i / 10) * Math.PI * 2;
+    o.blob(S / 2 + Math.cos(t) * 46, S / 2 + Math.sin(t) * 44, 4, 10, 7, 0x6a5a40);
+  }
+  o.box(S / 2 - 22, S / 2 - 18, 0, 44, 36, 20, STEEL_D);
+  o.strut(S / 2 - 6, S / 2, 20, S / 2 - 6, S / 2, H + 10, 3, STEEL);
+  o.strut(S / 2 - 6, S / 2, H + 4, S / 2 + 12, S / 2, H + 16, 1.5, 0x9aa0a8);
+  o.strut(S / 2 - 6, S / 2, H - 6, S / 2 - 22, S / 2, H + 2, 1.5, 0x9aa0a8);
+  const c = o.ctx;
+  c.fillStyle = '#8a94a2';
+  c.beginPath();
+  c.ellipse(o.sx(S / 2 + 10), o.sy(S / 2, H - 14), 11, 7, -0.4, 0, Math.PI * 2);
+  c.fill();
+  banner(o, S / 2 - 26, S / 2 + 18, 20, 16);
+  o.light(S / 2 - 6, S / 2, H + 12, 2.2, 0xff3020);
+  a.lights.push({ x: S / 2 - 6, y: S / 2, z: H + 12 });
+  a.gun = { x: S / 2 + 8, y: S / 2 + 6, z: 26 };
+};
+
+/** Tank Mines: a disc half-buried in the dirt with a blinking arming light. */
+const minefield: BuildingPainter = (o, S, _H, rnd, a) => {
+  for (let i = 0; i < 3; i++) {
+    const x = S / 2 + (rnd() - 0.5) * 30;
+    const y = S / 2 + (rnd() - 0.5) * 24;
+    o.blob(x, y, 1, 11, 3, 0x3a3228);
+    o.cylinder(x, y, 1, 8, 4, 0x4a4a3a, 0x5a5a48);
+    o.light(x, y, 6, 1.2, 0xff3020);
+    a.lights.push({ x, y, z: 6 });
+  }
+};
+
+/** Bunker: low ferrocrete pillbox with firing slits and a sandbag skirt. */
+const bunker: BuildingPainter = (o, S, H, _r, a) => {
+  o.groundShadow(0, 0, S, S);
+  for (let i = 0; i < 14; i++) {
+    const t = (i / 14) * Math.PI * 2;
+    o.blob(S / 2 + Math.cos(t) * 58, S / 2 + Math.sin(t) * 54, 5, 12, 8, 0x6a5a40);
+  }
+  o.box(12, 14, 0, S - 24, S - 26, H - 12, STONE);
+  o.box(8, 10, H - 12, S - 16, S - 18, 12, STONE_D);
+  for (let i = 0; i < 3; i++) o.frontRect(24 + i * 30, S - 12, H - 22, 20, 4, '#060606');
+  o.frontRect(S / 2 - 10, S - 12, 0, 20, 18, '#0c0a09');
+  crest(o, S / 2, S - 12, H - 6, 6);
+  // Roof: sandbag ring, hatch and a heavy stubber.
+  for (let i = 0; i < 10; i++) {
+    const t = (i / 10) * Math.PI * 2;
+    o.blob(S / 2 + Math.cos(t) * 30, S / 2 + Math.sin(t) * 22, H + 2, 8, 5, 0x6a5a40);
+  }
+  o.cylinder(S / 2 - 10, S / 2 - 4, H, 9, 4, STEEL_D, 0x3a3a3a);
+  o.strut(S / 2 + 6, S / 2, H + 6, S / 2 + 24, S / 2 + 10, H + 8, 2, 0x1a1a1a);
+  a.lights.push({ x: S / 2, y: S - 12, z: H - 20 });
+};
+
+/** Armoury: forge hall with an anvil yard, weapon racks and a glowing smithy door. */
+const armoury: BuildingPainter = (o, S, H, _r, a) => {
+  o.groundShadow(0, 0, S, S);
+  o.box(8, 16, 0, S - 16, S - 30, H - 20, STONE);
+  for (let i = 0; i < 3; i++) o.box(12 + i * 4, 18 + i * 12, H - 20 + i * 6, S - 24 - i * 8, S - 34 - i * 24, 6, 0x3a3230);
+  o.frontRect(S / 2 - 18, S - 14, 0, 36, 28, '#1a0a04');
+  o.lancet(S / 2 - 14, S - 14, 2, 28, 22, '#ff8030');
+  // Weapon racks either side of the door.
+  for (const x of [18, S - 40]) {
+    o.box(x, S - 18, 0, 22, 4, 22, 0x3a3028);
+    for (let i = 0; i < 4; i++) o.strut(x + 3 + i * 5, S - 14, 2, x + 3 + i * 5, S - 14, 20, 1.2, 0x9aa0a8);
+  }
+  o.cylinder(S - 30, 30, H - 20, 9, 34, STEEL_D, 0x1a1a1a);
+  crest(o, S / 2, S - 14, H - 26, 9);
+  a.smoke.push({ x: S - 30, y: 30, z: H + 16 });
+  a.lights.push({ x: S / 2, y: S - 14, z: 12 });
+};
+
+/** Field Hospital: prefab ward with a red-cross-like sigil (winged chalice), med lights and stretchers. */
+const hospital: BuildingPainter = (o, S, H, _r, a) => {
+  o.groundShadow(0, 0, S, S);
+  o.box(10, 18, 0, S - 20, S - 32, H - 14, 0xb8b4a8);
+  o.box(6, 14, H - 14, S - 12, S - 24, 6, 0x8a867c);
+  for (let i = 0; i < 4; i++) o.lancet(20 + i * 40, S - 14, 12, 14, 18, '#c8f0ff');
+  // White tent annex.
+  o.box(S - 60, S - 44, 0, 48, 30, 26, 0xd8d4c8);
+  // Chalice sigil in a red roundel.
+  const c = o.ctx;
+  const X = o.sx(S / 2);
+  const Y = o.sy(S - 14, H - 26);
+  c.fillStyle = '#a01818';
+  c.beginPath();
+  c.arc(X, Y, 11, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = '#f0e8d8';
+  c.fillRect(X - 2, Y - 7, 4, 14);
+  c.fillRect(X - 7, Y - 2, 14, 4);
+  // Roof: vents, a water tank and a painted landing cross for med-evac flyers.
+  for (let i = 0; i < 3; i++) o.box(24 + i * 22, 28, H - 8, 12, 10, 8, 0x7a766c);
+  o.cylinder(S - 36, 40, H - 8, 12, 16, 0x6a665c, 0x8a867c);
+  const pad = o.ctx;
+  pad.fillStyle = 'rgba(160,24,24,0.8)';
+  const px0 = o.sx(S / 2 - 12);
+  const py0 = o.sy(S / 2 + 6, H - 8);
+  pad.fillRect(px0 + 8, py0 - 10, 8, 26);
+  pad.fillRect(px0, py0, 24, 7);
+  o.light(20, 20, H + 4, 2.4, 0x60ff90);
+  a.lights.push({ x: 20, y: 20, z: H + 4 }, { x: S / 2, y: S - 14, z: 20 });
+};
+
+/** Sensor Array: a lattice tower with a spinning auspex dish and pulsing emitters. */
+const sensor: BuildingPainter = (o, S, H, _r, a) => {
+  o.groundShadow(0, 0, S, S);
+  o.box(16, 16, 0, S - 32, S - 32, 14, STEEL_D);
+  for (const [x, y] of [[22, 22], [S - 22, 22], [22, S - 22], [S - 22, S - 22]]) o.strut(x, y, 14, S / 2, S / 2, H - 10, 3, STEEL);
+  for (let z = 30; z < H - 10; z += 14) o.strut(S / 2 - 20 * (1 - z / H), S / 2, z, S / 2 + 20 * (1 - z / H), S / 2, z + 10, 1.2, 0x707a88);
+  const c = o.ctx;
+  for (const [dx, rx] of [[0, 26], [0, 18]]) {
+    c.fillStyle = rx > 20 ? '#9aa4b2' : '#4a525c';
+    c.beginPath();
+    c.ellipse(o.sx(S / 2 + dx), o.sy(S / 2, H + 4), rx, rx * 0.35, 0, 0, Math.PI * 2);
+    c.fill();
+  }
+  o.strut(S / 2, S / 2, H + 4, S / 2, S / 2, H + 22, 1.5, BRASS);
+  o.light(S / 2, S / 2, H + 24, 3, 0x60e8ff);
+  a.lights.push({ x: S / 2, y: S / 2, z: H + 24 });
+};
+
+/** Shield Projector: a capacitor drum crowned by a crackling blue emitter ring. */
+const shield: BuildingPainter = (o, S, H, _r, a) => {
+  o.groundShadow(0, 0, S, S);
+  o.box(14, 14, 0, S - 28, S - 28, 16, STEEL_D);
+  o.cylinder(S / 2, S / 2, 16, 30, H - 36, STEEL, 0x464e58);
+  for (let i = 0; i < 4; i++) o.cylinder(S / 2, S / 2, 24 + i * 9, 32, 3, 0x2a3a4a, 0x60b0ff);
+  o.cylinder(S / 2, S / 2, H - 20, 20, 8, 0x1a2a3a, 0x80c8ff);
+  o.light(S / 2, S / 2, H - 8, 8, 0x60b0ff);
+  for (const x of [18, S - 18]) o.strut(x, S / 2, 16, S / 2, S / 2, H - 16, 2, BRASS);
+  a.lights.push({ x: S / 2, y: S / 2, z: H - 8 });
+};
+
+/** Missile Battery: a tilted six-cell launcher on an armoured turntable. */
+const missile: BuildingPainter = (o, S, H, _r, a) => {
+  o.groundShadow(0, 0, S, S);
+  o.box(12, 14, 0, S - 24, S - 26, 18, STONE_D);
+  o.cylinder(S / 2, S / 2, 18, 38, 10, STEEL, 0x464e58);
+  // Launcher pod raised at an angle, with rocket noses peeking out.
+  o.box(S / 2 - 26, S / 2 - 14, 28, 52, 28, H - 30, 0x4a525c);
+  for (let r = 0; r < 2; r++) {
+    for (let i = 0; i < 3; i++) {
+      const x = S / 2 - 18 + i * 16;
+      const z = 34 + r * 12;
+      o.frontRect(x, S / 2 + 14, z, 11, 9, '#101010');
+      o.frontRect(x + 2, S / 2 + 14, z + 2, 7, 5, '#c84020');
+    }
+  }
+  for (let i = 0; i < 6; i++) o.frontRect(14 + i * ((S - 28) / 6), S - 12, 4, (S - 28) / 12, 5, i % 2 ? '#1a1a1a' : '#d8b030');
+  o.light(S / 2 + 24, S / 2, H - 2, 2, 0xff3020);
+  a.lights.push({ x: S / 2 + 24, y: S / 2, z: H - 2 });
+};
+
+/** Orbital Beacon: a gothic spire with a vox-array and a vertical beam of light into the sky. */
+const beacon: BuildingPainter = (o, S, H, _r, a) => {
+  o.groundShadow(0, 0, S, S);
+  o.box(10, 10, 0, S - 20, S - 20, 22, STONE);
+  crenels(o, 14, 14, 22, S - 28, STONE);
+  o.box(S / 2 - 24, S / 2 - 24, 22, 48, 48, H - 60, STONE_D);
+  for (let i = 0; i < 2; i++) o.lancet(S / 2 - 16 + i * 20, S / 2 + 24, 40, 10, 30, '#9ae0ff');
+  o.cone(S / 2, S / 2, H - 38, 24, 40, 0x3a2a24);
+  o.strut(S / 2, S / 2, H, S / 2, S / 2, H + 20, 2, BRASS);
+  crest(o, S / 2, S / 2 + 24, H - 50, 10);
+  // Vox horns and cogitator stacks on the terrace.
+  for (const [x, y] of [[22, 22], [S - 34, 22], [22, S - 34], [S - 34, S - 34]]) {
+    o.box(x, y, 22, 12, 12, 16, STEEL_D);
+    o.cone(x + 6, y + 6, 38, 7, 10, BRASS);
+  }
+  // Beam into orbit (glow layer).
+  const g = o.glow;
+  if (g) {
+    const X = o.sx(S / 2);
+    const top = o.sy(S / 2, H + 20);
+    const grad = g.createLinearGradient(0, 0, 0, top);
+    grad.addColorStop(0, 'rgba(120,200,255,0)');
+    grad.addColorStop(1, 'rgba(160,220,255,0.7)');
+    g.fillStyle = grad;
+    g.fillRect(X - 3, 0, 6, top);
+  }
+  o.light(S / 2, S / 2, H + 22, 4, 0x9ae0ff);
+  for (const [x, y] of [[16, 16], [S - 16, 16], [16, S - 16], [S - 16, S - 16]]) o.light(x, y, 30, 1.8, 0xff3020);
+  a.lights.push({ x: S / 2, y: S / 2, z: H + 22 });
+};
+
 export const IRON_PAINTERS: Record<string, BuildingPainter> = {
   stronghold, generator, depot, barracks, mechanis, foundry, turret, relay, research,
+  wall, gate, listening, minefield, bunker, armoury, hospital, sensor, shield, missile, beacon,
 };

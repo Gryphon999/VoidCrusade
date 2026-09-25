@@ -140,6 +140,38 @@ export class EffectsSystem {
     return this.corpses.spawn(u);
   }
 
+  /** Translucent void dome over a logical point for `seconds`. */
+  shieldDome(x: number, y: number, r: number, seconds: number): void {
+    const k = Projection.tilt;
+    const vy = Projection.vy(y);
+    const dome = this.scene.add.graphics({ x, y: vy }).setDepth(DEPTH.effects - 3).setBlendMode(Phaser.BlendModes.ADD);
+    // Rim ellipse on the ground plus a few latitude arcs: reads as a hemisphere in the tilted view.
+    dome.fillStyle(0x60b0ff, 0.08).fillEllipse(0, 0, r * 2, r * 2 * k);
+    dome.lineStyle(3, 0x80c8ff, 0.7).strokeEllipse(0, 0, r * 2, r * 2 * k);
+    for (let i = 1; i <= 3; i++) {
+      const f = i / 4;
+      const rr = r * Math.cos(f * Math.PI / 2);
+      const h = r * Math.sin(f * Math.PI / 2) * 0.9;
+      dome.lineStyle(1.5, 0x80c8ff, 0.35).strokeEllipse(0, -h, rr * 2, rr * 2 * k);
+    }
+    dome.lineStyle(1.5, 0x80c8ff, 0.35).beginPath().arc(0, 0, r, Math.PI, 0).strokePath();
+    dome.setAlpha(0);
+    this.scene.tweens.add({ targets: dome, alpha: 1, duration: 300 });
+    this.scene.tweens.add({ targets: dome, alpha: { from: 1, to: 0.6 }, duration: 700, yoyo: true, repeat: Math.max(0, Math.floor(seconds / 1.4) - 1), delay: 300 });
+    this.scene.time.delayedCall(seconds * 1000, () => {
+      this.scene.tweens.add({ targets: dome, alpha: 0, duration: 400, onComplete: () => dome.destroy() });
+    });
+    this.lights.flash(x, vy, r * 1.6, 0x60b0ff, 600, 0.8);
+  }
+
+  /** A shot stopped by a shield: blue ripple at a view-space point. */
+  shieldHit(x: number, y: number): void {
+    this.lights.flash(x, y, 40, 0x80c8ff, 200, 0.7);
+    this.sparkFx.setParticleTint(0x9ad8ff);
+    this.sparkFx.emitParticleAt(x, y, 3);
+    this.sparkFx.setParticleTint(0xffd080);
+  }
+
   /** Engine exhaust puff at a view-space point. */
   exhaust(x: number, y: number): void {
     this.exhaustFx.emitParticleAt(x, y, 1);

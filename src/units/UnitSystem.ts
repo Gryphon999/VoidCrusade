@@ -112,7 +112,7 @@ export class UnitSystem {
     // Squads take priority; only consider buildings if no squad is close.
     if (best) return best;
     for (const b of this.battle.buildings.buildings) {
-      if (!b.alive || b.owner !== enemy) continue;
+      if (!b.alive || b.owner !== enemy || this.battle.structures.hiddenFrom(b, owner)) continue;
       const d = Phaser.Math.Distance.Between(x, y, b.x, b.y) - b.radius;
       if (d < bestD) {
         bestD = d;
@@ -145,7 +145,8 @@ export class UnitSystem {
 
   update(dt: number): void {
     this.rebuildGrid();
-    for (const s of this.squads) if (!s.embarked) s.update(dt);
+    // Garrisoned squads still pick targets (they fire from the bunker); riders in transports do not.
+    for (const s of this.squads) if (!s.carrier) s.update(dt);
     for (const s of this.squads) {
       if (s.embarked) continue;
       for (const u of s.units) this.steer(u, dt);
@@ -274,7 +275,7 @@ export class UnitSystem {
     }
     let goal = u.squad.slotPos(u);
     const flying = !!u.def.flying;
-    if (!flying && !map.isPassableWorld(goal.x, goal.y)) goal = { x: u.squad.x, y: u.squad.y };
+    if (!flying && !map.isPassableWorld(goal.x, goal.y, u.owner)) goal = { x: u.squad.x, y: u.squad.y };
     let dx = goal.x - u.x;
     let dy = goal.y - u.y;
     const dist = Math.hypot(dx, dy);
@@ -307,14 +308,14 @@ export class UnitSystem {
       // Hovering: cliffs and structures are no obstacle, only the map edge.
       u.x = Phaser.Math.Clamp(nx, 16, map.worldWidth - 16);
       u.y = Phaser.Math.Clamp(ny, 16, map.worldHeight - 16);
-    } else if (map.isPassableWorld(nx, ny)) {
+    } else if (map.isPassableWorld(nx, ny, u.owner)) {
       u.x = nx;
       u.y = ny;
-    } else if (map.isPassableWorld(nx, u.y)) {
+    } else if (map.isPassableWorld(nx, u.y, u.owner)) {
       u.x = nx;
-    } else if (map.isPassableWorld(u.x, ny)) {
+    } else if (map.isPassableWorld(u.x, ny, u.owner)) {
       u.y = ny;
-    } else if (!map.isPassableWorld(u.x, u.y)) {
+    } else if (!map.isPassableWorld(u.x, u.y, u.owner)) {
       // Pushed into a wall (e.g. new building): pop out.
       const p = this.findOpenSpot(u.x, u.y);
       u.x = p.x;

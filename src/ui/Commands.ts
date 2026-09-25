@@ -4,7 +4,7 @@ import { BUILDING_DEFS, BuildCategory, BUILD_CATEGORIES, buildList } from '../bu
 import { buildingIconKey } from '../render/buildings/BuildingArt';
 import { portraitKey } from '../render/puppet/UnitAtlas';
 import { UNIT_DEFS, UnitId } from '../units/UnitDefs';
-import { RESEARCH_DEFS } from '../systems/ResearchSystem';
+import { researchAt } from '../systems/ResearchSystem';
 import { Squad } from '../units/Squad';
 import { Command, slotOf } from './CommandGrid';
 import { GLYPH, researchGlyph } from './GlyphIcons';
@@ -12,10 +12,11 @@ import { dyn, t } from '../i18n';
 import { buildingDesc, buildingName, costText, researchDesc, researchName, unitDesc, unitName } from '../i18n/names';
 import { strongVs, weakVs } from '../units/Damage';
 
-/** Which build-menu page the HQ shows (null = the HQ's own commands). */
+/** Which build-menu page is shown: an HQ category, the engineers' field page, or null (root commands). */
+export type CommandPage = BuildCategory | 'field' | null;
 export interface CommandUI {
-  page: BuildCategory | null;
-  setPage(p: BuildCategory | null): void;
+  page: CommandPage;
+  setPage(p: CommandPage): void;
 }
 
 const armorName = (a: string): string => t(dyn(`armor.${a}`));
@@ -35,7 +36,30 @@ export function unitStatsText(id: UnitId): string {
   return lines.join('\n');
 }
 
-function squadCommands(b: BattleScene, squads: Squad[]): Command[] {
+/** Engineers' field page: fortifications they can raise anywhere (they walk over and build them). */
+function fieldPage(b: BattleScene, squads: Squad[], ui: CommandUI): Command[] {
+  const builders = squads.filter((s) => s.def.repairRate);
+  const ids = buildList(b.factions.player).filter((id) => BUILDING_DEFS[id].fieldBuild);
+  const out: Command[] = ids.map((id) => {
+    const d = BUILDING_DEFS[id];
+    return {
+      icon: buildingIconKey(id), title: buildingName(id),
+      body: () => `${t('cost.time', { cost: costText(d.cost), t: d.buildTime })}\n${buildingDesc(id)}\n${t('cmd.fieldHint')}`,
+      locked: () => b.tech.lockReason('player', d.tier, d.requires),
+      onClick: () => {
+        if (!b.resources.canAfford('player', d.cost)) b.hud.showMessage('err.resources');
+        else b.placement.start(id, builders);
+      },
+      enabled: () => b.resources.canAfford('player', d.cost),
+      active: () => b.placement.activeId === id,
+    };
+  });
+  out.push({ slot: slotOf('J'), icon: GLYPH.back, title: t('cmd.back'), body: () => t('cmd.back.desc'), onClick: () => ui.setPage(null) });
+  return out;
+}
+
+function squadCommands(b: BattleScene, squads: Squad[], ui: CommandUI): Command[] {
+  if (ui.page === 'field') return fieldPage(b, squads, ui);
   const units = b.units;
   const ic = b.inputController;
   const reinforceable = (): Squad[] => squads.filter((s) => s.alive && units.canReinforce(s));
@@ -62,6 +86,9 @@ function squadCommands(b: BattleScene, squads: Squad[]): Command[] {
       onClick: () => ic.setMode('move'), active: () => ic.mode === 'move' },
     ...vehicleCommands(b, squads),
   ];
+  if (squads.some((s) => s.def.repairRate)) {
+    cmds.push({ slot: slotOf('Y'), icon: GLYPH.build, title: t('cmd.fieldBuild'), body: () => t('cmd.fieldBuild.desc'), onClick: () => ui.setPage('field') });
+  }
   // Vehicles and heroes are repaired or respawned, never reinforced.
   return canEverReinforce ? cmds : cmds.filter((c) => c.icon !== GLYPH.reinforce);
 }
@@ -148,7 +175,7 @@ function productionCommands(b: BattleScene, bld: Building): Command[] {
 }
 
 function buildingCommands(b: BattleScene, bld: Building, ui: CommandUI): Command[] {
-  if (bld.def.role === 'hq' && ui.page) return buildPage(b, ui.page, ui);
+  if (bld.def.role === 'hq' && ui.page && ui.page !== 'field') return buildPage(b, ui.page, ui);
   const out: Command[] = productionCommands(b, bld);
   if (bld.def.produces.some((id) => !UNIT_DEFS[id].isHero)) {
     out.push({ slot: slotOf('U'), icon: GLYPH.repeat, title: t('cmd.repeat'), body: () => t('cmd.repeat.desc'),
@@ -178,9 +205,29 @@ function buildingCommands(b: BattleScene, bld: Building, ui: CommandUI): Command
         body: () => t(dyn(`cmd.cat.${cat}.desc`)), onClick: () => ui.setPage(cat) });
     });
   }
-  if (bld.def.role === 'research') {
+  if (bld.def.garrison) {
+    const st = b.structures;
+    out.push({
+      slot: slotOf('G'), icon: GLYPH.unload, title: t('cmd.unload'),
+      body: () => `${t('cmd.garrison.desc')}${bld.garrison.length ? `\n${t('cmd.cargo', { list: bld.garrison.map((s) => unitName(s.def.id)).join(', ') })}` : ''}`,
+      onClick: () => st.ejectAll(bld), enabled: () => bld.garrison.length > 0, badge: () => (bld.garrison.length ? `${bld.garrison.length}` : ''),
+    });
+  }
+  const sh = bld.def.shield;
+  if (sh) {
+    const st = b.structures;
+    out.push({
+      slot: slotOf('Q'), icon: GLYPH.shield, title: t('cmd.shield'),
+      body: () => t('cmd.shield.desc', { cost: sh.cost, t: sh.duration, cd: sh.cooldown }),
+      onClick: () => st.raiseShield(bld), enabled: () => st.canRaiseShield(bld),
+      active: () => bld.shieldUntil > b.elapsed,
+      progress: () => (b.elapsed < bld.shieldReady ? 1 - (bld.shieldReady - b.elapsed) / sh.cooldown : null),
+    });
+  }
+  const research = researchAt(bld.def.faction, bld.def.role);
+  if (research.length) {
     const rs = b.research;
-    RESEARCH_DEFS.forEach((r, i) => {
+    research.forEach((r, i) => {
       out.push({
         slot: slotOf('A') + i, icon: researchGlyph(r.id), title: researchName(r.id),
         body: () => `${t('cost.time', { cost: costText(r.cost), t: r.time })}\n${researchDesc(r.id)}${rs.isDone('player', r.id) ? `\n${t('cmd.researched')}` : ''}`,
@@ -200,7 +247,7 @@ function buildingCommands(b: BattleScene, bld: Building, ui: CommandUI): Command
 /** Commands for the current selection (empty when nothing is selected). */
 export function commandsFor(b: BattleScene, ui: CommandUI): Command[] {
   const sel = b.selection;
-  if (sel.squads.length) return squadCommands(b, sel.squads);
+  if (sel.squads.length) return squadCommands(b, sel.squads, ui);
   if (sel.building) return buildingCommands(b, sel.building, ui);
   return [];
 }

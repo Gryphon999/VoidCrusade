@@ -30,6 +30,15 @@ export class Building {
   attackCooldown = 0;
   /** True once the enemy has ever seen it (fog of war). */
   discovered = false;
+  /** Has ever finished construction (upkeep bookkeeping). */
+  completed = false;
+  /** Engineer-raised site: construction only advances while engineers work on it. */
+  needsBuilder = false;
+  /** Squads sheltering inside (bunkers). */
+  readonly garrison: import('../units/Squad').Squad[] = [];
+  /** Shield dome: active until (battle s), ready again at (battle s). */
+  shieldUntil = 0;
+  shieldReady = 0;
 
   readonly view: BuildingView;
 

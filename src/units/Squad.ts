@@ -85,6 +85,9 @@ export class Squad {
   carrier: Squad | null = null;
   /** Transport this squad is walking toward to board. */
   boardTarget: Squad | null = null;
+  /** Bunker this squad shelters in, or is walking to. */
+  garrisonIn: Building | null = null;
+  garrisonTarget: Building | null = null;
   /** Wreck the engineers were ordered to salvage. */
   salvageTarget: Wreck | null = null;
   private offsets: Pt[];
@@ -183,6 +186,7 @@ export class Squad {
   moveTo(x: number, y: number, attackMove = false, queue = false): void {
     this.repairTarget = null;
     this.boardTarget = null;
+    this.garrisonTarget = null;
     this.salvageTarget = null;
     if (this.deployState !== 'mobile') {
       // Artillery must pack up first; the move resumes when it is mobile again.
@@ -262,16 +266,18 @@ export class Squad {
     let m = this.order === 'retreat' ? 1.5 : 1;
     if (this.burrowed && this.def.burrow) m *= this.def.burrow.speedMult;
     if (this.auraUntil > this.battle.elapsed) m *= 1 + this.auraSpeed;
+    if (this.def.category === 'infantry') m *= this.battle.modifiers[this.owner].infantrySpeedMult;
     return m;
   }
 
   /** True if `viewer` cannot see this squad at all (burrowed and undetected, or riding in a transport). */
   hiddenFrom(viewer: Owner): boolean {
-    return !!this.carrier || (viewer !== this.owner && this.burrowed && !this.detected);
+    return !!this.carrier || !!this.garrisonIn || (viewer !== this.owner && this.burrowed && !this.detected);
   }
 
+  /** Inside a transport or a bunker (not drawn, not selectable, cannot capture). */
   get embarked(): boolean {
-    return !!this.carrier;
+    return !!this.carrier || !!this.garrisonIn;
   }
 
   get isVehicle(): boolean {
@@ -280,7 +286,15 @@ export class Squad {
 
   /** Weapon reach, including the deployed-artillery bonus. */
   get range(): number {
-    return this.def.range + (this.deployState === 'deployed' ? this.def.deploy?.rangeBonus ?? 0 : 0);
+    return this.def.range + (this.deployState === 'deployed' ? this.def.deploy?.rangeBonus ?? 0 : 0) + (this.garrisonIn ? 40 : 0);
+  }
+
+  /** Walk to a friendly bunker and shelter inside. */
+  enterBunker(b: Building): void {
+    this.stop();
+    this.garrisonTarget = b;
+    this.setPath(b.x, b.y + b.radius + 20);
+    this.order = 'move';
   }
 
   /** Walk to a friendly transport and climb in. */
@@ -313,7 +327,7 @@ export class Squad {
       this.path = [{ x: Phaser.Math.Clamp(x, 32, m.worldWidth - 32), y: Phaser.Math.Clamp(y, 32, m.worldHeight - 32) }];
       return;
     }
-    this.path = this.battle.pathfinder.find(this.x, this.y, x, y, this.isVehicle && this.def.size >= 18);
+    this.path = this.battle.pathfinder.find(this.x, this.y, x, y, this.isVehicle && this.def.size >= 18, this.owner);
   }
 
   /** Public path request (used by support systems). */

@@ -18,14 +18,22 @@ export class CoverSystem implements CoverQueries {
     this.rebuild();
     battle.events.on(EV.buildingDestroyed, () => this.rebuild());
     battle.events.on(EV.wreckChanged, () => this.rebuild());
+    battle.events.on(EV.buildingComplete, (b: { def: { wall?: boolean } }) => b.def.wall && this.rebuild());
+    battle.events.on(EV.buildingPlaced, (b: { def: { wall?: boolean } }) => b.def.wall && this.rebuild());
   }
 
   rebuild(): void {
     const m = this.battle.map;
+    // Tiles hugging a barricade or thorn wall.
+    const walls = new Set<number>();
+    for (const b of this.battle.buildings?.buildings ?? []) {
+      if (!b.alive || !b.def.wall) continue;
+      for (let y = b.ty - 1; y <= b.ty + b.def.size; y++) for (let x = b.tx - 1; x <= b.tx + b.def.size; x++) walls.add(y * m.width + x);
+    }
     for (let ty = 0; ty < m.height; ty++) {
       for (let tx = 0; tx < m.width; tx++) {
         const t = m.getTile(tx, ty);
-        let cover = t === TILE.RUINS;
+        let cover = t === TILE.RUINS || walls.has(ty * m.width + tx);
         // Wrecks and carcasses shelter the tiles around them.
         if (!cover && !m.isBlocked(tx, ty)) {
           for (let dy = -1; dy <= 1 && !cover; dy++) {

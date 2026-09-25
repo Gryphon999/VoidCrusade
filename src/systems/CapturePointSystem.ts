@@ -59,7 +59,9 @@ export class CapturePointSystem {
       const before = p.progress;
       if (present.length === 1) {
         const side = present[0];
-        const rate = base * this.captureRate(p, side);
+        // Outposts halve the enemy's capture speed on the point they guard.
+        const fort = p.owner && p.owner !== side && this.battle.structures.fortified(p.x, p.y, p.owner) ? 0.5 : 1;
+        const rate = base * this.captureRate(p, side) * fort;
         if (p.owner === side && (p.claimant === side || p.progress <= 0)) {
           p.claimant = side;
           p.progress = Math.min(1, p.progress + rate);

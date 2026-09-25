@@ -1,5 +1,6 @@
 import { TILE_SIZE } from '../config';
 import { MapSystem } from './MapSystem';
+import { Owner } from '../types';
 
 interface Pt {
   x: number;
@@ -59,6 +60,8 @@ export class Pathfinder {
   private stamp: Uint32Array;
   private closed: Uint32Array;
   private run = 0;
+  /** Side whose gates count as open for the current query. */
+  private owner?: Owner;
 
   constructor(private map: MapSystem) {
     const n = map.width * map.height;
@@ -73,22 +76,24 @@ export class Pathfinder {
    * Wide-body passability: the tile is open and belongs to at least one fully open 2x2 block,
    * so vehicles never squeeze through one-tile gaps.
    */
-  isWidePassable(tx: number, ty: number): boolean {
+  isWidePassable(tx: number, ty: number, owner?: Owner): boolean {
     const m = this.map;
-    if (!m.isPassable(tx, ty)) return false;
+    const p = (x: number, y: number): boolean => m.isPassable(x, y, owner);
+    if (!p(tx, ty)) return false;
     for (const [ox, oy] of [[0, 0], [-1, 0], [0, -1], [-1, -1]]) {
       const x = tx + ox;
       const y = ty + oy;
-      if (m.isPassable(x, y) && m.isPassable(x + 1, y) && m.isPassable(x, y + 1) && m.isPassable(x + 1, y + 1)) return true;
+      if (p(x, y) && p(x + 1, y) && p(x, y + 1) && p(x + 1, y + 1)) return true;
     }
     return false;
   }
 
   /** Returns world-space waypoints from start to goal (excluding start). `wide` = vehicle clearance. */
-  find(sx: number, sy: number, gx: number, gy: number, wide = false): Pt[] {
+  find(sx: number, sy: number, gx: number, gy: number, wide = false, owner?: Owner): Pt[] {
     const m = this.map;
     const W = m.width;
-    const pass = wide ? (x: number, y: number): boolean => this.isWidePassable(x, y) : (x: number, y: number): boolean => m.isPassable(x, y);
+    this.owner = owner;
+    const pass = wide ? (x: number, y: number): boolean => this.isWidePassable(x, y, owner) : (x: number, y: number): boolean => m.isPassable(x, y, owner);
     const clearance = wide ? 26 : 10;
     const s = m.worldToTile(sx, sy);
     let goal = m.worldToTile(gx, gy);
@@ -174,7 +179,7 @@ export class Pathfinder {
       const t = steps === 0 ? 0 : s / steps;
       const x = x0 + (x1 - x0) * t;
       const y = y0 + (y1 - y0) * t;
-      if (!this.map.isPassableWorld(x + nx, y + ny) || !this.map.isPassableWorld(x - nx, y - ny)) return false;
+      if (!this.map.isPassableWorld(x + nx, y + ny, this.owner) || !this.map.isPassableWorld(x - nx, y - ny, this.owner)) return false;
     }
     return true;
   }

@@ -195,6 +195,75 @@ const GLYPHS: Record<string, Glyph> = {
     line(c, [[C + 7, C + 5], [C + 11, C + 13]], 2.5);
     line(c, [[C + 2, C - 1], [C + 12, C - 1]], 2.2);
   },
+  shield: (c) => {
+    c.lineWidth = 3;
+    c.beginPath();
+    c.arc(C, C + 8, 15, Math.PI, 0);
+    c.stroke();
+    c.lineWidth = 1.5;
+    c.beginPath();
+    c.arc(C, C + 8, 9, Math.PI, 0);
+    c.stroke();
+    c.fillRect(C - 16, C + 8, 32, 3);
+  },
+  carapace: (c) => {
+    poly(c, [[C - 12, C - 10], [C + 12, C - 10], [C + 14, C + 4], [C, C + 14], [C - 14, C + 4]]);
+    c.fillStyle = '#1a140c';
+    for (let i = 0; i < 3; i++) c.fillRect(C - 9, C - 6 + i * 6, 18, 2);
+  },
+  servos: (c) => {
+    line(c, [[C - 4, C - 14], [C + 2, C - 2], [C - 4, C + 12]], 4);
+    line(c, [[C - 4, C + 12], [C + 10, C + 12]], 4);
+    c.beginPath();
+    c.arc(C + 2, C - 2, 4, 0, Math.PI * 2);
+    c.fill();
+    line(c, [[C + 8, C - 10], [C + 14, C - 10]], 2);
+    line(c, [[C + 8, C - 5], [C + 16, C - 5]], 2);
+  },
+  adrenal: (c) => {
+    c.beginPath();
+    c.ellipse(C, C + 2, 9, 12, 0, 0, Math.PI * 2);
+    c.fill();
+    poly(c, [[C + 3, C - 14], [C - 5, C], [C + 1, C], [C - 3, C + 12], [C + 7, C - 3], [C + 1, C - 3]]);
+  },
+  chitin: (c) => {
+    for (let i = 0; i < 3; i++) {
+      c.beginPath();
+      c.ellipse(C, C - 8 + i * 8, 13 - i * 2, 5, 0, 0, Math.PI * 2);
+      c.fill();
+    }
+  },
+  spines: (c) => {
+    for (const a of [-0.6, 0, 0.6]) poly(c, [[C + Math.sin(a) * 16, C - 14 + Math.abs(a) * 6], [C - 4 + a * 6, C + 12], [C + 4 + a * 6, C + 12]]);
+  },
+  accelerated: (c) => {
+    c.beginPath();
+    c.arc(C - 4, C + 4, 8, 0, Math.PI * 2);
+    c.fill();
+    poly(c, [[C + 2, C - 14], [C + 14, C - 6], [C + 6, C - 4]]);
+    line(c, [[C + 4, C - 2], [C + 10, C - 10]], 3);
+  },
+  broodmind: (c) => {
+    c.beginPath();
+    c.arc(C, C - 2, 11, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = '#1a140c';
+    line(c, [[C - 7, C - 4], [C - 2, C - 8], [C + 3, C - 2], [C + 8, C - 6]], 2);
+    c.fillStyle = c.strokeStyle;
+    for (const x of [-9, 0, 9]) c.fillRect(C + x - 1.5, C + 9, 3, 6);
+  },
+  musculature: (c) => {
+    c.beginPath();
+    c.ellipse(C - 3, C, 11, 7, -0.5, 0, Math.PI * 2);
+    c.fill();
+    line(c, [[C + 6, C - 4], [C + 14, C - 12]], 4);
+    line(c, [[C - 12, C + 6], [C - 16, C + 14]], 4);
+  },
+  hardened: (c) => {
+    poly(c, [[C, C - 15], [C + 13, C - 6], [C + 10, C + 10], [C, C + 15], [C - 10, C + 10], [C - 13, C - 6]]);
+    c.fillStyle = '#1a140c';
+    poly(c, [[C, C - 8], [C + 6, C - 3], [C + 4, C + 5], [C, C + 8], [C - 4, C + 5], [C - 6, C - 3]]);
+  },
   back: (c) => {
     poly(c, [[C - 14, C], [C - 2, C - 12], [C - 2, C - 5], [C + 13, C - 5], [C + 13, C + 5], [C - 2, C + 5], [C - 2, C + 12]]);
   },
@@ -234,7 +303,7 @@ export const GLYPH = {
   build: 'glyph_build', rally: 'glyph_rally', capture: 'glyph_capture',
   defend: 'glyph_defend', aggressive: 'glyph_aggressive', retreat: 'glyph_retreat', repeat: 'glyph_repeat',
   tierUp: 'glyph_tierUp', economy: 'glyph_economy', military: 'glyph_military', defense: 'glyph_defense',
-  tech: 'glyph_tech', back: 'glyph_back', deploy: 'glyph_deploy', unload: 'glyph_unload',
+  tech: 'glyph_tech', back: 'glyph_back', deploy: 'glyph_deploy', unload: 'glyph_unload', shield: 'glyph_shield',
 } as const;
 
 export function researchGlyph(id: string): string {

@@ -89,8 +89,9 @@ export class FogOfWarSystem implements FogQueries {
     }
     for (const b of this.battle.buildings.buildings) {
       if (b.owner !== 'enemy') continue;
-      if (!b.discovered && this.isVisibleWorld(b.x, b.y)) b.discovered = true;
-      b.setShown(b.discovered);
+      const hidden = this.battle.structures.hiddenFrom(b, 'player');
+      if (!b.discovered && !hidden && this.isVisibleWorld(b.x, b.y)) b.discovered = true;
+      b.setShown(b.discovered && !hidden);
     }
   }
 

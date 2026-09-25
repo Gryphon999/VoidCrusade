@@ -50,8 +50,9 @@ export class TopBar {
   update(timeText: string): void {
     const r = this.resources.getResources('player');
     const inc = this.resources.getIncome('player');
-    this.scripText.setText(t('hud.rate', { n: Math.floor(r.scrip), r: Math.round(inc.scrip) }));
-    this.fluxText.setText(t('hud.rate', { n: Math.floor(r.flux), r: Math.round(inc.flux) }));
+    const signed = (v: number): string => (Math.round(v) >= 0 ? `+${Math.round(v)}` : `${Math.round(v)}`);
+    this.scripText.setText(t('hud.rate', { n: Math.floor(r.scrip), r: signed(inc.scrip) }));
+    this.fluxText.setText(t('hud.rate', { n: Math.floor(r.flux), r: signed(inc.flux) }));
     this.timeText.setText(timeText);
   }
 }

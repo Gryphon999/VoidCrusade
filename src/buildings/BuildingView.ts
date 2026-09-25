@@ -12,6 +12,9 @@ export class BuildingView {
   private lights: Phaser.GameObjects.Image[] = [];
   private scaffold?: Phaser.GameObjects.Image;
   private gun?: Phaser.GameObjects.Image;
+  /** Gate leaf: slides up when friendly troops are near. */
+  private door?: Phaser.GameObjects.Image;
+  private doorOpen = false;
   private bars: Phaser.GameObjects.Graphics;
   private ring: Phaser.GameObjects.Graphics;
   private art: BuildingArtInfo;
@@ -43,7 +46,12 @@ export class BuildingView {
       scene.tweens.add({ targets: img, alpha: { from: 1, to: 0.1 }, duration: 500 + Math.random() * 700, yoyo: true, repeat: -1, delay: Math.random() * 800 });
       this.lights.push(img);
     }
-    if (def.attack) {
+    if (def.stealth) this.body.setAlpha(0.55);
+    if (def.gate) {
+      const key = this.doorKey(px, def.height);
+      this.door = scene.add.image(bx, Projection.vy(b.y + 10), key).setOrigin(0.5, 1).setDepth(depth + 0.1);
+    }
+    if (def.attack && def.attack.projectile !== 'rocket' && def.attack.projectile !== 'acidlob') {
       const key = def.faction === 'ironvoid' ? 'bld_turret_gun' : 'bld_spine_gun';
       const g = this.art.gun ?? { x: 0, y: -def.height };
       this.gun = scene.add.image(bx + g.x, by + g.y, key).setOrigin(24 / 90, 0.5).setDepth(depth + 0.5);
@@ -55,6 +63,33 @@ export class BuildingView {
       this.scaffold.setY(by + 4);
     }
     this.bars = scene.add.graphics().setDepth(DEPTH.bars);
+  }
+
+  /** Iron door leaf with rivets and hazard stripes (baked once per size). */
+  private doorKey(px: number, h: number): string {
+    const key = `gate_door_${px}_${h}`;
+    if (this.scene.textures.exists(key)) return key;
+    const w = px - 36;
+    const hh = h - 10;
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = hh;
+    const ctx = c.getContext('2d') as CanvasRenderingContext2D;
+    const g = ctx.createLinearGradient(0, 0, 0, hh);
+    g.addColorStop(0, '#5a616c');
+    g.addColorStop(1, '#2a2e34');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, hh);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    for (let x = 6; x < w; x += 10) ctx.fillRect(x, 3, 2, hh - 6);
+    for (let x = 0; x < w; x += 8) {
+      ctx.fillStyle = (x / 8) % 2 ? '#1a1a1a' : '#d8b030';
+      ctx.fillRect(x, hh - 6, 8, 6);
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.strokeRect(0.5, 0.5, w - 1, hh - 1);
+    this.scene.textures.addCanvas(key, c);
+    return key;
   }
 
   /** Screen-space (view) bounds of the whole volume, for picking. */
@@ -92,6 +127,7 @@ export class BuildingView {
     this.shown = shown;
     for (const o of [this.body, this.glow, this.bars, ...this.lights]) o.setVisible(shown);
     this.gun?.setVisible(shown);
+    this.door?.setVisible(shown);
     this.scaffold?.setVisible(shown);
     this.ring.setVisible(shown && this.selected);
     if (shown) this.refresh();
@@ -99,6 +135,7 @@ export class BuildingView {
 
   /** Per-frame: smoke from chimneys, welding sparks while under construction. */
   update(dt: number): void {
+    if (this.door) this.updateDoor();
     if (!this.shown) return;
     this.fxTimer -= dt;
     if (this.fxTimer > 0) return;
@@ -115,6 +152,16 @@ export class BuildingView {
     }
   }
 
+  private updateDoor(): void {
+    const battle = this.scene as BattleScene;
+    const near = battle.units.neighbors(this.b.x, this.b.y, 90).some((u) => u.owner === this.b.owner
+      && Math.hypot(u.x - this.b.x, u.y - this.b.y) < 90);
+    if (near === this.doorOpen || !this.door) return;
+    this.doorOpen = near;
+    const base = Projection.vy(this.b.y + 10);
+    this.scene.tweens.add({ targets: this.door, y: near ? base - this.b.def.height + 14 : base, scaleY: near ? 0.25 : 1, duration: 280 });
+  }
+
   refresh(): void {
     const b = this.b;
     const constructing = b.state === 'constructing';
@@ -126,7 +173,7 @@ export class BuildingView {
       this.glow.setVisible(false);
       for (const l of this.lights) l.setVisible(false);
     } else if (this.scaffold) {
-      this.body.setCrop().setAlpha(1);
+      this.body.setCrop().setAlpha(b.def.stealth ? 0.55 : 1);
       this.glow.setVisible(this.shown);
       for (const l of this.lights) l.setVisible(this.shown);
       this.scaffold.destroy();
@@ -134,6 +181,8 @@ export class BuildingView {
     }
     this.gun?.setAlpha(constructing ? 0.4 : 1);
     const g = this.bars.clear();
+    // Walls and mines only show a bar when hurt, selected or being built.
+    if ((b.def.wall || b.def.mine) && !constructing && !this.selected && b.hp >= b.maxHp) return;
     const w = Math.max(60, b.def.size * TILE_SIZE * 0.8);
     const x = b.x - w / 2;
     const y = Projection.vy(this.top) - b.def.height - 18;
@@ -154,6 +203,7 @@ export class BuildingView {
   destroy(): void {
     for (const o of [this.body, this.glow, this.bars, this.ring, ...this.lights]) o.destroy();
     this.gun?.destroy();
+    this.door?.destroy();
     this.scaffold?.destroy();
   }
 }
