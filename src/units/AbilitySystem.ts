@@ -297,9 +297,11 @@ export class AbilitySystem {
     const b = this.battle;
     const foe = opponent(owner);
     const enemies = b.units.squads.filter((s) => s.owner === foe && s.alive && !s.hiddenFrom(owner));
+    // Easy AIs forget most of their abilities; Brutal uses every one that makes sense.
+    const skill = b.ai && b.ai.owner === owner ? b.ai.skill.abilityUse : 1;
     for (const s of b.units.getSquads(owner)) {
       for (const id of s.def.abilities ?? []) {
-        if (this.check(s, id)) continue;
+        if (this.check(s, id) || Math.random() > skill) continue;
         const d = ABILITIES[id];
         const c = s.center;
         const near = (r: number): Squad[] => enemies.filter((e) => Phaser.Math.Distance.Between(e.center.x, e.center.y, c.x, c.y) <= r);

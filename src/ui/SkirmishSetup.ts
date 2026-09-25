@@ -59,6 +59,9 @@ export class SkirmishSetup {
     row(y + 230, 'settings.difficulty', DIFFICULTIES, () => state.difficulty, (v) => (state.difficulty = v), (d) => t(dyn(`diff.${d}`)), 110);
     row(y + 280, 'skirmish.personality', ['random', ...PERSONALITIES], () => state.personality, (v) => (state.personality = v),
       (p) => t(dyn(`ai.${p}`)), 110);
+    const aiDesc = scene.add.text(x + 250, y + 300, '', textStyle(11, '#9a9280'));
+    root.add(aiDesc);
+    refresh.push(() => aiDesc.setText(state.personality === 'random' ? t('skirmish.randomHint') : t(dyn(`ai.${state.personality}.desc`))));
     row(y + 330, 'skirmish.storms', [false, true], () => state.storms, (v) => (state.storms = v), (v) => t(v ? 'common.on' : 'common.off'), 110);
     label(y + 380, 'skirmish.wargear');
     const wg = new Button(scene, { x: x + 330, y: y + 380, w: 310, h: 34, label: t('wargear.choose'), onClick: () => {

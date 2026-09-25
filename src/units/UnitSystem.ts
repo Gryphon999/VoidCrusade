@@ -304,6 +304,15 @@ export class UnitSystem {
     let goal = u.squad.slotPos(u);
     const flying = !!u.def.flying;
     if (!flying && !map.isPassableWorld(goal.x, goal.y, u.owner)) goal = { x: u.squad.x, y: u.squad.y };
+    // A unit snagged behind a corner walks its own short path back to the squad.
+    if (!flying && u.detour.length) {
+      const w = u.detour[0];
+      if (Math.hypot(w.x - u.x, w.y - u.y) < 20) u.detour.shift();
+      if (u.detour.length && Math.hypot(goal.x - u.x, goal.y - u.y) > 60) goal = u.detour[0];
+      else u.detour.length = 0;
+    }
+    const ox = u.x;
+    const oy = u.y;
     let dx = goal.x - u.x;
     let dy = goal.y - u.y;
     const dist = Math.hypot(dx, dy);
@@ -348,6 +357,15 @@ export class UnitSystem {
       const p = this.findOpenSpot(u.x, u.y);
       u.x = p.x;
       u.y = p.y;
+    }
+    if (!flying) {
+      const want = Math.hypot(goal.x - ox, goal.y - oy);
+      const moved = Math.hypot(u.x - ox, u.y - oy);
+      u.stuckTime = want > 70 && moved < speed * dt * 0.25 ? u.stuckTime + dt : 0;
+      if (u.stuckTime > 0.6 && !u.detour.length) {
+        u.stuckTime = 0;
+        u.detour = this.battle.pathfinder.find(u.x, u.y, u.squad.x, u.squad.y, false, u.owner);
+      }
     }
     const t = u.squad.engaged;
     if (t && !u.squad.isMoving()) {

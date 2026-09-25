@@ -25,6 +25,9 @@ export class Unit {
   /** Formation slot index within the squad. */
   slot = 0;
   inCover = false;
+  /** Private path back to the squad when the unit is snagged behind an obstacle. */
+  detour: { x: number; y: number }[] = [];
+  stuckTime = 0;
   alive = true;
   /** True when a cliff or building is drawn over this unit. */
   occluded = false;

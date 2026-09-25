@@ -503,4 +503,9 @@ export const enContent = {
   'enc.m.events.text': 'Explosive barrels, derelict turrets that can be woken, and ash storms that shrink sight range make every map change during a battle.',
   'enc.m.modes.title': 'Game modes',
   'enc.m.modes.text': 'Annihilation: destroy the enemy HQ. Control: hold the majority of points for the timer. Survival: outlast waves of attackers. Choose the mode, map, difficulty and AI personality in skirmish setup.',
+  'note.aiStyle': 'Enemy commander: {p}',
+  'skirmish.randomHint': 'A random personality is revealed when the battle starts.',
+  'ai.rusher.desc': 'Attacks early and often with small waves, harasses points, builds few defenses.',
+  'ai.turtler.desc': 'Fortifies its base and points, techs up, then strikes with a big heavy army.',
+  'ai.balanced.desc': 'Expands, defends and attacks in measured waves; goes for the HQ when far ahead.',
 } as const;

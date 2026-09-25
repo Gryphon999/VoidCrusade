@@ -126,7 +126,7 @@ export class ResearchSystem {
       return false;
     }
     if (!this.battle.resources.trySpend(b.owner, def.cost)) {
-      this.battle.events.emit(EV.message, 'err.resources');
+      if (b.owner === 'player') this.battle.events.emit(EV.message, 'err.resources');
       return false;
     }
     this.active.set(b, { id, t: 0 });

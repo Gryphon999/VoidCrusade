@@ -94,7 +94,8 @@ export class Pathfinder {
     const W = m.width;
     this.owner = owner;
     const pass = wide ? (x: number, y: number): boolean => this.isWidePassable(x, y, owner) : (x: number, y: number): boolean => m.isPassable(x, y, owner);
-    const clearance = wide ? 26 : 10;
+    // Wide bodies need a clear lane wider than one tile when paths are smoothed.
+    const clearance = wide ? 34 : 10;
     const s = m.worldToTile(sx, sy);
     let goal = m.worldToTile(gx, gy);
     if (!pass(goal.tx, goal.ty)) {
@@ -115,6 +116,9 @@ export class Pathfinder {
     heap.push(start);
     let found = false;
     let iterations = 0;
+    // Closest node reached so far: an unreachable goal yields a path to the nearest reachable spot.
+    let best = start;
+    let bestH = h(start);
     while (heap.size > 0 && iterations++ < 6000) {
       const cur = heap.pop();
       if (this.closed[cur] === this.run) continue;
@@ -122,6 +126,11 @@ export class Pathfinder {
       if (cur === target) {
         found = true;
         break;
+      }
+      const hc = h(cur);
+      if (hc < bestH) {
+        bestH = hc;
+        best = cur;
       }
       const cx = cur % W;
       const cy = Math.floor(cur / W);
@@ -138,13 +147,14 @@ export class Pathfinder {
         heap.push(ni);
       }
     }
-    if (!found) return [{ x: gx, y: gy }];
+    const end = found ? target : best;
+    if (end === start) return [];
     const tiles: Pt[] = [];
-    for (let i = target; i !== -1 && i !== start; i = this.parent[i]) {
+    for (let i = end; i !== -1 && i !== start; i = this.parent[i]) {
       tiles.push(m.tileToWorld(i % W, Math.floor(i / W)));
     }
     tiles.reverse();
-    if (tiles.length) tiles[tiles.length - 1] = { x: gx, y: gy };
+    if (found && tiles.length) tiles[tiles.length - 1] = { x: gx, y: gy };
     return this.smooth({ x: sx, y: sy }, tiles, clearance);
   }
 

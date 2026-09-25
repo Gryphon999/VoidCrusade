@@ -56,6 +56,7 @@ for (const a of Object.keys(ABILITIES)) dyn.push(`ab.${a}`, `ab.${a}.desc`);
 for (const w of WARGEAR) dyn.push(`wg.${w.id}`, `wg.${w.id}.desc`);
 for (const m of ['annihilation', 'control', 'survival']) dyn.push(`mode.${m}`, `mode.${m}.desc`);
 for (const p of ['random', ...PERSONALITIES]) dyn.push(`ai.${p}`);
+for (const p of PERSONALITIES) dyn.push(`ai.${p}.desc`);
 for (const s of ['weapon', 'armor', 'relic']) dyn.push(`wargear.slot.${s}`);
 for (const q of ['low', 'medium', 'high']) dyn.push(`gfx.${q}`);
 for (const id of TUTORIAL_STEP_IDS) dyn.push(`tut.${id}.title`, `tut.${id}.text`, `tut.${id}.vo`);

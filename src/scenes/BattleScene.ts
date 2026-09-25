@@ -180,7 +180,7 @@ export class BattleScene extends Phaser.Scene {
       this.production.spawnFrom(hive, 'overlord');
       this.production.spawnFrom(hive, 'crawler');
     }
-    this.ai = new AIController(this, data.difficulty ?? 'normal');
+    this.ai = new AIController(this, data.difficulty ?? 'normal', data.personality);
     this.tutorial = null;
     if (tutorial) {
       this.ai.enabled = false;
@@ -209,6 +209,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.scene.launch('HudScene', { battle: this });
     this.tutorial?.start();
+    if (data.mode === 'skirmish') this.time.delayedCall(2500, () => this.ai.announce());
     this.hud = this.scene.get('HudScene') as HudScene;
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       // Scene events survive a restart, so drop every gameplay listener registered this battle.
