@@ -6,6 +6,7 @@ import { MenuScene } from './scenes/MenuScene';
 import { CampaignScene } from './scenes/CampaignScene';
 import { BattleScene } from './scenes/BattleScene';
 import { HudScene } from './scenes/HudScene';
+import { SettingsScene } from './scenes/SettingsScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -23,7 +24,7 @@ const config: Phaser.Types.Core.GameConfig = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   disableContextMenu: true,
-  scene: [BootScene, PreloadScene, MenuScene, CampaignScene, BattleScene, HudScene],
+  scene: [BootScene, PreloadScene, MenuScene, CampaignScene, BattleScene, HudScene, SettingsScene],
 };
 
 const game = new Phaser.Game(config);

@@ -1,27 +1,75 @@
 import Phaser from 'phaser';
-import { COLORS, FONT_FAMILY, GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH, GOTHIC_FONT } from '../config';
 import { Settings } from '../systems/Settings';
+import { CampaignState } from '../campaign/CampaignState';
+import { MenuBackground } from '../ui/MenuBackground';
+import { Button } from '../ui/Button';
+import { textStyle } from '../ui/uiStyle';
+import { SkirmishSetup } from '../ui/SkirmishSetup';
 
 export class MenuScene extends Phaser.Scene {
+  private bg!: MenuBackground;
+  private busy = false;
+
   constructor() {
     super('MenuScene');
   }
 
   create(): void {
-    this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 80, 'VOIDCRUSADE', { fontFamily: FONT_FAMILY, fontSize: '72px', color: COLORS.uiText })
-      .setOrigin(0.5);
+    this.busy = false;
+    this.input.setDefaultCursor('default');
+    this.bg = new MenuBackground(this);
+    const logo = this.add.text(GAME_WIDTH / 2, 170, 'VOIDCRUSADE', {
+      fontFamily: GOTHIC_FONT, fontSize: '120px', fontStyle: 'bold', stroke: '#1a0000', strokeThickness: 10,
+      shadow: { offsetX: 0, offsetY: 0, color: '#ff2010', blur: 28, fill: false, stroke: true },
+    }).setOrigin(0.5);
+    const grd = logo.context.createLinearGradient(0, 0, 0, logo.height);
+    grd.addColorStop(0, '#fff4d0');
+    grd.addColorStop(0.45, '#c8a060');
+    grd.addColorStop(0.55, '#8a5a20');
+    grd.addColorStop(1, '#e0c080');
+    logo.setFill(grd);
+    logo.setScale(0.9).setAlpha(0);
+    this.tweens.add({ targets: logo, scale: 1, alpha: 1, duration: 1200, ease: 'Cubic.easeOut' });
+    const sub = this.add.text(GAME_WIDTH / 2, 262, 'In the void between stars, only iron survives',
+      { ...textStyle(24, '#c8c8d8'), fontStyle: 'italic' }).setOrigin(0.5).setAlpha(0);
+    this.tweens.add({ targets: sub, alpha: 1, duration: 1200, delay: 600 });
+
+    const hasSave = !!CampaignState.load();
     const items: [string, () => void][] = [
-      ['[ New Campaign ]', () => this.scene.start('CampaignScene', { fresh: true })],
-      ['[ Continue Campaign ]', () => this.scene.start('CampaignScene', {})],
-      ['[ Skirmish ]', () => this.scene.start('BattleScene', { mode: 'skirmish', difficulty: Settings.get().difficulty })],
+      ['New Campaign', () => this.go('CampaignScene', { fresh: true })],
+      ...(hasSave ? [['Continue Campaign', () => this.go('CampaignScene', {})] as [string, () => void]] : []),
+      ['Skirmish', () => this.openSkirmish()],
+      ['Settings', () => this.openSettings()],
     ];
     items.forEach(([label, fn], i) => {
-      this.add
-        .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 20 + i * 50, label, { fontFamily: FONT_FAMILY, fontSize: '28px', color: '#9ab' })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .on('pointerdown', fn);
+      const b = new Button(this, { x: GAME_WIDTH / 2, y: 360 + i * 62, w: 300, h: 48, label, onClick: () => !this.busy && fn() });
+      b.container.setAlpha(0);
+      this.tweens.add({ targets: b.container, alpha: 1, duration: 500, delay: 900 + i * 120 });
     });
+    this.add.text(GAME_WIDTH - 12, GAME_HEIGHT - 10, 'WASD/edge scroll · wheel zoom · drag to select · right-click to order',
+      textStyle(12, '#667')).setOrigin(1, 1);
+  }
+
+  private go(key: string, data: object): void {
+    this.cameras.main.fadeOut(350, 0, 0, 0);
+    this.busy = true;
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start(key, data));
+  }
+
+  private openSettings(): void {
+    this.busy = true;
+    this.scene.launch('SettingsScene', { onClose: () => (this.busy = false) });
+    this.scene.bringToTop('SettingsScene');
+  }
+
+  private openSkirmish(): void {
+    this.busy = true;
+    new SkirmishSetup(this, (mapIndex) => this.go('BattleScene', { mode: 'skirmish', mapIndex, difficulty: Settings.get().difficulty }),
+      () => (this.busy = false));
+  }
+
+  update(_t: number, delta: number): void {
+    this.bg.update(delta / 1000);
   }
 }

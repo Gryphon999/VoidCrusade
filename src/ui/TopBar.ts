@@ -10,6 +10,9 @@ export class TopBar {
   private scripText: Phaser.GameObjects.Text;
   private fluxText: Phaser.GameObjects.Text;
   private timeText: Phaser.GameObjects.Text;
+  private armyText: Phaser.GameObjects.Text;
+  private pointsText: Phaser.GameObjects.Text;
+  readonly pauseButton: Phaser.GameObjects.Text;
   readonly container: Phaser.GameObjects.Container;
 
   constructor(scene: Phaser.Scene, private resources: ResourceSystem) {
@@ -21,7 +24,20 @@ export class TopBar {
     this.fluxText = scene.add.text(254, TOP_BAR_H / 2, '', textStyle(18, '#40e0ff')).setOrigin(0, 0.5);
     const timeIcon = scene.add.image(GAME_WIDTH / 2 - 40, TOP_BAR_H / 2, 'icon_time');
     this.timeText = scene.add.text(GAME_WIDTH / 2 - 22, TOP_BAR_H / 2, '00:00', textStyle(18)).setOrigin(0, 0.5);
-    this.container = scene.add.container(0, 0, [g, scripIcon, this.scripText, fluxIcon, this.fluxText, timeIcon, this.timeText]);
+    const armyIcon = scene.add.image(446, TOP_BAR_H / 2, 'icon_squads');
+    this.armyText = scene.add.text(464, TOP_BAR_H / 2, '', textStyle(18, '#9cf')).setOrigin(0, 0.5);
+    this.pointsText = scene.add.text(GAME_WIDTH / 2 + 110, TOP_BAR_H / 2, '', textStyle(16, '#ccd')).setOrigin(0, 0.5);
+    this.pauseButton = scene.add.text(GAME_WIDTH - 14, TOP_BAR_H / 2, '❚❚ Pause', textStyle(16, '#ccd'))
+      .setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
+    this.pauseButton.on('pointerover', () => this.pauseButton.setColor('#ffd060'));
+    this.pauseButton.on('pointerout', () => this.pauseButton.setColor('#ccd'));
+    this.container = scene.add.container(0, 0, [g, scripIcon, this.scripText, fluxIcon, this.fluxText, timeIcon, this.timeText,
+      armyIcon, this.armyText, this.pointsText, this.pauseButton]);
+  }
+
+  setArmy(count: number, max: number, points: number, enemyPoints: number): void {
+    this.armyText.setText(`${count}/${max}`);
+    this.pointsText.setText(`Nexus  ${points} : ${enemyPoints}`);
   }
 
   update(timeText: string): void {

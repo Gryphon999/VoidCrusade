@@ -5,6 +5,7 @@ import { BuildToolbar } from '../ui/BuildToolbar';
 import { SelectionPanel } from '../ui/SelectionPanel';
 import { MiniMap } from '../ui/MiniMap';
 import { showEndScreen } from '../ui/EndScreen';
+import { PauseMenu } from '../ui/PauseMenu';
 import { BattleResult } from './BattleTypes';
 import { formatTime, textStyle } from '../ui/uiStyle';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
@@ -22,6 +23,7 @@ export class HudScene extends Phaser.Scene {
   private toolbar!: BuildToolbar;
   private panel!: SelectionPanel;
   private minimap!: MiniMap;
+  private pause!: PauseMenu;
   private tooltip!: Phaser.GameObjects.Text;
   private messageText!: Phaser.GameObjects.Text;
   private messageTimer?: Phaser.Time.TimerEvent;
@@ -41,6 +43,11 @@ export class HudScene extends Phaser.Scene {
   create(): void {
     this.topBar = new TopBar(this, this.battle.resources);
     this.addBlocker(new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, TOP_BAR_H));
+    this.pause = new PauseMenu(this, this.battle);
+    this.addBlocker(new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT), () => this.pause.isOpen);
+    this.topBar.pauseButton.on('pointerdown', () => this.pause.toggle());
+    this.input.keyboard?.on('keydown-P', () => this.pause.toggle());
+    this.input.keyboard?.on('keydown-F10', () => this.pause.toggle());
     this.toolbar = new BuildToolbar(this, this.battle);
     this.toolbar.setVisible(false);
     this.addBlocker(this.toolbar.bounds, () => this.toolbar.container.visible);
@@ -109,6 +116,9 @@ export class HudScene extends Phaser.Scene {
   update(): void {
     if (this.ended) return;
     this.topBar.update(formatTime(this.battle.elapsed));
+    const u = this.battle.units;
+    const cap = this.battle.capture;
+    this.topBar.setArmy(u.armyCount('player'), u.maxSquads('player'), cap.countOwned('player'), cap.countOwned('enemy'));
     this.toolbar.update();
     this.panel.update();
     this.minimap.update();
