@@ -45,6 +45,8 @@ export class Squad {
   pendingReinforce = 0;
   selected = false;
   alive = true;
+  /** Per-soldier positions while holding in cover. */
+  coverSlots: Pt[] | null = null;
   /** AI bookkeeping tag (e.g. 'defend', 'raid'). */
   role = '';
   private offsets: Pt[];
@@ -121,6 +123,7 @@ export class Squad {
   moveTo(x: number, y: number, attackMove = false): void {
     this.order = attackMove ? 'attackMove' : 'move';
     this.target = null;
+    this.coverSlots = null;
     this.moveGoal = { x, y };
     this.setPath(x, y);
   }
@@ -128,6 +131,7 @@ export class Squad {
   attack(t: Target): void {
     this.order = 'attack';
     this.target = t;
+    this.coverSlots = null;
     this.moveGoal = null;
     this.repathTimer = 0;
   }
@@ -137,6 +141,7 @@ export class Squad {
     this.target = null;
     this.path = [];
     this.moveGoal = null;
+    this.battle.cover?.seekCover(this);
   }
 
   stop(): void {
@@ -144,6 +149,7 @@ export class Squad {
     this.target = null;
     this.path = [];
     this.moveGoal = null;
+    this.coverSlots = null;
   }
 
   private setPath(x: number, y: number): void {
@@ -202,7 +208,8 @@ export class Squad {
     const tp = targetPos(t);
     const gap = Phaser.Math.Distance.Between(c.x, c.y, tp.x, tp.y) - (isSquad(t) ? 0 : t.radius);
     this.repathTimer -= UNITS.retargetInterval;
-    if (gap > this.def.range * 0.85) {
+    const clear = this.battle.cover?.hasLineOfSight(c.x, c.y, tp.x, tp.y) ?? true;
+    if (gap > this.def.range * 0.85 || !clear) {
       if (this.repathTimer <= 0 || this.path.length === 0) {
         this.repathTimer = UNITS.repathInterval;
         this.setPath(tp.x, tp.y);
@@ -249,6 +256,7 @@ export class Squad {
 
   /** World position of a unit's formation slot. */
   slotPos(u: Unit): Pt {
+    if (this.order === 'hold' && this.coverSlots) return this.coverSlots[u.slot] ?? { x: this.x, y: this.y };
     const o = this.offsets[u.slot] ?? { x: 0, y: 0 };
     return { x: this.x + o.x, y: this.y + o.y };
   }

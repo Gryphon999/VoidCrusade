@@ -152,3 +152,11 @@ export const FOG = {
   exploredAlpha: 0.5,
   unexploredAlpha: 0.97,
 } as const;
+
+export const COVER = {
+  damageMult: 0.5,
+  updateInterval: 0.25,
+  /** Radius (tiles) searched for cover when a squad holds position. */
+  seekRadius: 4,
+  losStep: 16,
+} as const;

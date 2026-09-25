@@ -12,6 +12,7 @@ import { CapturePointSystem } from '../systems/CapturePointSystem';
 import { AIController } from '../ai/AIController';
 import { FogOfWarSystem } from '../systems/FogOfWarSystem';
 import { AudioBridge } from '../systems/AudioBridge';
+import { CoverSystem } from '../systems/CoverSystem';
 import { ModifierTable, defaultModifiers } from '../systems/Modifiers';
 import { BuildingSystem } from '../buildings/BuildingSystem';
 import { BuildingPlacementUI } from '../buildings/BuildingPlacementUI';
@@ -59,7 +60,7 @@ export class BattleScene extends Phaser.Scene {
   capture!: CapturePointSystem;
   ai!: AIController;
   modifiers!: ModifierTable;
-  cover?: CoverQueries;
+  cover?: CoverSystem;
   fog?: FogOfWarSystem;
   audio!: AudioBridge;
   effects!: EffectsSystem;
@@ -89,6 +90,7 @@ export class BattleScene extends Phaser.Scene {
     this.map = new MapSystem(getMap(data.mapIndex ?? 0));
     this.map.render(this);
     this.pathfinder = new Pathfinder(this.map);
+    this.cover = new CoverSystem(this);
     this.resources = new ResourceSystem({
       player: { scrip: RESOURCES.startScrip + (bonus?.startScrip ?? 0), flux: RESOURCES.startFlux + (bonus?.startFlux ?? 0) },
       enemy: { scrip: RESOURCES.startScrip + (data.enemyBonusScrip ?? 0) },
@@ -165,6 +167,7 @@ export class BattleScene extends Phaser.Scene {
     this.research.update(dt);
     this.units.update(dt);
     this.combat.update(dt);
+    this.cover?.update(dt);
     this.capture.update(dt);
     this.ai.update(dt);
     this.fog?.update(dt);
