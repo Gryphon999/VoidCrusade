@@ -106,3 +106,31 @@ export const CAPTURE = {
   /** No-build margin around the zone, in tiles. */
   reserveTiles: 2,
 } as const;
+
+export type Difficulty = 'easy' | 'normal' | 'hard';
+
+export interface DifficultyProfile {
+  incomeMult: number;
+  raidInterval: number;
+  rush: boolean;
+  smartTargeting: boolean;
+}
+
+export const AI_DIFFICULTY: Record<Difficulty, DifficultyProfile> = {
+  easy: { incomeMult: 0.5, raidInterval: 60, rush: false, smartTargeting: false },
+  normal: { incomeMult: 1.0, raidInterval: 30, rush: true, smartTargeting: false },
+  hard: { incomeMult: 1.5, raidInterval: 20, rush: true, smartTargeting: true },
+};
+
+export const AI = {
+  thinkInterval: 1,
+  buildPhase: 60,
+  defendSquads: 2,
+  rushPoints: 3,
+  rushSquads: 5,
+  /** Scrip kept in reserve for construction while the build order is unfinished. */
+  buildReserve: 100,
+  /** Enemy squads within this distance of the Hive trigger a defensive response. */
+  defendRadius: 700,
+  raidJitter: 0.25,
+} as const;

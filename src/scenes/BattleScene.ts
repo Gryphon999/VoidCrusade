@@ -9,6 +9,7 @@ import { Pathfinder } from '../systems/Pathfinder';
 import { ProductionSystem } from '../systems/ProductionSystem';
 import { ResearchSystem } from '../systems/ResearchSystem';
 import { CapturePointSystem } from '../systems/CapturePointSystem';
+import { AIController } from '../ai/AIController';
 import { ModifierTable, defaultModifiers } from '../systems/Modifiers';
 import { BuildingSystem } from '../buildings/BuildingSystem';
 import { BuildingPlacementUI } from '../buildings/BuildingPlacementUI';
@@ -16,12 +17,13 @@ import { UnitSystem } from '../units/UnitSystem';
 import { CombatSystem } from '../units/CombatSystem';
 import { Unit } from '../units/Unit';
 import { Squad } from '../units/Squad';
-import { RESOURCES } from '../config';
+import { Difficulty, RESOURCES } from '../config';
 import { EffectsSystem } from '../effects/EffectsSystem';
 import type { HudScene } from './HudScene';
 
 export interface BattleData {
   mapIndex?: number;
+  difficulty?: Difficulty;
 }
 
 /** Cover/LOS queries (implemented by CoverSystem). */
@@ -46,6 +48,7 @@ export class BattleScene extends Phaser.Scene {
   production!: ProductionSystem;
   research!: ResearchSystem;
   capture!: CapturePointSystem;
+  ai!: AIController;
   modifiers!: ModifierTable;
   cover?: CoverQueries;
   effects!: EffectsSystem;
@@ -82,6 +85,7 @@ export class BattleScene extends Phaser.Scene {
     this.production.spawnFrom(hq, 'rifleman');
     hive.rally = { x: hive.x - 120, y: hive.y + 160 };
     this.production.spawnFrom(hive, 'crawler');
+    this.ai = new AIController(this, data.difficulty ?? 'normal');
 
     this.cameraSystem = new CameraSystem(this, this.map.worldWidth, this.map.worldHeight);
     this.cameraSystem.centerOn(hq.x + 200, hq.y - 100);
@@ -106,6 +110,7 @@ export class BattleScene extends Phaser.Scene {
     this.units.update(dt);
     this.combat.update(dt);
     this.capture.update(dt);
+    this.ai.update(dt);
     this.selection.prune();
     this.cameraSystem.update(dt);
     this.inputController.update();
