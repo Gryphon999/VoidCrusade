@@ -25,6 +25,7 @@ import { Owner } from '../types';
 import { AudioSystem } from '../systems/AudioSystem';
 import { MessageKey, onLanguageChange, t } from '../i18n';
 import { buildingName, unitName } from '../i18n/names';
+import { BuildCategory } from '../buildings/BuildingDefs';
 
 interface Blocker {
   rect: Phaser.Geom.Rectangle;
@@ -46,6 +47,9 @@ export class HudScene extends Phaser.Scene {
   private grain?: Phaser.GameObjects.TileSprite;
   private lastAlarm = -99999;
   private cursor = '';
+  /** Build-menu page shown while the HQ is selected. */
+  private page: BuildCategory | null = null;
+  private selectedBefore: unknown = null;
 
   constructor() {
     super('HudScene');
@@ -57,6 +61,8 @@ export class HudScene extends Phaser.Scene {
     this.ended = false;
     this.cursor = '';
     this.lastAlarm = -99999;
+    this.page = null;
+    this.selectedBefore = null;
   }
 
   create(): void {
@@ -77,6 +83,9 @@ export class HudScene extends Phaser.Scene {
     this.topBar.pauseButton.on('pointerdown', () => this.pause.toggle());
     this.input.keyboard?.on('keydown-P', () => this.pause.toggle());
     this.input.keyboard?.on('keydown-F10', () => this.pause.toggle());
+    this.input.keyboard?.on('keydown-ESC', () => {
+      if (this.page && !this.battle.placement.isActive) this.setPage(null);
+    });
     this.panel.refresh();
     this.wireEvents();
     // Language switch: rebuild the HUD in place (keeping the pause menu open if the battle is paused).
@@ -129,6 +138,8 @@ export class HudScene extends Phaser.Scene {
       [EV.buildingDamaged, (b: Building) => {
         if (b.owner === 'player') this.alarm();
       }],
+      [EV.tierUp, () => this.refreshCommands()],
+      [EV.buildingComplete, () => this.refreshCommands()],
     ];
     for (const [e, h] of handlers) ev.on(e, h);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -169,9 +180,21 @@ export class HudScene extends Phaser.Scene {
   }
 
   private refreshSelection(): void {
+    const sel = this.battle.selection.building ?? this.battle.selection.squads[0] ?? null;
+    if (sel !== this.selectedBefore) this.page = null;
+    this.selectedBefore = sel;
     this.panel.refresh();
-    this.grid.setCommands(commandsFor(this.battle));
-    this.tooltip.hide();
+    this.refreshCommands();
+  }
+
+  private setPage(p: BuildCategory | null): void {
+    this.page = p;
+    this.refreshCommands();
+  }
+
+  /** Rebuilds the command grid (selection, page, tier or unlock changed). */
+  refreshCommands(): void {
+    this.grid.setCommands(commandsFor(this.battle, { page: this.page, setPage: (p) => this.setPage(p) }));
   }
 
   update(): void {
@@ -181,7 +204,8 @@ export class HudScene extends Phaser.Scene {
     this.topBar.update(formatTime(this.battle.elapsed));
     const u = this.battle.units;
     const cap = this.battle.capture;
-    this.topBar.setArmy(u.armyCount('player'), u.maxSquads('player'), cap.countOwned('player'), cap.countOwned('enemy'));
+    this.topBar.setArmy(this.battle.production.supplyUsed('player'), u.supplyCap('player'), cap.countOwned('player'), cap.countOwned('enemy'),
+      this.battle.tech.tierOf('player'));
     this.panel.update();
     this.grid.update();
     this.minimap.update();

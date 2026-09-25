@@ -6,12 +6,13 @@ export interface Modifiers {
   hpMult: number;
   turretDamageMult: number;
   squadSizeBonus: number;
-  maxSquadsBonus: number;
+  /** Extra supply cap. */
+  supplyBonus: number;
   buildSpeedMult: number;
 }
 
 export function defaultModifiers(): Modifiers {
-  return { damageMult: 1, hpMult: 1, turretDamageMult: 1, squadSizeBonus: 0, maxSquadsBonus: 0, buildSpeedMult: 1 };
+  return { damageMult: 1, hpMult: 1, turretDamageMult: 1, squadSizeBonus: 0, supplyBonus: 0, buildSpeedMult: 1 };
 }
 
 export type ModifierTable = Record<Owner, Modifiers>;

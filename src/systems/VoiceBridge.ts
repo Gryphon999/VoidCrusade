@@ -31,9 +31,10 @@ export class VoiceBridge {
     ev.on(EV.buildingDamaged, (b: Building) => b.owner === 'player' && this.alarm());
     ev.on(EV.message, (key: MessageKey) => {
       if (key === 'err.resources') Voice.say('vo.noResources', 'announcer', 'event');
-      else if (key === 'err.squadCap') Voice.say('vo.squadCap', 'announcer', 'event');
+      else if (key === 'err.squadCap' || key === 'err.supply') Voice.say('vo.squadCap', 'announcer', 'event');
       else if (key === 'note.reinforced') Voice.say('vo.reinforced', 'announcer', 'event', true);
     });
+    ev.on(EV.tierUp, (o: Owner) => o === 'player' && Voice.say('vo.tierUp', 'announcer', 'event'));
     ev.on(EV.battleEnded, (r: BattleResult) => {
       Voice.stop();
       Voice.say(r.winner === 'player' ? 'vo.victory' : 'vo.defeat', 'commander', 'alert');
@@ -47,6 +48,10 @@ export class VoiceBridge {
     if (now - this.lastAlarm < 20000) return;
     this.lastAlarm = now;
     Voice.say('vo.underAttack', 'announcer', 'alert');
+  }
+
+  static retreat(s: Squad): void {
+    Voice.say('vo.retreat', speakerFor(s), 'ack', true);
   }
 
   /** Squad acknowledgement: select / move / attack / capture. Returns true if a line was spoken. */

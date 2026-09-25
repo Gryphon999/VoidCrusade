@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH, SUPPLY } from '../config';
 import { CampaignSave, CampaignState } from '../campaign/CampaignState';
 import { TERRITORIES, getTerritory } from '../campaign/CampaignData';
 import { getCard } from '../campaign/UpgradeCards';
@@ -67,7 +67,7 @@ export class CampaignScene extends Phaser.Scene {
       '',
       t('camp.bonuses'),
       t('camp.bonus.res', { s: b.startScrip, f: b.startFlux }),
-      t('camp.bonus.squads', { c: b.maxSquadsBonus, z: b.squadSizeBonus }),
+      t('camp.bonus.squads', { c: b.maxSquadsBonus * SUPPLY.perSquadSlot, z: b.squadSizeBonus }),
       t('camp.bonus.stats', { hp: b.hpMult.toFixed(2), dmg: b.damageMult.toFixed(2) }),
       t('camp.bonus.build', { t: b.turretDamageMult.toFixed(2), b: b.buildSpeedMult.toFixed(2) }),
       '',

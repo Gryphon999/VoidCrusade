@@ -7,6 +7,7 @@ import { Squad, isSquad } from './Squad';
 import { Building } from '../buildings/Building';
 import type { BattleScene } from '../scenes/BattleScene';
 import { Projection } from '../render/Projection';
+import { DamageType, damageMult } from './Damage';
 
 export type Victim = Unit | Building;
 type ProjKind = 'bullet' | 'shell' | 'spit' | 'melee' | 'spine';
@@ -18,7 +19,7 @@ export class CombatSystem {
 
   update(dt: number): void {
     for (const s of this.battle.units.squads) {
-      if (!s.alive || s.order === 'move') continue;
+      if (!s.alive || s.order === 'move' || s.order === 'retreat') continue;
       const t = s.engaged;
       if (!t) {
         for (const u of s.units) u.cooldown = Math.max(0, u.cooldown - dt);
@@ -35,7 +36,7 @@ export class CombatSystem {
         const dmg = u.def.damage * this.battle.modifiers[u.owner].damageMult;
         u.face(victim.x, victim.y);
         u.playAttack();
-        this.fire(u.x, u.y, u.owner, victim, dmg, u.def.projectile, u.squad, u.aimPoint());
+        this.fire(u.x, u.y, u.owner, victim, dmg, u.def.projectile, u.squad, u.aimPoint(), u.def.damageType);
       }
     }
     this.updateTurrets(dt);
@@ -52,7 +53,7 @@ export class CombatSystem {
       b.attackCooldown = atk.cooldown;
       b.aimAt(victim.x, victim.y);
       const dmg = atk.damage * this.battle.modifiers[b.owner].turretDamageMult;
-      this.fire(b.x, b.y, b.owner, victim, dmg, b.def.faction === 'ironvoid' ? 'bullet' : 'spine', null, b.gunTip);
+      this.fire(b.x, b.y, b.owner, victim, dmg, b.def.faction === 'ironvoid' ? 'bullet' : 'spine', null, b.gunTip, atk.damageType);
     }
   }
 
@@ -91,7 +92,8 @@ export class CombatSystem {
    * to the victim's body and deal damage on impact.
    */
   fire(x: number, y: number, owner: Owner, victim: Victim, dmg: number, kind: ProjKind, from: Squad | null,
-    muzzle: { x: number; y: number }): void {
+    muzzle: { x: number; y: number }, type: DamageType): void {
+    dmg *= damageMult(type, victim instanceof Building ? 'building' : victim.def.armor);
     const aim = victim instanceof Building ? victim.view.aimPoint() : victim.aimPoint();
     const los = this.battle.cover?.hasLineOfSight(x, y, victim.x, victim.y) ?? true;
     this.battle.events.emit(EV.unitFired, x, y, kind, owner);
@@ -127,7 +129,7 @@ export class CombatSystem {
       this.battle.buildings.damage(victim, dmg);
       return;
     }
-    const mult = this.battle.cover?.damageMultiplier(victim) ?? 1;
+    const mult = (this.battle.cover?.damageMultiplier(victim) ?? 1) * (victim.squad.retreating ? 0.6 : 1);
     const killed = victim.takeDamage(dmg * mult);
     const squad = victim.squad;
     if (from && from.alive && squad.alive && !squad.engaged && squad.order !== 'move') squad.target = from;

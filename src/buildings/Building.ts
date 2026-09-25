@@ -24,6 +24,8 @@ export class Building {
   /** Production queue and progress (seconds) on the head item. */
   queue: UnitId[] = [];
   queueTime = 0;
+  /** Re-queue each finished unit automatically. */
+  repeat = false;
   rally: { x: number; y: number };
   attackCooldown = 0;
   /** True once the enemy has ever seen it (fog of war). */

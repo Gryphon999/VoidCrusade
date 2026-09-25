@@ -8,16 +8,18 @@ import { RESEARCH_DEFS } from '../systems/ResearchSystem';
 import { HUD } from './HudArt';
 import { researchGlyph } from './GlyphIcons';
 import { textStyle } from './uiStyle';
-import { plural, t } from '../i18n';
+import { dyn, plural, t } from '../i18n';
 import { buildingDesc, buildingName, researchName, unitName } from '../i18n/names';
 
 const P = HUD.center;
 const INFO_X = P.x + 132;
 
 function orderText(s: Squad): string {
+  if (s.retreating) return t('order.retreat');
   if (s.pendingReinforce > 0) return t('order.reinforcing');
   if (s.order === 'hold') return t('order.hold');
   if (s.engaged) return t('order.engaging');
+  if (s.waypoints.length) return t('order.waypoints', { n: s.waypoints.length + 1 });
   if (s.isMoving()) return s.order === 'attackMove' ? t('order.attackMove') : t('order.move');
   return t('order.idle');
 }
@@ -85,7 +87,11 @@ export class SelectionPanel {
     const name = this.scene.add.text(INFO_X, P.y + 10, title, textStyle(19, HUD.goldHi)).setStroke('#000', 3);
     const state = this.scene.add.text(INFO_X, P.y + 52, '', textStyle(13, '#9fe09f'));
     const info = this.scene.add.text(P.x + P.w - 12, P.y + 12, '', textStyle(13, '#bcb4a0')).setOrigin(1, 0);
-    this.content.add([name, state, info]);
+    const d = first.def;
+    const statsText = squads.every((s) => s.def.id === d.id)
+      ? t('hud.stats', { dmg: t(dyn(`dmg.${d.damageType}`)), armor: t(dyn(`armor.${d.armor}`)), s: d.supply }) : '';
+    const stats = this.scene.add.text(P.x + P.w - 12, P.y + 54, statsText, textStyle(12, '#a8a090')).setOrigin(1, 0);
+    this.content.add([name, state, info, stats]);
     const cards = this.scene.add.container(0, 0);
     this.content.add(cards);
     this.upgrades(P.y + P.h - 14);
@@ -97,8 +103,10 @@ export class SelectionPanel {
       const hp = alive.reduce((a, s) => a + s.hp, 0);
       const max = alive.reduce((a, s) => a + s.maxHp, 0) || 1;
       this.bar(INFO_X, P.y + 38, 280, 9, hp / max);
-      info.setText(t('hud.army', { n: units.armyCount('player'), max: units.maxSquads('player') }));
-      state.setText(alive.length === 1 ? orderText(alive[0]) : '');
+      info.setText(t('hud.supply', { n: this.battle.production.supplyUsed('player'), max: units.supplyCap('player') }));
+      const st = alive[0]?.stance;
+      state.setText(alive.length === 1 ? `${orderText(alive[0])} · ${t(dyn(`stance.${st}`))}`
+        : alive.every((s) => s.stance === st) ? t('hud.stance', { s: t(dyn(`stance.${st}`)) }) : '');
       // Cards: one per soldier for a single squad, one per squad otherwise.
       const single = alive.length === 1;
       const items = single ? alive[0].units.map((u) => ({ key: portraitKey(u.def.id), f: u.hp / u.maxHp, n: '' }))
@@ -137,6 +145,10 @@ export class SelectionPanel {
       let status = t('hud.hp', { hp: Math.ceil(b.hp), max: b.maxHp });
       if (b.state === 'constructing') status += `  ·  ${t('hud.constructing', { p: Math.floor(b.progress * 100) })}`;
       if (b.def.fluxGen) status += `  ·  ${t('hud.fluxGen', { n: b.def.fluxGen })}`;
+      if (b.def.supply) status += `  ·  ${t('hud.supplyGen', { n: b.def.supply })}`;
+      const adv = b.def.role === 'hq' ? this.battle.tech.progress(b.owner) : null;
+      if (adv !== null) status += `  ·  ${t('hud.advancing', { n: this.battle.tech.tierOf(b.owner) + 1, p: Math.floor(adv * 100) })}`;
+      if (b.repeat) status += `  ·  ${t('hud.repeat')}`;
       const res = this.battle.research.activeAt(b);
       if (res) status += `  ·  ${t('hud.researching', { name: researchName(res.def.id), p: Math.floor(res.frac * 100) })}`;
       info.setText(status);
@@ -144,6 +156,7 @@ export class SelectionPanel {
       if (key !== lastQueue) {
         lastQueue = key;
         queue.removeAll(true);
+        if (b.queue.length) queue.add(this.scene.add.text(P.x + P.w - 12, P.y + 138, t('hud.queueHint'), textStyle(10, '#8a8478')).setOrigin(1, 0.5));
         b.queue.forEach((q, qi) => {
           const x = P.x + P.w - 30 - qi * 40;
           const y = P.y + 106;

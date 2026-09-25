@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { DEPTH, TILE, TILE_SIZE, UNITS } from '../config';
+import { DEPTH, SUPPLY, TILE, TILE_SIZE, UNITS } from '../config';
 import { Projection } from '../render/Projection';
 import { EV } from '../events';
 import { Owner, opponent } from '../types';
@@ -50,8 +50,18 @@ export class UnitSystem {
     return this.squads.filter((s) => s.owner === owner && s.alive && !s.def.isHero).length;
   }
 
-  maxSquads(owner: Owner): number {
-    return UNITS.maxSquads + this.battle.modifiers[owner].maxSquadsBonus;
+  /** Supply used by living squads (queued units are counted by ProductionSystem). */
+  supplyUsed(owner: Owner): number {
+    let n = 0;
+    for (const s of this.squads) if (s.owner === owner && s.alive) n += s.def.supply;
+    return n;
+  }
+
+  /** Supply cap: HQ + finished supply buildings + bonuses, clamped to the hard maximum. */
+  supplyCap(owner: Owner): number {
+    let n = this.battle.modifiers[owner].supplyBonus;
+    for (const b of this.battle.buildings.buildings) if (b.owner === owner && b.isReady) n += b.def.supply ?? 0;
+    return Math.min(SUPPLY.hardMax, n);
   }
 
   squadAt(wx: number, wy: number, owner?: Owner): Squad | undefined {
@@ -261,7 +271,7 @@ export class UnitSystem {
     let dx = goal.x - u.x;
     let dy = goal.y - u.y;
     const dist = Math.hypot(dx, dy);
-    const speed = u.def.speed * (dist > 60 ? 1.15 : 1);
+    const speed = u.def.speed * u.squad.speedMult * (dist > 60 ? 1.15 : 1);
     let vx = 0;
     let vy = 0;
     if (dist > 2) {

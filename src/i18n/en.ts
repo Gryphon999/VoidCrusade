@@ -1,4 +1,6 @@
 /** English strings. Keys are the source of truth; ru.ts must provide every key (checked by the compiler). */
+import { enContent } from './content.en';
+
 export const en = {
   // Menu
   'menu.subtitle': 'In the void between stars, only iron survives',
@@ -6,7 +8,7 @@ export const en = {
   'menu.continue': 'Continue Campaign',
   'menu.skirmish': 'Skirmish',
   'menu.settings': 'Settings',
-  'menu.hint': 'WASD/edge scroll · wheel zoom · drag to select · right-click to order',
+  'menu.hint': 'Arrows/edge scroll · wheel zoom · drag to select · right-click to order',
   // Skirmish
   'skirmish.title': 'Skirmish',
   'skirmish.difficulty': 'Difficulty: {d} (change in Settings)',
@@ -59,11 +61,11 @@ export const en = {
   'tip.2': 'Order squads to Hold (H) near ruins or cliff edges — cover halves incoming damage.',
   'tip.3': 'Cliffs block line of sight. Flank around them.',
   'tip.4': 'Reinforce (R) battered squads instead of training new ones.',
-  'tip.5': 'Press B to select your Command Bastion and open the build menu.',
+  'tip.5': 'Press B to select your Command Bastion, then pick a build page: A Economy, S Military, D Defence, F Tech.',
   // HUD
   'hud.pause': 'Pause',
   'hud.rate': '{n}  +{r}/s',
-  'hud.empty': 'Select a squad or structure\nB — Command Bastion · Q — whole army',
+  'hud.empty': 'Select a squad or structure\nB — Command Bastion · Ctrl+A — whole army · . — idle squad',
   'hud.army': 'Army {n}/{max}',
   'hud.squads': 'squad|squads',
   'hud.hp': 'HP {hp}/{max}',
@@ -112,6 +114,7 @@ export const en = {
   'err.queueFull': 'Queue full',
   'err.heroDeployed': 'Commander already deployed',
   'err.squadCap': 'Squad cap reached',
+  'err.supply': 'Not enough supply — build a Supply Depot',
   'err.cannotBuild': 'Cannot build here',
   // Roles
   'role.hq': 'command HQ',
@@ -121,6 +124,7 @@ export const en = {
   'role.defense': 'defence tower',
   'role.relay': 'relay',
   'role.research': 'foundry',
+  'role.supply': 'supply building',
   // Pause & end screen
   'pause.title': 'Paused',
   'pause.resume': 'Resume',
@@ -143,7 +147,7 @@ export const en = {
   'camp.battles': 'Battles won: {n}',
   'camp.bonuses': 'Active bonuses:',
   'camp.bonus.res': '  Starting Scrip +{s}   Flux +{f}',
-  'camp.bonus.squads': '  Squad cap +{c}   Squad size +{z}',
+  'camp.bonus.squads': '  Supply +{c}   Squad size +{z}',
   'camp.bonus.stats': '  HP ×{hp}   Damage ×{dmg}',
   'camp.bonus.build': '  Turrets ×{t}   Build ×{b}',
   'camp.boons': 'Boons:',
@@ -179,7 +183,7 @@ export const en = {
   'terr.throne': 'Iron Void Throne',
   'bonus.scrip': '+50 Scrip per battle',
   'bonus.flux': '+75 Flux per battle',
-  'bonus.squadSlot': 'Extra squad slot',
+  'bonus.squadSlot': '+3 supply',
   'bonus.hp': '+15% unit HP',
   'bonus.damage': '+10% unit damage',
   'bonus.build': '+25% build speed',
@@ -199,7 +203,7 @@ export const en = {
   'card.deploy': 'Rapid Deployment',
   'card.deploy.desc': 'Buildings construct 25% faster.',
   'card.slot': 'Levy of the Faithful',
-  'card.slot.desc': '+1 squad slot.',
+  'card.slot.desc': '+3 supply.',
   'card.fluxres': 'Flux Reserves',
   'card.fluxres.desc': 'Start each battle with an extra 150 Flux.',
   // Maps
@@ -252,7 +256,7 @@ export const en = {
   'res.fabrication': 'Rapid Fabrication',
   'res.fabrication.desc': '+50% construction speed.',
   'res.conscription': 'Mass Conscription',
-  'res.conscription.desc': '+2 squad cap.',
+  'res.conscription.desc': '+6 supply.',
   // Voice lines (variants separated by |)
   'vo.select.rifleman': 'Void Riflemen, ready.|Awaiting orders.|For the Iron Void!',
   'vo.select.heavy': 'Iron Guard standing by.|Heavy weapons ready.|We hold the line.',
@@ -266,13 +270,14 @@ export const en = {
   'vo.pointLost': 'Capture point lost.',
   'vo.buildDone': 'Construction complete.',
   'vo.noResources': 'Insufficient resources.',
-  'vo.squadCap': 'Squad limit reached.',
+  'vo.squadCap': 'We need more supply.',
   'vo.reinforced': 'Reinforcements have arrived.',
   'vo.battleStart': 'The crusade begins. Take the Nexus points!',
   'vo.victory': 'Victory! The Horde is broken.',
   'vo.defeat': 'The Bastion has fallen. We are lost.',
   'vo.territory': 'Territory captured. The crusade advances.',
   'vo.test': 'Voice test. For the Iron Void!',
+  ...enContent,
 } as const;
 
 export type MessageKey = keyof typeof en;

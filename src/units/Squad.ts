@@ -7,7 +7,12 @@ import { Unit } from './Unit';
 import { Building } from '../buildings/Building';
 import type { BattleScene } from '../scenes/BattleScene';
 
-export type SquadOrder = 'idle' | 'move' | 'attackMove' | 'attack' | 'hold';
+export type SquadOrder = 'idle' | 'move' | 'attackMove' | 'attack' | 'hold' | 'retreat';
+/** Hold = never move; Defend = fight nearby then return to the guard point; Aggressive = chase anything. */
+export type Stance = 'hold' | 'defend' | 'aggressive';
+
+/** How far (px) a defensive squad will chase beyond its weapon range before returning. */
+const LEASH = 260;
 export type Target = Squad | Building;
 
 interface Pt {
@@ -50,6 +55,11 @@ export class Squad {
   coverSlots: Pt[] | null = null;
   /** AI bookkeeping tag (e.g. 'defend', 'raid'). */
   role = '';
+  stance: Stance;
+  /** Where a defensive squad returns to after a skirmish. */
+  guard: Pt;
+  /** Shift-queued destinations after the current path. */
+  waypoints: { x: number; y: number; attack: boolean }[] = [];
   private offsets: Pt[];
   private repathTimer = 0;
   private retargetTimer = 0;
@@ -64,6 +74,8 @@ export class Squad {
     this.maxSize = maxSize;
     this.offsets = Squad.formation(maxSize, Math.max(UNITS.formationSpacing, def.size * 2 + 8));
     this.heading = owner === 'player' ? -Math.PI / 4 : (Math.PI * 3) / 4;
+    this.stance = owner === 'player' ? 'defend' : 'aggressive';
+    this.guard = { x, y };
     for (let i = 0; i < size; i++) {
       const u = this.addUnit(x, y);
       const p = this.slotPos(u);
@@ -140,7 +152,13 @@ export class Squad {
 
   // ---- Orders -------------------------------------------------------------
 
-  moveTo(x: number, y: number, attackMove = false): void {
+  /** Move order; with `queue` the destination is appended after the current path (shift-click). */
+  moveTo(x: number, y: number, attackMove = false, queue = false): void {
+    if (queue && (this.order === 'move' || this.order === 'attackMove') && (this.path.length || this.waypoints.length)) {
+      this.waypoints.push({ x, y, attack: attackMove });
+      return;
+    }
+    this.waypoints = [];
     this.order = attackMove ? 'attackMove' : 'move';
     this.target = null;
     this.coverSlots = null;
@@ -149,6 +167,7 @@ export class Squad {
   }
 
   attack(t: Target): void {
+    this.waypoints = [];
     this.order = 'attack';
     this.target = t;
     this.coverSlots = null;
@@ -157,6 +176,8 @@ export class Squad {
   }
 
   hold(): void {
+    this.stance = 'hold';
+    this.waypoints = [];
     this.order = 'hold';
     this.target = null;
     this.path = [];
@@ -164,7 +185,47 @@ export class Squad {
     this.battle.cover?.seekCover(this);
   }
 
+  setStance(st: Stance): void {
+    if (st === 'hold') {
+      this.hold();
+      return;
+    }
+    this.stance = st;
+    if (this.order === 'hold') {
+      this.order = 'idle';
+      this.coverSlots = null;
+    }
+    this.guard = { x: this.x, y: this.y };
+  }
+
+  /** Runs home to the headquarters (or the nearest friendly building), ignoring enemies. */
+  retreat(): void {
+    const bs = this.battle.buildings;
+    const home = bs.getHQ(this.owner) ?? bs.getOwned(this.owner)[0];
+    if (!home) return;
+    this.waypoints = [];
+    this.target = null;
+    this.coverSlots = null;
+    this.order = 'retreat';
+    const gx = home.x + (Math.random() - 0.5) * 80;
+    const gy = home.y + home.radius + 70;
+    this.moveGoal = { x: gx, y: gy };
+    this.setPath(gx, gy);
+    if (this.stance === 'hold') this.stance = 'defend';
+  }
+
+  get retreating(): boolean {
+    return this.order === 'retreat';
+  }
+
+  /** Movement speed multiplier (retreat sprint). */
+  get speedMult(): number {
+    return this.order === 'retreat' ? 1.5 : 1;
+  }
+
   stop(): void {
+    this.waypoints = [];
+    this.guard = { x: this.x, y: this.y };
     this.order = 'idle';
     this.target = null;
     this.path = [];
@@ -208,19 +269,27 @@ export class Squad {
       if (this.order === 'attack') this.order = 'idle';
       if (this.order === 'attackMove' && this.moveGoal) this.setPath(this.moveGoal.x, this.moveGoal.y);
     }
-    if (this.order === 'move') return;
+    if (this.order === 'move' || this.order === 'retreat') return;
     this.retargetTimer -= dt;
     if (this.retargetTimer > 0) return;
     this.retargetTimer = UNITS.retargetInterval;
     const c = this.center;
     if (this.order !== 'attack') {
-      const reach = this.def.range + (this.order === 'hold' ? 0 : UNITS.acquireBonus);
+      const reach = this.def.range + (this.order === 'hold' ? 0 : this.stance === 'aggressive' ? UNITS.acquireBonus * 2 : UNITS.acquireBonus);
       const found = this.battle.units.findTarget(this.owner, c.x, c.y, reach);
       if (found) this.target = found;
       else if (this.target) {
         // Keep a retaliation target only while it stays reasonably close.
         const tp0 = targetPos(this.target);
         if (Phaser.Math.Distance.Between(c.x, c.y, tp0.x, tp0.y) > reach * 2.5) this.target = null;
+      }
+      // Defensive squads give up the chase once the enemy leads them too far from their post.
+      if (this.target && this.stance === 'defend' && this.order === 'idle') {
+        const tp1 = targetPos(this.target);
+        if (Phaser.Math.Distance.Between(this.guard.x, this.guard.y, tp1.x, tp1.y) > this.def.range + LEASH) {
+          this.target = null;
+          if (Phaser.Math.Distance.Between(c.x, c.y, this.guard.x, this.guard.y) > 40) this.setPath(this.guard.x, this.guard.y);
+        }
       }
     }
     const t = this.engaged;
@@ -246,13 +315,24 @@ export class Squad {
   private updateAnchor(dt: number): void {
     const next = this.path[0];
     if (!next) {
-      if (this.order === 'move' || (this.order === 'attackMove' && !this.engaged)) this.order = 'idle';
+      const wp = this.waypoints[0];
+      if (wp && (this.order === 'move' || (this.order === 'attackMove' && !this.engaged))) {
+        this.waypoints.shift();
+        this.order = wp.attack ? 'attackMove' : 'move';
+        this.moveGoal = { x: wp.x, y: wp.y };
+        this.setPath(wp.x, wp.y);
+        return;
+      }
+      if (this.order === 'move' || this.order === 'retreat' || (this.order === 'attackMove' && !this.engaged)) {
+        this.order = 'idle';
+        this.guard = { x: this.x, y: this.y };
+      }
       return;
     }
     const c = this.center;
     const lag = Phaser.Math.Distance.Between(this.x, this.y, c.x, c.y);
     const factor = Phaser.Math.Clamp(1 - (lag - 50) / 90, 0.15, 1);
-    const step = this.def.speed * factor * dt;
+    const step = this.def.speed * this.speedMult * factor * dt;
     const d = Phaser.Math.Distance.Between(this.x, this.y, next.x, next.y);
     if (d > 4) this.heading = Phaser.Math.Angle.RotateTo(this.heading, Math.atan2(next.y - this.y, next.x - this.x), 3 * dt);
     if (d <= step) {

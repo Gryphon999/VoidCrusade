@@ -23,6 +23,8 @@ export class BuildingSystem {
   readonly reserved = new Set<number>();
   /** Per-owner construction speed multiplier. */
   buildSpeed: Record<Owner, number> = { player: 1, enemy: 1 };
+  /** Current tech tier per owner (wired to TechSystem by the battle). */
+  tierOf: (owner: Owner) => number = () => 3;
 
   constructor(
     private scene: Phaser.Scene,
@@ -59,6 +61,7 @@ export class BuildingSystem {
         if (this.reserved.has(y * this.map.width + x)) return { ok: false, reason: 'err.nexus' };
       }
     }
+    if (this.tierOf(owner) < def.tier) return { ok: false, reason: 'err.tier', params: { n: `${def.tier}` } };
     const missing = def.requires.find((r) => !this.hasRole(owner, r));
     if (missing) return { ok: false, reason: 'err.requires', params: { what: roleName(missing) } };
     const cx = tx + def.size / 2;

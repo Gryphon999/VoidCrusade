@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { AI, AI_DIFFICULTY, Difficulty, DifficultyProfile } from '../config';
+import { AI, AI_DIFFICULTY, Difficulty, DifficultyProfile, SUPPLY } from '../config';
 import { BuildingRole, defForRole } from '../buildings/BuildingDefs';
 import { Building } from '../buildings/Building';
 import { Squad } from '../units/Squad';
@@ -10,7 +10,7 @@ import type { BattleScene } from '../scenes/BattleScene';
 const OWNER = 'enemy';
 
 /** Initial build order (roles), executed first 60s then continued as funds allow. */
-const BUILD_ORDER: BuildingRole[] = ['power', 'power', 'infantry', 'defense', 'power', 'heavy', 'defense', 'infantry', 'defense'];
+const BUILD_ORDER: BuildingRole[] = ['power', 'power', 'infantry', 'supply', 'defense', 'power', 'supply', 'heavy', 'defense', 'infantry', 'supply', 'defense'];
 
 /**
  * Null Horde opponent. Behaviours, in priority order:
@@ -60,6 +60,9 @@ export class AIController {
   private build(): void {
     const bs = this.battle.buildings;
     if (bs.buildings.some((b) => b.owner === OWNER && b.state === 'constructing')) return;
+    // Supply first when the army is about to hit the cap.
+    const cap = this.battle.units.supplyCap(OWNER);
+    if (cap < SUPPLY.hardMax && this.battle.production.supplyUsed(OWNER) + 4 > cap && this.tryBuild('supply')) return;
     const inBuildPhase = this.battle.elapsed < AI.buildPhase;
     if (this.buildIndex >= BUILD_ORDER.length) {
       // Late game: rebuild lost production and add defenses when rich.
@@ -72,19 +75,32 @@ export class AIController {
   }
 
   private tryBuild(role: BuildingRole): boolean {
-    const def = defForRole('nullhorde', role);
-    if (!def || !this.battle.resources.canAfford(OWNER, def.cost)) return false;
+    const def = defForRole(this.battle.factions[OWNER], role);
+    if (!def) return false;
+    // Tech up when the next structure needs a higher tier.
+    if (this.battle.tech.tierOf(OWNER) < def.tier) {
+      this.battle.tech.advance(OWNER);
+      return false;
+    }
+    if (!this.battle.resources.canAfford(OWNER, def.cost)) return false;
     return this.builder.place(def.id, role === 'defense');
   }
 
   private train(): void {
     const res = this.battle.resources.getResources(OWNER);
-    const reserve = this.buildIndex < BUILD_ORDER.length ? AI.buildReserve : 0;
+    let reserve = this.buildIndex < BUILD_ORDER.length ? AI.buildReserve : 0;
+    // Save up for the tier upgrade the build order is waiting on.
+    const nextRole = BUILD_ORDER[this.buildIndex];
+    const nextDef = nextRole && defForRole(this.battle.factions[OWNER], nextRole);
+    const up = this.battle.tech.next(OWNER);
+    if (nextDef && up && nextDef.tier > this.battle.tech.tierOf(OWNER) && this.battle.tech.progress(OWNER) === null) {
+      reserve = Math.max(reserve, up.cost.scrip);
+    }
     for (const b of this.battle.buildings.getOwned(OWNER)) {
       if (!b.isReady || b.queue.length > 0 || b.def.produces.length === 0) continue;
-      const id = b.def.produces[0];
-      const cost = this.battle.production.checkEnqueue(b, id);
-      if (cost !== null) continue;
+      const options = b.def.produces.filter((u) => this.battle.production.checkEnqueue(b, u) === null);
+      if (!options.length) continue;
+      const id = options[Math.floor(Math.random() * options.length)];
       if (res.scrip - reserve < 0) continue;
       if (this.battle.production.enqueue(b, id)) this.trained++;
     }

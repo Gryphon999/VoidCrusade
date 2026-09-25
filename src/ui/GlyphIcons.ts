@@ -103,6 +103,82 @@ const GLYPHS: Record<string, Glyph> = {
     c.lineWidth = 2;
     c.stroke();
   },
+  defend: (c) => {
+    // Shield with a sword behind it.
+    line(c, [[C - 12, C + 14], [C + 12, C - 14]], 2.5);
+    poly(c, [[C - 10, C - 10], [C + 10, C - 10], [C + 9, C + 3], [C, C + 13], [C - 9, C + 3]]);
+    c.fillStyle = '#1a140c';
+    c.fillRect(C - 1.5, C - 7, 3, 16);
+    c.fillRect(C - 6, C - 3, 12, 3);
+  },
+  aggressive: (c) => {
+    // Charging arrow with speed lines.
+    poly(c, [[C - 14, C - 4], [C + 4, C - 4], [C + 4, C - 12], [C + 15, C], [C + 4, C + 12], [C + 4, C + 4], [C - 14, C + 4]]);
+    line(c, [[C - 12, C - 12], [C - 4, C - 12]], 2);
+    line(c, [[C - 12, C + 12], [C - 4, C + 12]], 2);
+  },
+  retreat: (c) => {
+    poly(c, [[C + 14, C - 4], [C - 2, C - 4], [C - 2, C - 12], [C - 15, C], [C - 2, C + 12], [C - 2, C + 4], [C + 14, C + 4]]);
+    c.fillRect(C + 8, C - 14, 3, 28);
+  },
+  repeat: (c) => {
+    c.lineWidth = 3.5;
+    c.beginPath();
+    c.arc(C, C, 11, -Math.PI * 0.9, Math.PI * 0.55);
+    c.stroke();
+    poly(c, [[C - 16, C - 6], [C - 6, C - 8], [C - 12, C + 1]]);
+  },
+  tierUp: (c) => {
+    poly(c, [[C, C - 16], [C + 12, C - 3], [C + 5, C - 3], [C + 5, C + 4], [C - 5, C + 4], [C - 5, C - 3], [C - 12, C - 3]]);
+    c.fillRect(C - 11, C + 7, 22, 3);
+    c.fillRect(C - 11, C + 12, 22, 3);
+  },
+  economy: (c) => {
+    // Cog.
+    c.beginPath();
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      const r = i % 2 === 0 ? 15 : 11;
+      c.lineTo(C + Math.cos(a) * r, C + Math.sin(a) * r);
+    }
+    c.closePath();
+    c.fill();
+    c.fillStyle = '#1a140c';
+    c.beginPath();
+    c.arc(C, C, 5, 0, Math.PI * 2);
+    c.fill();
+  },
+  military: (c) => {
+    // Crossed rifles over a helmet.
+    line(c, [[C - 14, C + 12], [C + 10, C - 14]], 3);
+    line(c, [[C + 14, C + 12], [C - 10, C - 14]], 3);
+    c.beginPath();
+    c.arc(C, C + 6, 8, Math.PI, 0);
+    c.fill();
+    c.fillRect(C - 10, C + 6, 20, 3);
+  },
+  defense: (c) => {
+    // Tower with crenellations.
+    c.fillRect(C - 9, C - 6, 18, 20);
+    for (let i = 0; i < 3; i++) c.fillRect(C - 11 + i * 8, C - 13, 6, 6);
+    c.fillStyle = '#1a140c';
+    c.fillRect(C - 3, C + 5, 6, 9);
+  },
+  tech: (c) => {
+    // Atom-like orbit around a core.
+    c.lineWidth = 2;
+    for (const a of [0, Math.PI / 3, -Math.PI / 3]) {
+      c.beginPath();
+      c.ellipse(C, C, 15, 5.5, a, 0, Math.PI * 2);
+      c.stroke();
+    }
+    c.beginPath();
+    c.arc(C, C, 4, 0, Math.PI * 2);
+    c.fill();
+  },
+  back: (c) => {
+    poly(c, [[C - 14, C], [C - 2, C - 12], [C - 2, C - 5], [C + 13, C - 5], [C + 13, C + 5], [C - 2, C + 5], [C - 2, C + 12]]);
+  },
 };
 
 /** Gold glyph on a dark bronze roundel, 44x44. */
@@ -137,6 +213,9 @@ export function createGlyphIcons(scene: Phaser.Scene): void {
 export const GLYPH = {
   move: 'glyph_move', attack: 'glyph_attack', hold: 'glyph_hold', stop: 'glyph_stop', reinforce: 'glyph_reinforce',
   build: 'glyph_build', rally: 'glyph_rally', capture: 'glyph_capture',
+  defend: 'glyph_defend', aggressive: 'glyph_aggressive', retreat: 'glyph_retreat', repeat: 'glyph_repeat',
+  tierUp: 'glyph_tierUp', economy: 'glyph_economy', military: 'glyph_military', defense: 'glyph_defense',
+  tech: 'glyph_tech', back: 'glyph_back',
 } as const;
 
 export function researchGlyph(id: string): string {

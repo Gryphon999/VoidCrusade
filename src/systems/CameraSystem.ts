@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { CAMERA, PROJECTION } from '../config';
 import { Projection } from '../render/Projection';
 
-type ScrollKeys = Record<'up' | 'down' | 'left' | 'right' | 'w' | 'a' | 's' | 'd', Phaser.Input.Keyboard.Key>;
+type ScrollKeys = Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
 
 /**
  * RTS camera: keyboard + edge scroll, middle-mouse drag pan, wheel zoom, clamped to the map.
@@ -26,7 +26,7 @@ export class CameraSystem {
     if (kb) {
       const K = Phaser.Input.Keyboard.KeyCodes;
       this.keys = kb.addKeys(
-        { up: K.UP, down: K.DOWN, left: K.LEFT, right: K.RIGHT, w: K.W, a: K.A, s: K.S, d: K.D },
+        { up: K.UP, down: K.DOWN, left: K.LEFT, right: K.RIGHT },
         false,
       ) as ScrollKeys;
     }
@@ -72,10 +72,11 @@ export class CameraSystem {
     let dy = 0;
     const k = this.keys;
     if (k) {
-      if (k.left.isDown || k.a.isDown) dx -= 1;
-      if (k.right.isDown || k.d.isDown) dx += 1;
-      if (k.up.isDown || k.w.isDown) dy -= 1;
-      if (k.down.isDown || k.s.isDown) dy += 1;
+      // Letters belong to the command grid (QWERTYU/ASDFGHJ), so only the arrows scroll.
+      if (k.left.isDown) dx -= 1;
+      if (k.right.isDown) dx += 1;
+      if (k.up.isDown) dy -= 1;
+      if (k.down.isDown) dy += 1;
     }
     const p = this.scene.input.activePointer;
     if (this.scene.game.input.isOver && !this.dragging) {

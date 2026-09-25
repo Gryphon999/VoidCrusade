@@ -14,6 +14,7 @@ export class TopBar {
   private timeText: Phaser.GameObjects.Text;
   private armyText: Phaser.GameObjects.Text;
   private pointsText: Phaser.GameObjects.Text;
+  private tierText: Phaser.GameObjects.Text;
   readonly pauseButton: Phaser.GameObjects.Text;
   readonly container: Phaser.GameObjects.Container;
 
@@ -31,17 +32,19 @@ export class TopBar {
     this.timeText = lbl(598, '#e8e0c8');
     const nexusIcon = scene.add.image(748, y, 'glyph_capture').setScale(0.5);
     this.pointsText = lbl(766, '#e8e0c8');
+    this.tierText = lbl(900, HUD.goldHi);
     this.pauseButton = scene.add.text(GAME_WIDTH - 16, y, `❚❚  ${t('hud.pause')}`, textStyle(16, '#e8e0c8'))
       .setOrigin(1, 0.5).setStroke('#000', 3).setInteractive({ useHandCursor: true });
     this.pauseButton.on('pointerover', () => this.pauseButton.setColor(HUD.goldHi));
     this.pauseButton.on('pointerout', () => this.pauseButton.setColor('#e8e0c8'));
     this.container = scene.add.container(0, 0, [bg, scripIcon, this.scripText, fluxIcon, this.fluxText, armyIcon, this.armyText,
-      timeIcon, this.timeText, nexusIcon, this.pointsText, this.pauseButton]);
+      timeIcon, this.timeText, nexusIcon, this.pointsText, this.tierText, this.pauseButton]);
   }
 
-  setArmy(count: number, max: number, points: number, enemyPoints: number): void {
-    this.armyText.setText(`${count}/${max}`);
+  setArmy(supply: number, cap: number, points: number, enemyPoints: number, tier: number): void {
+    this.armyText.setText(`${supply}/${cap}`).setColor(supply >= cap ? '#ff7050' : '#9cc8ff');
     this.pointsText.setText(`${points} : ${enemyPoints}`);
+    this.tierText.setText(t('hud.tier', { n: tier }));
   }
 
   update(timeText: string): void {

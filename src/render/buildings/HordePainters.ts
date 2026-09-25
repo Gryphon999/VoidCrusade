@@ -97,4 +97,25 @@ const spine: BuildingPainter = (o, S, H, rnd, a) => {
   a.gun = { x: S / 2, y: S / 2, z: H - 6 };
 };
 
-export const HORDE_PAINTERS: Record<string, BuildingPainter> = { hive, spire, brood, maw, spine };
+/** Brood Nest: a clutch of glowing eggs in a ring of fleshy ribs. */
+const nest: BuildingPainter = (o, S, H, rnd, a) => {
+  o.groundShadow(0, 0, S, S);
+  tendrils(o, S / 2, S / 2, 6, S * 0.46, rnd);
+  o.blob(S / 2, S / 2, 6, 48, 12, FLESH_D);
+  for (let i = 0; i < 7; i++) {
+    const t = (i / 7) * Math.PI * 2;
+    const x = S / 2 + Math.cos(t) * 22;
+    const y = S / 2 + Math.sin(t) * 18;
+    o.blob(x, y, 14, 11, 16, i % 2 ? 0xc8b078 : 0xb09a60);
+    o.light(x - 2, y + 5, 16, 1.6, ACID);
+  }
+  o.blob(S / 2, S / 2, 20, 14, 20, 0xd0bc88);
+  o.light(S / 2, S / 2 + 6, 22, 3, ACID);
+  for (let i = 0; i < 6; i++) {
+    const t = (i / 6) * Math.PI * 2 + 0.3;
+    spike(o, S / 2 + Math.cos(t) * 40, S / 2 + Math.sin(t) * 34, 8, -Math.cos(t) * 14, H - 12, 3);
+  }
+  a.lights.push({ x: S / 2, y: S / 2 + 6, z: 22 });
+};
+
+export const HORDE_PAINTERS: Record<string, BuildingPainter> = { hive, spire, nest, brood, maw, spine };

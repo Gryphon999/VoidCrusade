@@ -14,5 +14,6 @@ export const EV = {
   capturing: 'capturing',
   battleEnded: 'battle-ended',
   researchDone: 'research-done',
+  tierUp: 'tier-up',
   message: 'hud-message',
 } as const;

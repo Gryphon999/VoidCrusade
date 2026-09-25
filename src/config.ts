@@ -95,13 +95,19 @@ export const UNITS = {
   reinforceInterval: 1.2,
   /** Reinforcing costs this fraction of the per-soldier price. */
   reinforceCostFactor: 0.5,
-  maxSquads: 10,
   queueMax: 5,
   repathInterval: 1.0,
   retargetInterval: 0.35,
   commanderRespawn: 30,
   projectileSpeed: 700,
   visionRadius: 300,
+} as const;
+
+/** Population cap: every squad costs supply; HQ and supply buildings provide it. */
+export const SUPPLY = {
+  hardMax: 40,
+  /** Campaign "extra squad slot" bonuses are converted to this much supply. */
+  perSquadSlot: 3,
 } as const;
 
 export const BUILDING_VISION = 200;

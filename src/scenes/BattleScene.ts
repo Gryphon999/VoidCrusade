@@ -8,6 +8,8 @@ import { InputController } from '../systems/InputController';
 import { Pathfinder } from '../systems/Pathfinder';
 import { ProductionSystem } from '../systems/ProductionSystem';
 import { ResearchSystem } from '../systems/ResearchSystem';
+import { TechSystem } from '../systems/TechSystem';
+import { Faction } from '../units/UnitDefs';
 import { CapturePointSystem } from '../systems/CapturePointSystem';
 import { AIController } from '../ai/AIController';
 import { FogOfWarSystem } from '../systems/FogOfWarSystem';
@@ -20,7 +22,7 @@ import { UnitSystem } from '../units/UnitSystem';
 import { CombatSystem } from '../units/CombatSystem';
 import { Unit } from '../units/Unit';
 import { Squad } from '../units/Squad';
-import { RESOURCES } from '../config';
+import { RESOURCES, SUPPLY } from '../config';
 import { BattleData, BattleResult, BattleStats } from './BattleTypes';
 import { EV } from '../events';
 import { Building } from '../buildings/Building';
@@ -63,6 +65,9 @@ export class BattleScene extends Phaser.Scene {
   combat!: CombatSystem;
   production!: ProductionSystem;
   research!: ResearchSystem;
+  tech!: TechSystem;
+  /** Which faction each side plays. */
+  factions: Record<Owner, Faction> = { player: 'ironvoid', enemy: 'nullhorde' };
   capture!: CapturePointSystem;
   ai!: AIController;
   modifiers!: ModifierTable;
@@ -91,7 +96,7 @@ export class BattleScene extends Phaser.Scene {
     if (bonus) {
       Object.assign(this.modifiers.player, {
         hpMult: bonus.hpMult, damageMult: bonus.damageMult, turretDamageMult: bonus.turretDamageMult,
-        squadSizeBonus: bonus.squadSizeBonus, maxSquadsBonus: bonus.maxSquadsBonus, buildSpeedMult: bonus.buildSpeedMult,
+        squadSizeBonus: bonus.squadSizeBonus, supplyBonus: bonus.maxSquadsBonus * SUPPLY.perSquadSlot, buildSpeedMult: bonus.buildSpeedMult,
       });
     }
     Projection.setTilt(Settings.get().tilt);
@@ -112,6 +117,8 @@ export class BattleScene extends Phaser.Scene {
     this.combat = new CombatSystem(this);
     this.production = new ProductionSystem(this);
     this.research = new ResearchSystem(this);
+    this.tech = new TechSystem(this, this.factions);
+    this.buildings.tierOf = (o) => this.tech.tierOf(o);
     this.capture = new CapturePointSystem(this);
     new PropSystem(this, this.map.def.id.length * 7919 + (data.mapIndex ?? 0));
     this.selection = new SelectionSystem(this);
@@ -137,6 +144,7 @@ export class BattleScene extends Phaser.Scene {
     this.inputController = new InputController(this);
 
     this.events.on(EV.buildingDestroyed, (b: Building) => {
+      this.production.cancelAll(b);
       if (b.owner === 'player') this.stats.buildingsLost++;
       else this.stats.buildingsDestroyed++;
       if (b.def.role === 'hq') this.endBattle(opponent(b.owner));
@@ -181,6 +189,7 @@ export class BattleScene extends Phaser.Scene {
     this.buildings.update(dt);
     this.production.update(dt);
     this.research.update(dt);
+    this.tech.update(dt);
     this.units.update(dt);
     this.combat.update(dt);
     this.cover?.update(dt);

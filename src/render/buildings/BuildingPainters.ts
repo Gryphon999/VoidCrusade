@@ -216,6 +216,30 @@ const research: BuildingPainter = (o, S, H, _r, a) => {
   a.lights.push({ x: S / 2, y: S - 10, z: 14 });
 };
 
+/** Supply Depot: armoured bunker-shed with stacked crates, fuel drums and a loading crane. */
+const depot: BuildingPainter = (o, S, H, rnd, a) => {
+  o.groundShadow(0, 0, S, S);
+  o.box(6, 10, 0, S - 12, S - 22, 10, STONE_D);
+  // Main shed with a slanted roof.
+  o.box(10, 14, 10, S - 44, S - 36, H - 26, STONE);
+  for (let i = 0; i < 3; i++) o.box(12 + i * 2, 16 + i * 8, H - 16 + i * 4, S - 48 - i * 4, S - 40 - i * 16, 5, 0x3a3230);
+  o.frontRect(18, S - 22, 10, 30, 22, '#0c0a09');
+  for (let i = 0; i < 4; i++) o.frontRect(19, S - 22, 12 + i * 5, 28, 2, 'rgba(120,110,90,0.8)');
+  // Crate stacks and drums in the yard.
+  for (const [x, y, z] of [[S - 30, 18, 10], [S - 30, 32, 10], [S - 30, 18, 24], [S - 22, S - 30, 10]]) {
+    o.box(x, y, z, 16, 13, 14, rnd() < 0.5 ? 0x6a5a3a : 0x5a4c30);
+    o.frontRect(x + 3, y + 13, z + 5, 10, 2, '#c9a044');
+  }
+  for (const x of [S - 40, S - 30]) {
+    o.cylinder(x, S - 12, 10, 5, 12, 0x5a2a20, 0x7a3a28);
+    o.frontRect(x - 5, S - 7, 17, 10, 2, '#d8b030');
+  }
+  banner(o, 50, S - 22, H - 22, 18);
+  o.light(14, S - 22, H - 12, 2, 0xffb050);
+  a.lights.push({ x: 14, y: S - 22, z: H - 12 });
+  a.smoke.push({ x: 20, y: 22, z: H + 4 });
+};
+
 export const IRON_PAINTERS: Record<string, BuildingPainter> = {
-  stronghold, generator, barracks, mechanis, turret, relay, research,
+  stronghold, generator, depot, barracks, mechanis, turret, relay, research,
 };

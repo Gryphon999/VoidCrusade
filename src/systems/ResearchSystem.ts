@@ -27,7 +27,7 @@ export const RESEARCH_DEFS: ResearchDef[] = [
   { id: 'fabrication', name: 'Rapid Fabrication', cost: { scrip: 100, flux: 50 }, time: 20,
     description: '+50% construction speed.', apply: (m) => (m.buildSpeedMult *= 1.5) },
   { id: 'conscription', name: 'Mass Conscription', cost: { scrip: 200, flux: 50 }, time: 25,
-    description: '+2 squad cap.', apply: (m) => (m.maxSquadsBonus += 2) },
+    description: '+6 supply.', apply: (m) => (m.supplyBonus += 6) },
 ];
 
 interface Active {
