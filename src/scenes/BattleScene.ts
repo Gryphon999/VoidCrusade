@@ -184,7 +184,7 @@ export class BattleScene extends Phaser.Scene {
     this.ai.update(dt);
     this.fog?.update(dt);
     this.audio.update();
-    this.effects.update();
+    this.effects.update(dt);
     this.atmosphere.update();
     this.selection.prune();
     this.cameraSystem.update(dt);

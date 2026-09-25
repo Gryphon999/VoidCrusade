@@ -21,7 +21,7 @@ export class SettingsScene extends Phaser.Scene {
   create(data: { onClose?: () => void }): void {
     const s = Settings.get();
     const w = 520;
-    const h = 560;
+    const h = 610;
     const x = (GAME_WIDTH - w) / 2;
     const y = (GAME_HEIGHT - h) / 2;
     this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.6).setOrigin(0).setInteractive();
@@ -61,6 +61,13 @@ export class SettingsScene extends Phaser.Scene {
       });
       b.setActive(q === s.graphics);
       gButtons.push(b);
+    });
+    const shake = new Button(this, {
+      x: GAME_WIDTH / 2, y: y + 516, w: 220, h: 34, label: `Screen shake: ${s.screenShake ? 'On' : 'Off'}`,
+      onClick: () => {
+        Settings.set({ screenShake: !Settings.get().screenShake });
+        shake.setLabel(`Screen shake: ${Settings.get().screenShake ? 'On' : 'Off'}`);
+      },
     });
     new Button(this, { x: GAME_WIDTH / 2, y: y + h - 30, w: 160, h: 36, label: 'Close', onClick: () => this.close(data.onClose) });
     this.input.keyboard?.once('keydown-ESC', () => this.close(data.onClose));

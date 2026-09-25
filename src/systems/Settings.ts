@@ -11,9 +11,10 @@ export interface GameSettings {
   /** Camera tilt (ground squash) for battles. */
   tilt: number;
   graphics: GraphicsQuality;
+  screenShake: boolean;
 }
 
-const DEFAULTS: GameSettings = { musicVolume: 0.5, sfxVolume: 0.7, difficulty: 'normal', tilt: PROJECTION.defaultTilt, graphics: 'medium' };
+const DEFAULTS: GameSettings = { musicVolume: 0.5, sfxVolume: 0.7, difficulty: 'normal', tilt: PROJECTION.defaultTilt, graphics: 'medium', screenShake: true };
 
 let current: GameSettings | null = null;
 const listeners: ((s: GameSettings) => void)[] = [];

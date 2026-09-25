@@ -2,12 +2,14 @@ import Phaser from 'phaser';
 import { DEPTH, FX } from '../config';
 import { DragProcessor } from './DragProcessor';
 import { Projection } from '../render/Projection';
+import { Settings } from '../systems/Settings';
 
 /** Fireball, shockwave, lingering smoke and screen shake for destroyed buildings. */
 export class ExplosionEffect {
   private fire: Phaser.GameObjects.Particles.ParticleEmitter;
   private sparks: Phaser.GameObjects.Particles.ParticleEmitter;
   private chimney: Phaser.GameObjects.Particles.ParticleEmitter;
+  private debris: Phaser.GameObjects.Particles.ParticleEmitter;
 
   constructor(private scene: Phaser.Scene) {
     this.fire = scene.add.particles(0, 0, 'fx_soft', {
@@ -28,7 +30,8 @@ export class ExplosionEffect {
       angle: { min: 0, max: 360 },
       alpha: { start: 1, end: 0 },
       lifespan: { min: 300, max: 700 },
-      tint: [0xffe080, 0xffffff],
+      tint: [0xffd080, 0xff9a40],
+      scale: { start: 0.8, end: 0.2 },
       blendMode: Phaser.BlendModes.ADD,
     });
     this.sparks.addParticleProcessor(new DragProcessor(0.2));
@@ -38,6 +41,11 @@ export class ExplosionEffect {
       alpha: { start: 0.4, end: 0 }, lifespan: { min: 1800, max: 2600 }, tint: [0x3a3836, 0x504c48, 0x2a2826],
     });
     this.chimney.setDepth(DEPTH.effects - 2);
+    this.debris = scene.add.particles(0, 0, 'fx_chunk', {
+      emitting: false, speed: { min: 120, max: 340 }, angle: { min: 190, max: 350 }, gravityY: 500,
+      rotate: { start: 0, end: 540 }, scale: { min: 0.7, max: 1.8 }, lifespan: { min: 700, max: 1300 },
+      tint: [0x3a3530, 0x55504a, 0x2a2420, 0x6a5a40],
+    }).setDepth(DEPTH.effects + 4);
   }
 
   /** Explosion at a logical ground point, centred `lift` px above the ground. */
@@ -45,12 +53,13 @@ export class ExplosionEffect {
     const y = Projection.vy(groundY) - lift;
     this.fire.explode(Phaser.Math.Between(20, 30), x, y);
     this.sparks.explode(18, x, y);
+    this.debris.explode(Math.round(10 + radius / 8), x, y);
     const ring = this.scene.add.graphics({ x, y: Projection.vy(groundY) }).setDepth(DEPTH.groundFx);
     ring.lineStyle(6, 0xffa040, 1).strokeEllipse(0, 0, radius, radius * Projection.tilt);
     this.scene.tweens.add({ targets: ring, scale: 3, alpha: 0, duration: 500, onComplete: () => ring.destroy() });
     this.smoke(x, y, radius);
     const view = this.scene.cameras.main.worldView;
-    if (Phaser.Geom.Rectangle.Contains(view, x, y) || view.contains(x, y)) {
+    if (Settings.get().screenShake && view.contains(x, y)) {
       this.scene.cameras.main.shake(FX.shakeDuration, FX.shakeIntensity);
     }
   }
@@ -58,7 +67,7 @@ export class ExplosionEffect {
   /** Small burst when a projectile hits a structure. */
   /** Small burst at a view-space point. */
   impact(x: number, y: number): void {
-    this.sparks.explode(4, x, y);
+    this.sparks.explode(3, x, y);
   }
 
   /** One chimney/exhaust smoke puff at a view-space point. */

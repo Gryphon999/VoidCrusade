@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { DEPTH, UNITS } from '../config';
+import { DEPTH } from '../config';
 import { EV } from '../events';
 import { Owner, opponent } from '../types';
 import { Unit } from './Unit';
@@ -11,16 +11,8 @@ import { Projection } from '../render/Projection';
 export type Victim = Unit | Building;
 type ProjKind = 'bullet' | 'shell' | 'spit' | 'melee' | 'spine';
 
-const PROJ_TEX: Record<Exclude<ProjKind, 'melee'>, string> = {
-  bullet: 'proj_bullet',
-  shell: 'proj_shell',
-  spit: 'proj_spit',
-  spine: 'proj_spine',
-};
-
 /** Weapon fire for squads and turrets: target selection, projectiles, damage application. */
 export class CombatSystem {
-  private pool: Phaser.GameObjects.Image[] = [];
 
   constructor(private battle: BattleScene) {}
 
@@ -110,14 +102,12 @@ export class CombatSystem {
       this.applyDamage(victim, dmg, from);
       return;
     }
-    this.battle.effects.muzzle(muzzle.x, muzzle.y, kind);
-    const img = this.pool.pop() ?? this.battle.add.image(0, 0, PROJ_TEX[kind]).setDepth(DEPTH.projectiles);
-    img.setTexture(PROJ_TEX[kind]).setPosition(muzzle.x, muzzle.y).setVisible(true).setAlpha(1);
+    this.battle.effects.muzzle(muzzle.x, muzzle.y, kind, aim.x - muzzle.x);
     let tx = aim.x + Phaser.Math.Between(-4, 4);
     let ty = aim.y + Phaser.Math.Between(-4, 4);
     let blocked = false;
     if (!los) {
-      // Projectile smacks into the cliff at a point along the line.
+      // The shot smacks into the cliff at a point along the line.
       const p = this.battle.cover?.blockPoint(x, y, victim.x, victim.y);
       if (p) {
         tx = p.x;
@@ -125,18 +115,9 @@ export class CombatSystem {
         blocked = true;
       }
     }
-    img.rotation = Phaser.Math.Angle.Between(muzzle.x, muzzle.y, tx, ty);
-    const dist = Phaser.Math.Distance.Between(muzzle.x, muzzle.y, tx, ty);
-    this.battle.tweens.add({
-      targets: img,
-      x: tx,
-      y: ty,
-      duration: Math.max(60, (dist / UNITS.projectileSpeed) * 1000),
-      onComplete: () => {
-        img.setVisible(false);
-        this.pool.push(img);
-        if (!blocked) this.applyDamage(victim, dmg, from);
-      },
+    this.battle.effects.projectiles.launch(kind, muzzle, { x: tx, y: ty }, () => {
+      if (blocked) this.battle.effects.dust(tx, ty);
+      else this.applyDamage(victim, dmg, from);
     });
   }
 
@@ -154,7 +135,8 @@ export class CombatSystem {
       this.battle.events.emit(EV.unitDied, victim.x, victim.y, victim);
       squad.removeUnit(victim);
     } else {
-      this.battle.events.emit(EV.unitHit, victim.x, victim.y, victim);
+      const dir = from ? Math.atan2(victim.y - from.center.y, victim.x - from.center.x) : Math.random() * Math.PI * 2;
+      this.battle.events.emit(EV.unitHit, victim.x, victim.y, victim, dir);
     }
   }
 }
