@@ -71,3 +71,23 @@ export const BUILD = {
   startHpFraction: 0.25,
   refundOnCancel: 0.75,
 } as const;
+
+export const UNITS = {
+  formationSpacing: 24,
+  separationRadius: 16,
+  separationForce: 140,
+  /** Extra px beyond weapon range at which idle squads notice enemies. */
+  acquireBonus: 80,
+  reinforceInterval: 1.2,
+  /** Reinforcing costs this fraction of the per-soldier price. */
+  reinforceCostFactor: 0.5,
+  maxSquads: 10,
+  queueMax: 5,
+  repathInterval: 1.0,
+  retargetInterval: 0.35,
+  commanderRespawn: 30,
+  projectileSpeed: 700,
+  visionRadius: 300,
+} as const;
+
+export const BUILDING_VISION = 200;

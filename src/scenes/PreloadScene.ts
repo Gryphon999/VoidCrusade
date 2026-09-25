@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { createTileTextures } from '../assets/TileTextures';
 import { createUITextures } from '../assets/UITextures';
 import { createBuildingTextures } from '../assets/BuildingTextures';
+import { createUnitTextures } from '../assets/UnitTextures';
 
 export class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -12,6 +13,7 @@ export class PreloadScene extends Phaser.Scene {
     createTileTextures(this);
     createUITextures(this);
     createBuildingTextures(this);
+    createUnitTextures(this);
     this.scene.start('MenuScene');
   }
 }

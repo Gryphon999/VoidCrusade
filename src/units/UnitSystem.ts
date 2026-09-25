@@ -1,0 +1,215 @@
+import Phaser from 'phaser';
+import { UNITS } from '../config';
+import { EV } from '../events';
+import { Owner, opponent } from '../types';
+import { UNIT_DEFS, UnitId } from './UnitDefs';
+import { Squad, Target } from './Squad';
+import { Unit } from './Unit';
+import { Resources } from '../systems/ResourceSystem';
+import type { BattleScene } from '../scenes/BattleScene';
+
+const CELL = 64;
+
+/** Manages all squads: spawning, soldier steering, spatial queries, reinforcement. */
+export class UnitSystem {
+  readonly squads: Squad[] = [];
+  private grid = new Map<number, Unit[]>();
+
+  constructor(private battle: BattleScene) {}
+
+  spawnSquad(id: UnitId, owner: Owner, x: number, y: number, size?: number): Squad {
+    const def = UNIT_DEFS[id];
+    const bonus = def.isHero ? 0 : this.battle.modifiers[owner].squadSizeBonus;
+    const max = def.squadSize + bonus;
+    const p = this.findOpenSpot(x, y);
+    const squad = new Squad(this.battle, def, owner, p.x, p.y, size ?? max, max);
+    this.squads.push(squad);
+    this.battle.events.emit(EV.squadSpawned, squad);
+    return squad;
+  }
+
+  /** Nearest passable world point to (x, y). */
+  findOpenSpot(x: number, y: number): { x: number; y: number } {
+    if (this.battle.map.isPassableWorld(x, y)) return { x, y };
+    const t = this.battle.map.worldToTile(x, y);
+    const alt = this.battle.pathfinder.nearestPassable(t.tx, t.ty);
+    return alt ? this.battle.map.tileToWorld(alt.tx, alt.ty) : { x, y };
+  }
+
+  getSquads(owner: Owner): Squad[] {
+    return this.squads.filter((s) => s.owner === owner && s.alive);
+  }
+
+  /** Squads counted against the population cap (heroes excluded). */
+  armyCount(owner: Owner): number {
+    return this.squads.filter((s) => s.owner === owner && s.alive && !s.def.isHero).length;
+  }
+
+  maxSquads(owner: Owner): number {
+    return UNITS.maxSquads + this.battle.modifiers[owner].maxSquadsBonus;
+  }
+
+  squadAt(wx: number, wy: number, owner?: Owner): Squad | undefined {
+    return this.squads.find((s) => s.alive && (!owner || s.owner === owner) && s.containsPoint(wx, wy));
+  }
+
+  squadsInRect(r: Phaser.Geom.Rectangle, owner: Owner): Squad[] {
+    return this.squads.filter((s) => s.alive && s.owner === owner && s.units.some((u) => r.contains(u.x, u.y)));
+  }
+
+  /** Nearest visible enemy squad or building within `reach` of (x, y). */
+  findTarget(owner: Owner, x: number, y: number, reach: number): Target | null {
+    const enemy = opponent(owner);
+    let best: Target | null = null;
+    let bestD = reach;
+    for (const s of this.squads) {
+      if (!s.alive || s.owner !== enemy) continue;
+      for (const u of s.units) {
+        const d = Phaser.Math.Distance.Between(x, y, u.x, u.y);
+        if (d < bestD) {
+          bestD = d;
+          best = s;
+        }
+      }
+    }
+    // Squads take priority; only consider buildings if no squad is close.
+    if (best) return best;
+    for (const b of this.battle.buildings.buildings) {
+      if (!b.alive || b.owner !== enemy) continue;
+      const d = Phaser.Math.Distance.Between(x, y, b.x, b.y) - b.radius;
+      if (d < bestD) {
+        bestD = d;
+        best = b;
+      }
+    }
+    return best;
+  }
+
+  reinforceCost(s: Squad): Resources {
+    const missing = s.maxSize - s.units.length - s.pendingReinforce;
+    const f = (UNITS.reinforceCostFactor * missing) / s.def.squadSize;
+    return { scrip: Math.ceil(s.def.cost.scrip * f), flux: Math.ceil(s.def.cost.flux * f) };
+  }
+
+  canReinforce(s: Squad): boolean {
+    return s.alive && !s.def.isHero && s.units.length + s.pendingReinforce < s.maxSize;
+  }
+
+  reinforce(s: Squad): boolean {
+    if (!this.canReinforce(s)) return false;
+    const cost = this.reinforceCost(s);
+    if (!this.battle.resources.trySpend(s.owner, cost)) {
+      if (s.owner === 'player') this.battle.events.emit(EV.message, 'Not enough resources');
+      return false;
+    }
+    s.pendingReinforce = s.maxSize - s.units.length;
+    return true;
+  }
+
+  update(dt: number): void {
+    this.rebuildGrid();
+    for (const s of this.squads) s.update(dt);
+    for (const s of this.squads) {
+      for (const u of s.units) this.steer(u, dt);
+    }
+    for (let i = this.squads.length - 1; i >= 0; i--) {
+      const s = this.squads[i];
+      if (!s.alive || s.units.length === 0) {
+        s.alive = false;
+        this.squads.splice(i, 1);
+        this.battle.events.emit(EV.squadDestroyed, s);
+      }
+    }
+  }
+
+  private rebuildGrid(): void {
+    this.grid.clear();
+    for (const s of this.squads) {
+      for (const u of s.units) {
+        const k = Math.floor(u.x / CELL) * 1000 + Math.floor(u.y / CELL);
+        const cell = this.grid.get(k);
+        if (cell) cell.push(u);
+        else this.grid.set(k, [u]);
+      }
+    }
+  }
+
+  /** Units in cells overlapping a radius around (x, y). */
+  neighbors(x: number, y: number, r: number, out: Unit[] = []): Unit[] {
+    out.length = 0;
+    const x0 = Math.floor((x - r) / CELL);
+    const x1 = Math.floor((x + r) / CELL);
+    const y0 = Math.floor((y - r) / CELL);
+    const y1 = Math.floor((y + r) / CELL);
+    for (let cx = x0; cx <= x1; cx++) {
+      for (let cy = y0; cy <= y1; cy++) {
+        const cell = this.grid.get(cx * 1000 + cy);
+        if (cell) for (const u of cell) out.push(u);
+      }
+    }
+    return out;
+  }
+
+  private scratch: Unit[] = [];
+
+  /** Seek formation slot with arrival, separate from neighbours, slide along obstacles. */
+  private steer(u: Unit, dt: number): void {
+    const map = this.battle.map;
+    let goal = u.squad.slotPos(u);
+    if (!map.isPassableWorld(goal.x, goal.y)) goal = { x: u.squad.x, y: u.squad.y };
+    let dx = goal.x - u.x;
+    let dy = goal.y - u.y;
+    const dist = Math.hypot(dx, dy);
+    const speed = u.def.speed * (dist > 60 ? 1.15 : 1);
+    let vx = 0;
+    let vy = 0;
+    if (dist > 2) {
+      const s = Math.min(speed, (dist / 20) * speed);
+      vx = (dx / dist) * s;
+      vy = (dy / dist) * s;
+    }
+    const sepR = UNITS.separationRadius + u.radius;
+    for (const o of this.neighbors(u.x, u.y, sepR, this.scratch)) {
+      if (o === u) continue;
+      dx = u.x - o.x;
+      dy = u.y - o.y;
+      const d = Math.hypot(dx, dy);
+      const min = u.radius + o.radius + 4;
+      if (d > 0.01 && d < min) {
+        const push = ((min - d) / min) * UNITS.separationForce;
+        vx += (dx / d) * push;
+        vy += (dy / d) * push;
+      }
+    }
+    u.vx = vx;
+    u.vy = vy;
+    const nx = u.x + vx * dt;
+    const ny = u.y + vy * dt;
+    if (map.isPassableWorld(nx, ny)) {
+      u.x = nx;
+      u.y = ny;
+    } else if (map.isPassableWorld(nx, u.y)) {
+      u.x = nx;
+    } else if (map.isPassableWorld(u.x, ny)) {
+      u.y = ny;
+    } else if (!map.isPassableWorld(u.x, u.y)) {
+      // Pushed into a wall (e.g. new building): pop out.
+      const p = this.findOpenSpot(u.x, u.y);
+      u.x = p.x;
+      u.y = p.y;
+    }
+    const t = u.squad.engaged;
+    if (t && !u.squad.isMoving()) {
+      const tp = 'units' in t ? t.center : { x: t.x, y: t.y };
+      u.face(tp.x, tp.y);
+    } else if (Math.abs(vx) + Math.abs(vy) > 8) {
+      u.face(u.x + vx, u.y + vy);
+    }
+    u.syncSprite();
+  }
+
+  destroyAll(): void {
+    for (const s of this.squads) s.destroy();
+    this.squads.length = 0;
+  }
+}

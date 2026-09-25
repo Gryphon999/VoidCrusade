@@ -22,4 +22,8 @@ export function createUITextures(scene: Phaser.Scene): void {
   bakeTexture(scene, 'icon_squads', 24, 24, (g) => {
     g.fillStyle(0x3a8dff, 1).fillCircle(7, 9, 4).fillCircle(17, 9, 4).fillCircle(12, 16, 5);
   });
+  bakeTexture(scene, 'icon_cover', 14, 16, (g) => {
+    g.fillStyle(0x0a3010, 1).fillTriangle(0, 1, 14, 1, 7, 16);
+    g.fillStyle(0x40e060, 1).fillTriangle(2, 2, 12, 2, 7, 13);
+  });
 }
