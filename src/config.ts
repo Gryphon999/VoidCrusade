@@ -134,3 +134,10 @@ export const AI = {
   defendRadius: 700,
   raidJitter: 0.25,
 } as const;
+
+export const MINIMAP = {
+  width: 200,
+  height: 150,
+  margin: 8,
+  refreshMs: 500,
+} as const;

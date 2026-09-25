@@ -3,6 +3,7 @@ import type { BattleScene } from './BattleScene';
 import { TopBar, TOP_BAR_H } from '../ui/TopBar';
 import { BuildToolbar } from '../ui/BuildToolbar';
 import { SelectionPanel } from '../ui/SelectionPanel';
+import { MiniMap } from '../ui/MiniMap';
 import { formatTime, textStyle } from '../ui/uiStyle';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { EV } from '../events';
@@ -18,6 +19,7 @@ export class HudScene extends Phaser.Scene {
   private topBar!: TopBar;
   private toolbar!: BuildToolbar;
   private panel!: SelectionPanel;
+  private minimap!: MiniMap;
   private tooltip!: Phaser.GameObjects.Text;
   private messageText!: Phaser.GameObjects.Text;
   private messageTimer?: Phaser.Time.TimerEvent;
@@ -42,6 +44,8 @@ export class HudScene extends Phaser.Scene {
     this.tooltip.setOrigin(0.5, 1).setDepth(100).setVisible(false);
     this.panel = new SelectionPanel(this, this.battle, (t, x, y) => this.showTooltip(t, x, y));
     this.addBlocker(this.panel.bounds, () => this.panel.visible);
+    this.minimap = new MiniMap(this, this.battle);
+    this.addBlocker(this.minimap.bounds);
     this.messageText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 200, '', textStyle(18, '#ffd060'));
     this.messageText.setOrigin(0.5).setStroke('#000', 4).setVisible(false);
 
@@ -95,5 +99,6 @@ export class HudScene extends Phaser.Scene {
     this.topBar.update(formatTime(this.battle.elapsed));
     this.toolbar.update();
     this.panel.update();
+    this.minimap.update();
   }
 }

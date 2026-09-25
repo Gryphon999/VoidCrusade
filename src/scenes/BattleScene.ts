@@ -34,6 +34,12 @@ export interface CoverQueries {
   seekCover(s: Squad): void;
 }
 
+/** Fog-of-war queries (implemented by FogOfWarSystem). */
+export interface FogQueries {
+  isVisibleWorld(x: number, y: number): boolean;
+  forEachCell(cb: (x: number, y: number, w: number, h: number, alpha: number) => void): void;
+}
+
 export class BattleScene extends Phaser.Scene {
   map!: MapSystem;
   cameraSystem!: CameraSystem;
@@ -51,6 +57,7 @@ export class BattleScene extends Phaser.Scene {
   ai!: AIController;
   modifiers!: ModifierTable;
   cover?: CoverQueries;
+  fog?: FogQueries;
   effects!: EffectsSystem;
   hud!: HudScene;
   elapsed = 0;
