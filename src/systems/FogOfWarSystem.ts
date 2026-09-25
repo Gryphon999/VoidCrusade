@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { DEPTH, FOG, TILE_SIZE } from '../config';
 import type { BattleScene, FogQueries } from '../scenes/BattleScene';
 import { Projection } from '../render/Projection';
+import { makeCanvas } from '../render/CanvasUtil';
 
 const UNEXPLORED = 0;
 const EXPLORED = 1;
@@ -13,7 +14,12 @@ export class FogOfWarSystem implements FogQueries {
   readonly rows: number;
   readonly cellPx = FOG.cellTiles * TILE_SIZE;
   private state: Uint8Array;
-  private gfx: Phaser.GameObjects.Graphics;
+  private ctx: CanvasRenderingContext2D;
+  private tex: Phaser.Textures.CanvasTexture;
+  private img: ImageData;
+  private jitter: Float32Array;
+  private readonly texKey: string;
+  private static serial = 0;
   private timer = 0;
   enabled = true;
 
@@ -21,8 +27,19 @@ export class FogOfWarSystem implements FogQueries {
     this.cols = Math.ceil(battle.map.worldWidth / this.cellPx);
     this.rows = Math.ceil(battle.map.worldHeight / this.cellPx);
     this.state = new Uint8Array(this.cols * this.rows);
-    // Drawn in logical coordinates and squashed onto the tilted ground.
-    this.gfx = battle.add.graphics().setDepth(DEPTH.fog).setScale(1, Projection.tilt);
+    // Two texels per cell (plus a 1-texel border), stretched with bilinear filtering: soft, smoky edges.
+    const w = this.cols * 2 + 2;
+    const h = this.rows * 2 + 2;
+    const c = makeCanvas(w, h);
+    this.ctx = c.ctx;
+    this.img = c.ctx.createImageData(w, h);
+    this.jitter = new Float32Array(w * h).map(() => (Math.random() - 0.5) * 0.12);
+    this.texKey = `fog_${FogOfWarSystem.serial++}`;
+    this.tex = battle.textures.addCanvas(this.texKey, c.canvas) as Phaser.Textures.CanvasTexture;
+    const texel = this.cellPx / 2;
+    battle.add.image(-texel, Projection.vy(-texel), this.texKey).setOrigin(0).setDepth(DEPTH.fog)
+      .setScale(texel, texel * Projection.tilt);
+    battle.events.once(Phaser.Scenes.Events.SHUTDOWN, () => battle.textures.remove(this.texKey));
     this.recompute();
   }
 
@@ -77,10 +94,27 @@ export class FogOfWarSystem implements FogQueries {
   }
 
   private draw(): void {
-    const g = this.gfx.clear();
-    this.forEachCell((x, y, w, h, a) => {
-      if (a > 0) g.fillStyle(0x000000, a).fillRect(x, y, w, h);
-    });
+    const w = this.cols * 2 + 2;
+    const h = this.rows * 2 + 2;
+    const d = this.img.data;
+    for (let ty = 0; ty < h; ty++) {
+      const cy = Math.min(this.rows - 1, Math.max(0, Math.floor((ty - 1) / 2)));
+      for (let tx = 0; tx < w; tx++) {
+        const cx = Math.min(this.cols - 1, Math.max(0, Math.floor((tx - 1) / 2)));
+        const st = this.state[cy * this.cols + cx];
+        const i = ty * w + tx;
+        let a = st === VISIBLE ? 0 : st === EXPLORED ? FOG.exploredAlpha : FOG.unexploredAlpha;
+        if (a > 0) a = Math.min(1, Math.max(0, a + this.jitter[i]));
+        // Explored ground is veiled in a cold, desaturated haze; unexplored is near-black smoke.
+        const p = i * 4;
+        d[p] = st === EXPLORED ? 14 : 4;
+        d[p + 1] = st === EXPLORED ? 17 : 4;
+        d[p + 2] = st === EXPLORED ? 24 : 8;
+        d[p + 3] = Math.round(a * 255);
+      }
+    }
+    this.ctx.putImageData(this.img, 0, 0);
+    this.tex.refresh();
   }
 
   /** Iterates fog cells in world pixels with the alpha each should be darkened by. */

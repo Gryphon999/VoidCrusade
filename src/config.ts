@@ -175,3 +175,10 @@ export const COVER = {
   seekRadius: 4,
   losStep: 16,
 } as const;
+
+/** Per graphics-quality budgets (visual only). */
+export const GFX = {
+  low: { lights: 8, ash: 0, fogPatches: 0, bloom: false, grade: false, grain: false, particleMult: 0.5 },
+  medium: { lights: 24, ash: 6, fogPatches: 28, bloom: false, grade: true, grain: true, particleMult: 1 },
+  high: { lights: 48, ash: 14, fogPatches: 44, bloom: true, grade: true, grain: true, particleMult: 1.3 },
+} as const;

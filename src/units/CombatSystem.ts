@@ -110,6 +110,7 @@ export class CombatSystem {
       this.applyDamage(victim, dmg, from);
       return;
     }
+    this.battle.effects.muzzle(muzzle.x, muzzle.y, kind);
     const img = this.pool.pop() ?? this.battle.add.image(0, 0, PROJ_TEX[kind]).setDepth(DEPTH.projectiles);
     img.setTexture(PROJ_TEX[kind]).setPosition(muzzle.x, muzzle.y).setVisible(true).setAlpha(1);
     let tx = aim.x + Phaser.Math.Between(-4, 4);

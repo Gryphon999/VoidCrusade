@@ -29,6 +29,7 @@ import { EffectsSystem } from '../effects/EffectsSystem';
 import { Projection } from '../render/Projection';
 import { Settings } from '../systems/Settings';
 import { PropSystem } from '../render/PropSystem';
+import { Atmosphere } from '../render/Atmosphere';
 import type { HudScene } from './HudScene';
 
 export type { BattleData } from './BattleTypes';
@@ -66,6 +67,7 @@ export class BattleScene extends Phaser.Scene {
   cover?: CoverSystem;
   fog?: FogOfWarSystem;
   audio!: AudioBridge;
+  atmosphere!: Atmosphere;
   effects!: EffectsSystem;
   hud!: HudScene;
   elapsed = 0;
@@ -125,6 +127,7 @@ export class BattleScene extends Phaser.Scene {
     this.ai = new AIController(this, data.difficulty ?? 'normal');
     this.fog = new FogOfWarSystem(this);
     this.audio = new AudioBridge(this);
+    this.atmosphere = new Atmosphere(this);
 
     this.cameraSystem = new CameraSystem(this, this.map.worldWidth, this.map.worldHeight);
     this.cameraSystem.centerOn(hq.x + 200, hq.y - 100);
@@ -181,6 +184,8 @@ export class BattleScene extends Phaser.Scene {
     this.ai.update(dt);
     this.fog?.update(dt);
     this.audio.update();
+    this.effects.update();
+    this.atmosphere.update();
     this.selection.prune();
     this.cameraSystem.update(dt);
     this.map.flushRender();

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { Difficulty, GAME_HEIGHT, GAME_WIDTH, GOTHIC_FONT, PROJECTION } from '../config';
-import { Settings } from '../systems/Settings';
+import { GraphicsQuality, Settings } from '../systems/Settings';
 import { Slider } from '../ui/Slider';
 import { Button } from '../ui/Button';
 import { drawPanel, textStyle } from '../ui/uiStyle';
@@ -21,7 +21,7 @@ export class SettingsScene extends Phaser.Scene {
   create(data: { onClose?: () => void }): void {
     const s = Settings.get();
     const w = 520;
-    const h = 470;
+    const h = 560;
     const x = (GAME_WIDTH - w) / 2;
     const y = (GAME_HEIGHT - h) / 2;
     this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.6).setOrigin(0).setInteractive();
@@ -47,6 +47,20 @@ export class SettingsScene extends Phaser.Scene {
       });
       b.setActive(d === s.difficulty);
       buttons.push(b);
+    });
+    this.add.text(x + 60, y + 414, 'Graphics (next battle)', textStyle(16));
+    const gfx: GraphicsQuality[] = ['low', 'medium', 'high'];
+    const gButtons: Button[] = [];
+    gfx.forEach((q, i) => {
+      const b = new Button(this, {
+        x: x + 120 + i * 140, y: y + 460, w: 124, h: 38, label: q[0].toUpperCase() + q.slice(1),
+        onClick: () => {
+          Settings.set({ graphics: q });
+          gButtons.forEach((o, j) => o.setActive(j === i));
+        },
+      });
+      b.setActive(q === s.graphics);
+      gButtons.push(b);
     });
     new Button(this, { x: GAME_WIDTH / 2, y: y + h - 30, w: 160, h: 36, label: 'Close', onClick: () => this.close(data.onClose) });
     this.input.keyboard?.once('keydown-ESC', () => this.close(data.onClose));

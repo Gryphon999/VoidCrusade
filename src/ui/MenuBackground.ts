@@ -39,6 +39,29 @@ export class MenuBackground {
     planet.lineStyle(3, 0xff5020, 0.5).strokeCircle(GAME_WIDTH / 2, GAME_HEIGHT + 520, 700);
     planet.fillStyle(0x0a0404, 1).fillCircle(GAME_WIDTH / 2, GAME_HEIGHT + 530, 700);
     scene.time.addEvent({ delay: 900, loop: true, callback: () => this.explosion() });
+    const storm = (): void => {
+      this.lightning();
+      scene.time.delayedCall(4000 + Math.random() * 5000, storm);
+    };
+    scene.time.delayedCall(2500, storm);
+  }
+
+  /** Sky flash with a jagged bolt. */
+  private lightning(): void {
+    const s = this.scene;
+    const flash = s.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0xc8d0ff, 0.12).setOrigin(0).setBlendMode(Phaser.BlendModes.ADD);
+    s.tweens.add({ targets: flash, alpha: 0, duration: 380, onComplete: () => flash.destroy() });
+    const g = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+    let x = Phaser.Math.Between(100, GAME_WIDTH - 100);
+    let y = 0;
+    g.lineStyle(2, 0xe0e8ff, 0.9).beginPath().moveTo(x, y);
+    while (y < GAME_HEIGHT * 0.45) {
+      x += Phaser.Math.Between(-28, 28);
+      y += Phaser.Math.Between(14, 40);
+      g.lineTo(x, y);
+    }
+    g.strokePath();
+    s.tweens.add({ targets: g, alpha: 0, duration: 300, delay: 60, onComplete: () => g.destroy() });
   }
 
   private explosion(): void {

@@ -2,15 +2,18 @@ import { Difficulty, PROJECTION } from '../config';
 
 const KEY = 'voidcrusade.settings.v1';
 
+export type GraphicsQuality = 'low' | 'medium' | 'high';
+
 export interface GameSettings {
   musicVolume: number;
   sfxVolume: number;
   difficulty: Difficulty;
   /** Camera tilt (ground squash) for battles. */
   tilt: number;
+  graphics: GraphicsQuality;
 }
 
-const DEFAULTS: GameSettings = { musicVolume: 0.5, sfxVolume: 0.7, difficulty: 'normal', tilt: PROJECTION.defaultTilt };
+const DEFAULTS: GameSettings = { musicVolume: 0.5, sfxVolume: 0.7, difficulty: 'normal', tilt: PROJECTION.defaultTilt, graphics: 'medium' };
 
 let current: GameSettings | null = null;
 const listeners: ((s: GameSettings) => void)[] = [];
@@ -28,6 +31,7 @@ export const Settings = {
     }
     current = { ...DEFAULTS, ...loaded };
     if (!['easy', 'normal', 'hard'].includes(current.difficulty)) current.difficulty = 'normal';
+    if (!['low', 'medium', 'high'].includes(current.graphics)) current.graphics = 'medium';
     if (typeof current.tilt !== 'number' || !Number.isFinite(current.tilt)) current.tilt = PROJECTION.defaultTilt;
     return current;
   },

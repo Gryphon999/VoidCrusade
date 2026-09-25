@@ -7,6 +7,9 @@ import { MiniMap } from '../ui/MiniMap';
 import { showEndScreen } from '../ui/EndScreen';
 import { PauseMenu } from '../ui/PauseMenu';
 import { getCursors } from '../assets/Cursors';
+import { GFX } from '../config';
+import { Settings } from '../systems/Settings';
+import { makeCanvas } from '../render/CanvasUtil';
 import { BattleResult } from './BattleTypes';
 import { formatTime, textStyle } from '../ui/uiStyle';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
@@ -30,6 +33,7 @@ export class HudScene extends Phaser.Scene {
   private messageTimer?: Phaser.Time.TimerEvent;
   private blockers: Blocker[] = [];
   private ended = false;
+  private grain?: Phaser.GameObjects.TileSprite;
 
   constructor() {
     super('HudScene');
@@ -42,6 +46,20 @@ export class HudScene extends Phaser.Scene {
   }
 
   create(): void {
+    if (GFX[Settings.get().graphics].grain) {
+      if (!this.textures.exists('grain')) {
+        const { canvas, ctx } = makeCanvas(256, 256);
+        const img = ctx.createImageData(256, 256);
+        for (let i = 0; i < img.data.length; i += 4) {
+          const v = Math.random() * 255;
+          img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+          img.data[i + 3] = 255;
+        }
+        ctx.putImageData(img, 0, 0);
+        this.textures.addCanvas('grain', canvas);
+      }
+      this.grain = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'grain').setOrigin(0).setAlpha(0.045).setDepth(-10);
+    }
     this.topBar = new TopBar(this, this.battle.resources);
     this.addBlocker(new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, TOP_BAR_H));
     this.pause = new PauseMenu(this, this.battle);
@@ -119,6 +137,7 @@ export class HudScene extends Phaser.Scene {
   }
 
   update(): void {
+    this.grain?.setTilePosition(Math.random() * 256, Math.random() * 256);
     if (this.ended) return;
     this.topBar.update(formatTime(this.battle.elapsed));
     const u = this.battle.units;

@@ -33,8 +33,8 @@ export class CapturePoint {
     this.aura.setScale(2.2, 2.2 * k);
     scene.tweens.add({ targets: this.aura, scaleX: 2.7, scaleY: 2.7 * k, alpha: 0.55, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this.ring = scene.add.image(x, vy, 'capture_ring').setDepth(DEPTH.capture + 0.5).setBlendMode(Phaser.BlendModes.ADD);
-    this.ring.setScale((this.half * 2.1) / 256, ((this.half * 2.1) / 256) * k).setAlpha(0.8);
-    scene.tweens.add({ targets: this.ring, alpha: 0.35, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.ring.setScale((this.half * 2.1) / 256, ((this.half * 2.1) / 256) * k).setAlpha(0.55);
+    scene.tweens.add({ targets: this.ring, alpha: 0.22, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     const depth = Projection.depth(y);
     scene.add.image(x, vy, 'pylon').setOrigin(PYLON_ORIGIN.x, PYLON_ORIGIN.y).setDepth(depth);
     this.runes = scene.add.image(x, vy, 'pylon_runes').setOrigin(PYLON_ORIGIN.x, PYLON_ORIGIN.y).setDepth(depth + 0.1)
