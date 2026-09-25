@@ -3,6 +3,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { BONUS_ICON, TERRITORIES, TerritoryDef, adjacencyPairs, getTerritory } from '../campaign/CampaignData';
 import { makeRng } from '../utils/rng';
 import { textStyle } from './uiStyle';
+import { addPlanet } from '../render/PlanetArt';
 
 const HEX = 72;
 const CX = 700;
@@ -37,6 +38,8 @@ export class CampaignMapView {
   private glow: Phaser.GameObjects.Graphics;
   private lines: Phaser.GameObjects.Graphics;
   private hovered: string | null = null;
+  private flags = new Map<string, Phaser.GameObjects.Image>();
+  private swords = new Map<string, Phaser.GameObjects.Image>();
   private t = 0;
   onHover?: (id: string | null) => void;
   onClick?: (id: string) => void;
@@ -53,6 +56,11 @@ export class CampaignMapView {
       this.hexes.push({ def, x: c.x, y: c.y, poly });
     }
     for (const h of this.hexes) {
+      const flag = scene.add.image(h.x + 30, h.y - 34, 'pylon_flag').setOrigin(0, 0).setScale(0.55);
+      this.flags.set(h.def.id, flag);
+      const swords = scene.add.image(h.x - 34, h.y - 32, 'glyph_attack').setScale(0.55).setVisible(false);
+      scene.tweens.add({ targets: swords, scale: 0.68, duration: 600, yoyo: true, repeat: -1 });
+      this.swords.set(h.def.id, swords);
       scene.add.image(h.x, h.y - 16, BONUS_ICON[h.def.bonus]).setScale(1.4);
       scene.add.text(h.x, h.y + 18, h.def.name, { ...textStyle(13), align: 'center', wordWrap: { width: HEX * 1.5 } })
         .setOrigin(0.5).setStroke('#000', 3);
@@ -93,18 +101,10 @@ export class CampaignMapView {
     for (let i = 0; i < 260; i++) {
       stars.fillStyle(0xffffff, 0.3 + rnd() * 0.7).fillCircle(rnd() * GAME_WIDTH, rnd() * GAME_HEIGHT, rnd() < 0.9 ? 0.8 : 1.6);
     }
-    // Planet with offset lighting.
-    const planet = s.add.graphics();
-    const pr = 330;
-    const px = CX + 40;
-    const py = CY + 110;
-    planet.fillStyle(0x3050a0, 0.12).fillCircle(px, py, pr + 18);
-    for (let i = 0; i < 40; i++) {
-      const f = i / 40;
-      const c = Phaser.Display.Color.Interpolate.ColorWithColor(
-        Phaser.Display.Color.ValueToColor(0x0a0a12), Phaser.Display.Color.ValueToColor(0x3a2e3e), 40, i);
-      planet.fillStyle(Phaser.Display.Color.GetColor(c.r, c.g, c.b), 1).fillCircle(px - f * 90, py - f * 90, pr * (1 - f * 0.72));
-    }
+    // Painted planet Kronus-like world under the territory hexes.
+    addPlanet(s, CX + 40, CY + 110, 340);
+    // Darken the planet a touch so hex colours read.
+    s.add.circle(CX + 40, CY + 110, 342, 0x000000, 0.25);
   }
 
   update(dt: number): void {
@@ -113,6 +113,8 @@ export class CampaignMapView {
     const glow = this.glow.clear();
     for (const h of this.hexes) {
       const st = this.status(h.def.id);
+      this.flags.get(h.def.id)?.setTint(st === 'owned' ? 0x3a70d8 : 0x9a1a2a);
+      this.swords.get(h.def.id)?.setVisible(st === 'attackable');
       const fill = st === 'owned' ? 0x1e4a9a : 0x6a1420;
       g.fillStyle(fill, st === 'owned' ? 0.8 : 0.7).fillPoints(h.poly.points, true);
       const pulse = 0.5 + 0.5 * Math.sin(this.t * 4);

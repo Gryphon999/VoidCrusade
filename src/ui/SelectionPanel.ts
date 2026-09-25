@@ -2,179 +2,157 @@ import Phaser from 'phaser';
 import type { BattleScene } from '../scenes/BattleScene';
 import { Squad } from '../units/Squad';
 import { Building } from '../buildings/Building';
-import { UNIT_DEFS } from '../units/UnitDefs';
-import { portraitKey as unitTextureKey } from '../render/puppet/UnitAtlas';
-import { buildingIconKey as buildingTextureKey } from '../render/buildings/BuildingArt';
+import { portraitKey } from '../render/puppet/UnitAtlas';
+import { buildingIconKey } from '../render/buildings/BuildingArt';
 import { RESEARCH_DEFS } from '../systems/ResearchSystem';
-import { Button } from './Button';
-import { drawPanel, textStyle } from './uiStyle';
-import { Resources } from '../systems/ResourceSystem';
+import { HUD } from './HudArt';
+import { researchGlyph } from './GlyphIcons';
+import { textStyle } from './uiStyle';
 
-export const PANEL = { x: 8, y: 584, w: 1052, h: 128 };
-const INFO_X = PANEL.x + 130;
-const BTN_X = PANEL.x + 470;
-
-function costText(c: Resources): string {
-  if (!c.scrip && !c.flux) return 'free';
-  return `${c.scrip}${c.flux ? `/${c.flux}f` : ''}`;
-}
+const P = HUD.center;
+const INFO_X = P.x + 132;
 
 function orderText(s: Squad): string {
   if (s.pendingReinforce > 0) return 'Reinforcing…';
   if (s.order === 'hold') return 'Holding position';
-  if (s.engaged) return 'Engaging!';
-  if (s.isMoving()) return s.order === 'attackMove' ? 'Attack-moving' : 'Moving';
+  if (s.engaged) return 'Engaging the enemy!';
+  if (s.isMoving()) return s.order === 'attackMove' ? 'Attack-moving' : 'On the move';
   return 'Awaiting orders';
 }
 
-/** Bottom HUD panel describing the current selection with action buttons. */
+/** Centre HUD panel describing the current selection. */
 export class SelectionPanel {
-  readonly container: Phaser.GameObjects.Container;
-  readonly bounds = new Phaser.Geom.Rectangle(PANEL.x, PANEL.y, PANEL.w, PANEL.h);
   private content: Phaser.GameObjects.Container;
-  private hpBar: Phaser.GameObjects.Graphics;
+  private bars: Phaser.GameObjects.Graphics;
   private updater: (() => void) | null = null;
+  private empty: Phaser.GameObjects.Text;
 
-  constructor(private scene: Phaser.Scene, private battle: BattleScene, private tip: (t: string | null, x: number, y: number) => void) {
-    const g = scene.add.graphics();
-    drawPanel(g, PANEL.x, PANEL.y, PANEL.w, PANEL.h);
+  constructor(private scene: Phaser.Scene, private battle: BattleScene) {
     this.content = scene.add.container(0, 0);
-    this.hpBar = scene.add.graphics();
-    this.container = scene.add.container(0, 0, [g, this.content, this.hpBar]).setVisible(false);
-  }
-
-  get visible(): boolean {
-    return this.container.visible;
+    this.bars = scene.add.graphics();
+    this.empty = scene.add.text(P.x + P.w / 2, P.y + P.h / 2, 'Select a squad or structure\nB — Command Bastion · Q — whole army',
+      { ...textStyle(14, '#8a8478'), align: 'center' }).setOrigin(0.5);
   }
 
   refresh(): void {
     this.content.removeAll(true);
-    this.hpBar.clear();
+    this.bars.clear();
     this.updater = null;
-    this.tip(null, 0, 0);
     const sel = this.battle.selection;
     if (sel.squads.length) this.buildSquads(sel.squads);
     else if (sel.building) this.buildBuilding(sel.building);
-    this.container.setVisible(!!this.updater);
+    this.empty.setVisible(!this.updater);
   }
 
   update(): void {
     this.updater?.();
   }
 
-  private addButton(i: number, label: string, icon: string | undefined, hotkey: string | undefined, onClick: () => void, tooltip?: () => string): Button {
-    const b = new Button(this.scene, { x: BTN_X + 36 + i * 76, y: PANEL.y + PANEL.h / 2, w: 70, h: 96, label, icon, hotkey, onClick, tooltip });
-    b.onHover = this.tip;
-    this.content.add(b.container);
-    return b;
+  private portrait(key: string, gold: boolean): void {
+    const x = P.x + 64;
+    const y = P.y + P.h / 2;
+    const bg = this.scene.add.graphics();
+    const g = bg.fillGradientStyle(0x1a2030, 0x1a2030, 0x07080c, 0x07080c, 1);
+    g.fillRect(x - 56, y - 64, 112, 128);
+    g.lineStyle(2, gold ? 0xf0d27a : 0xc9a044, 1).strokeRect(x - 56, y - 64, 112, 128);
+    const img = this.scene.add.image(x, y + 4, key);
+    img.setScale(Math.min(100 / img.width, 116 / img.height, 3));
+    this.content.add([bg, img]);
   }
 
-  private portrait(key: string): void {
-    const frame = this.scene.add.rectangle(PANEL.x + 64, PANEL.y + PANEL.h / 2, 108, 108, 0x05050c).setStrokeStyle(2, 0x3a8dff);
-    const img = this.scene.add.image(frame.x, frame.y, key);
-    img.setScale(Math.min(96 / img.width, 96 / img.height, 4));
-    this.content.add([frame, img]);
-  }
-
-  private drawBar(x: number, y: number, w: number, frac: number, color?: number): void {
+  private bar(x: number, y: number, w: number, h: number, frac: number, color?: number): void {
     const f = Phaser.Math.Clamp(frac, 0, 1);
-    const col = color ?? (f > 0.6 ? 0x40d040 : f > 0.3 ? 0xe0c020 : 0xe03020);
-    this.hpBar.fillStyle(0x000000, 0.8).fillRect(x - 1, y - 1, w + 2, 12);
-    this.hpBar.fillStyle(col, 1).fillRect(x, y, w * f, 10);
+    const col = color ?? (f > 0.6 ? 0x48d848 : f > 0.3 ? 0xe0c020 : 0xe03020);
+    this.bars.fillStyle(0x000000, 0.85).fillRect(x - 1, y - 1, w + 2, h + 2);
+    this.bars.fillStyle(col, 1).fillRect(x, y, w * f, h);
+    this.bars.fillStyle(0xffffff, 0.15).fillRect(x, y, w * f, Math.max(1, h / 3));
+  }
+
+  private upgrades(y: number): void {
+    const done = RESEARCH_DEFS.filter((r) => this.battle.research.isDone('player', r.id));
+    done.forEach((r, i) => {
+      const img = this.scene.add.image(INFO_X + 8 + i * 26, y, researchGlyph(r.id)).setScale(0.5);
+      this.content.add(img);
+    });
   }
 
   private buildSquads(squads: Squad[]): void {
     const first = squads[0];
-    this.portrait(unitTextureKey(first.def.id));
+    this.portrait(portraitKey(first.def.id), !!first.def.isHero);
     const title = squads.length === 1 ? first.def.name : `${squads.length} squads`;
-    const name = this.scene.add.text(INFO_X, PANEL.y + 14, title, textStyle(18));
-    const info = this.scene.add.text(INFO_X, PANEL.y + 60, '', textStyle(14, '#bcc'));
-    const state = this.scene.add.text(INFO_X, PANEL.y + 84, '', textStyle(14, '#8f8'));
-    this.content.add([name, info, state]);
+    const name = this.scene.add.text(INFO_X, P.y + 10, title, textStyle(19, HUD.goldHi)).setStroke('#000', 3);
+    const state = this.scene.add.text(INFO_X, P.y + 52, '', textStyle(13, '#9fe09f'));
+    const info = this.scene.add.text(P.x + P.w - 12, P.y + 12, '', textStyle(13, '#bcb4a0')).setOrigin(1, 0);
+    this.content.add([name, state, info]);
+    const cards = this.scene.add.container(0, 0);
+    this.content.add(cards);
+    this.upgrades(P.y + P.h - 14);
     const units = this.battle.units;
-    const reinforce = this.addButton(0, 'Reinforce', undefined, 'R', () => this.battle.inputController.reinforceSelected(),
-      () => 'Replenish fallen soldiers over time.\nCosts half price per missing soldier.');
-    const move = this.addButton(1, 'Move', 'move_marker', 'M', () => this.battle.inputController.setMode('move'), () => 'Move (right-click also moves)');
-    const atk = this.addButton(2, 'Attack\nmove', 'move_marker', 'G', () => this.battle.inputController.setMode('attackMove'),
-      () => 'Move, engaging any enemy on the way');
-    this.addButton(3, 'Hold', 'icon_cover', 'H', () => squads.forEach((s) => s.hold()), () => 'Hold position; soldiers seek nearby cover');
-    this.addButton(4, 'Stop', undefined, 'X', () => squads.forEach((s) => s.stop()));
+    let lastKey = '';
     this.updater = (): void => {
-      this.hpBar.clear();
+      this.bars.clear();
       const alive = squads.filter((s) => s.alive);
       const hp = alive.reduce((a, s) => a + s.hp, 0);
       const max = alive.reduce((a, s) => a + s.maxHp, 0) || 1;
-      this.drawBar(INFO_X, PANEL.y + 42, 300, hp / max);
-      const men = alive.reduce((a, s) => a + s.units.length, 0);
-      const cap = alive.reduce((a, s) => a + s.maxSize, 0);
-      info.setText(`Soldiers ${men}/${cap}   ·   Army ${units.armyCount('player')}/${units.maxSquads('player')}`);
+      this.bar(INFO_X, P.y + 38, 280, 9, hp / max);
+      info.setText(`Army ${units.armyCount('player')}/${units.maxSquads('player')}`);
       state.setText(alive.length === 1 ? orderText(alive[0]) : '');
-      const canR = alive.filter((s) => units.canReinforce(s));
-      const cost = canR.reduce((a, s) => a + units.reinforceCost(s).scrip, 0);
-      reinforce.setEnabled(canR.length > 0 && this.battle.resources.getResources('player').scrip >= cost);
-      reinforce.setLabel(canR.length ? `Reinforce\n${cost}` : 'Reinforce');
-      const mode = this.battle.inputController.mode;
-      move.setActive(mode === 'move');
-      atk.setActive(mode === 'attackMove');
+      // Cards: one per soldier for a single squad, one per squad otherwise.
+      const single = alive.length === 1;
+      const items = single ? alive[0].units.map((u) => ({ key: portraitKey(u.def.id), f: u.hp / u.maxHp, n: '' }))
+        : alive.map((s) => ({ key: portraitKey(s.def.id), f: s.hp / s.maxHp, n: `${s.units.length}` }));
+      const sig = `${single}:${items.length}`;
+      if (sig !== lastKey) {
+        lastKey = sig;
+        cards.removeAll(true);
+        items.slice(0, 12).forEach((it, i) => {
+          const x = INFO_X + i * 34;
+          const y = P.y + 72;
+          const frame = this.scene.add.rectangle(x + 15, y + 17, 30, 34, 0x0a0c12).setStrokeStyle(1, 0x7a6030);
+          const img = this.scene.add.image(x + 15, y + 17, it.key);
+          img.setScale(Math.min(28 / img.width, 32 / img.height));
+          const n = this.scene.add.text(x + 28, y + 33, it.n, textStyle(10, '#fff')).setOrigin(1, 1).setStroke('#000', 3);
+          cards.add([frame, img, n]);
+        });
+      }
+      items.slice(0, 12).forEach((it, i) => this.bar(INFO_X + i * 34 + 1, P.y + 108, 28, 3, it.f));
     };
   }
 
   private buildBuilding(b: Building): void {
-    this.portrait(buildingTextureKey(b.def.id));
-    const name = this.scene.add.text(INFO_X, PANEL.y + 14, b.def.name, textStyle(18));
-    const info = this.scene.add.text(INFO_X, PANEL.y + 60, '', textStyle(14, '#bcc'));
-    const desc = this.scene.add.text(INFO_X, PANEL.y + 84, b.def.description, { ...textStyle(12, '#99a'), wordWrap: { width: 320 } });
+    this.portrait(buildingIconKey(b.def.id), b.def.role === 'hq');
+    const name = this.scene.add.text(INFO_X, P.y + 10, b.def.name, textStyle(19, HUD.goldHi)).setStroke('#000', 3);
+    const info = this.scene.add.text(INFO_X, P.y + 52, '', textStyle(13, '#bcb4a0'));
+    const desc = this.scene.add.text(INFO_X, P.y + 74, b.def.description, { ...textStyle(12, '#8a8478'), wordWrap: { width: 300 } });
     this.content.add([name, info, desc]);
-    const prod = this.battle.production;
-    const buttons: { btn: Button; check: () => boolean }[] = [];
-    let i = 0;
-    for (const id of b.def.produces) {
-      const d = UNIT_DEFS[id];
-      const btn = this.addButton(i++, costText(d.cost), unitTextureKey(id), undefined, () => prod.enqueue(b, id),
-        () => `${d.name}\n${costText(d.cost)} · ${d.trainTime}s\n${d.description}`);
-      buttons.push({ btn, check: () => prod.checkEnqueue(b, id) === null });
-    }
-    if (b.def.role === 'research') {
-      const rs = this.battle.research;
-      for (const r of RESEARCH_DEFS) {
-        const btn = this.addButton(i++, r.name.split(' ')[0], 'icon_flux', undefined, () => rs.start(b, r.id),
-          () => `${r.name}\n${costText(r.cost)} · ${r.time}s\n${r.description}${rs.isDone('player', r.id) ? '\n(RESEARCHED)' : ''}`);
-        buttons.push({ btn, check: () => !rs.isDone('player', r.id) && !rs.isResearching('player', r.id) && !rs.activeAt(b)
-          && this.battle.resources.canAfford('player', r.cost) });
-      }
-    }
-    const queueIcons = this.scene.add.container(0, 0);
-    this.content.add(queueIcons);
+    const queue = this.scene.add.container(0, 0);
+    this.content.add(queue);
+    this.upgrades(P.y + P.h - 14);
     let lastQueue = '';
     this.updater = (): void => {
-      this.hpBar.clear();
-      this.drawBar(INFO_X, PANEL.y + 42, 300, b.hp / b.maxHp);
+      this.bars.clear();
+      this.bar(INFO_X, P.y + 38, 280, 9, b.hp / b.maxHp);
       let status = `HP ${Math.ceil(b.hp)}/${b.maxHp}`;
-      if (b.state === 'constructing') status += `   ·   Constructing ${Math.floor(b.progress * 100)}%`;
-      if (b.def.fluxGen) status += `   ·   +${b.def.fluxGen} flux/s`;
-      const res = this.battle.research?.activeAt(b);
-      if (res) status += `   ·   ${res.def.name} ${Math.floor(res.frac * 100)}%`;
+      if (b.state === 'constructing') status += `  ·  Constructing ${Math.floor(b.progress * 100)}%`;
+      if (b.def.fluxGen) status += `  ·  +${b.def.fluxGen} Flux/s`;
+      const res = this.battle.research.activeAt(b);
+      if (res) status += `  ·  ${res.def.name} ${Math.floor(res.frac * 100)}%`;
       info.setText(status);
-      for (const x of buttons) x.btn.setEnabled(x.check());
       const key = b.queue.join(',');
       if (key !== lastQueue) {
         lastQueue = key;
-        queueIcons.removeAll(true);
+        queue.removeAll(true);
         b.queue.forEach((q, qi) => {
-          const qx = PANEL.x + PANEL.w - 30 - (UNIT_QUEUE_MAX - 1 - qi) * 42;
-          const box = this.scene.add.rectangle(qx, PANEL.y + 30, 38, 38, 0x05050c).setStrokeStyle(1, 0x5a5a7a);
-          const img = this.scene.add.image(qx, PANEL.y + 30, unitTextureKey(q));
-          img.setScale(34 / Math.max(img.width, img.height));
-          box.setInteractive({ useHandCursor: true }).on('pointerdown', () => prod.cancel(b, qi));
-          queueIcons.add([box, img]);
+          const x = P.x + P.w - 30 - qi * 40;
+          const y = P.y + 106;
+          const box = this.scene.add.rectangle(x, y, 36, 40, 0x0a0c12).setStrokeStyle(1, 0xc9a044);
+          const img = this.scene.add.image(x, y, portraitKey(q));
+          img.setScale(Math.min(32 / img.width, 36 / img.height));
+          box.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.battle.production.cancel(b, qi));
+          queue.add([box, img]);
         });
       }
-      if (b.queue.length) {
-        const qx = PANEL.x + PANEL.w - 30 - (UNIT_QUEUE_MAX - 1) * 42 - 19;
-        this.drawBar(qx, PANEL.y + 56, 38, b.productionFraction(), 0x40c0ff);
-      }
+      if (b.queue.length) this.bar(P.x + P.w - 48, P.y + 130, 36, 4, b.productionFraction(), 0x40c0ff);
     };
   }
 }
-
-const UNIT_QUEUE_MAX = 5;

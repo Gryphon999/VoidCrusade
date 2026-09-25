@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { addPlanet } from '../render/PlanetArt';
 
 interface Star {
   x: number;
@@ -33,11 +34,9 @@ export class MenuBackground {
       });
     }
     this.gfx = scene.add.graphics();
-    // Burning world on the horizon.
-    const planet = scene.add.graphics();
-    planet.fillStyle(0x2a0a08, 1).fillCircle(GAME_WIDTH / 2, GAME_HEIGHT + 520, 700);
-    planet.lineStyle(3, 0xff5020, 0.5).strokeCircle(GAME_WIDTH / 2, GAME_HEIGHT + 520, 700);
-    planet.fillStyle(0x0a0404, 1).fillCircle(GAME_WIDTH / 2, GAME_HEIGHT + 530, 700);
+    // Painted world rising from below the horizon.
+    const planet = addPlanet(scene, GAME_WIDTH / 2, GAME_HEIGHT + 560, 720);
+    scene.tweens.add({ targets: planet, angle: 4, duration: 90000, yoyo: true, repeat: -1 });
     scene.time.addEvent({ delay: 900, loop: true, callback: () => this.explosion() });
     const storm = (): void => {
       this.lightning();
@@ -66,7 +65,7 @@ export class MenuBackground {
 
   private explosion(): void {
     const x = Phaser.Math.Between(80, GAME_WIDTH - 80);
-    const y = Phaser.Math.Between(GAME_HEIGHT - 190, GAME_HEIGHT - 110);
+    const y = Phaser.Math.Between(GAME_HEIGHT - 150, GAME_HEIGHT - 60);
     const flash = this.scene.add.image(x, y, 'aura').setTint(Phaser.Utils.Array.GetRandom([0xff6020, 0xffa040, 0xff3010]) as number)
       .setBlendMode(Phaser.BlendModes.ADD).setScale(0.1).setAlpha(0.9);
     this.scene.tweens.add({

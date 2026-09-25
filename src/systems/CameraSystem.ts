@@ -18,8 +18,10 @@ export class CameraSystem {
 
   constructor(private scene: Phaser.Scene, worldW: number, worldH: number) {
     this.cam = scene.cameras.main;
-    const top = PROJECTION.cliffHeight + 40;
-    this.cam.setBounds(0, -top, worldW, Projection.vy(worldH) + top);
+    // Extra room so the map edges can scroll clear of the top bar and the bottom HUD frame.
+    const top = PROJECTION.cliffHeight + 40 + 40;
+    const bottom = 180;
+    this.cam.setBounds(0, -top, worldW, Projection.vy(worldH) + top + bottom);
     const kb = scene.input.keyboard;
     if (kb) {
       const K = Phaser.Input.Keyboard.KeyCodes;

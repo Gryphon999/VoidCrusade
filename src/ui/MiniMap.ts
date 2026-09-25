@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { COLORS, GAME_HEIGHT, GAME_WIDTH, MINIMAP, TILE, TILE_SIZE } from '../config';
+import { MINIMAP, TILE, TILE_SIZE } from '../config';
+import { HUD } from './HudArt';
 import { EV } from '../events';
 import { ownerColor } from '../systems/CapturePoint';
 import { biomeForMap } from '../render/Biomes';
@@ -19,15 +20,11 @@ export class MiniMap {
   private dragging = false;
 
   constructor(scene: Phaser.Scene, private battle: BattleScene) {
-    const { width: w, height: h, margin: m } = MINIMAP;
-    const x = GAME_WIDTH - w - m;
-    const y = GAME_HEIGHT - h - m;
+    // Sits in the ornate well at the bottom-left of the HUD frame.
+    const { x, y, w, h } = HUD.minimap;
     this.bounds = new Phaser.Geom.Rectangle(x, y, w, h);
     this.sx = w / battle.map.worldWidth;
     this.sy = h / battle.map.worldHeight;
-    const frame = scene.add.graphics();
-    frame.fillStyle(0x05050a, 0.75).fillRect(x - 4, y - 4, w + 8, h + 8);
-    frame.lineStyle(2, COLORS.uiBorder, 1).strokeRect(x - 4, y - 4, w + 8, h + 8);
     this.terrain = scene.add.graphics({ x, y }).setAlpha(0.85);
     this.fogLayer = scene.add.graphics({ x, y });
     this.dots = scene.add.graphics({ x, y });
@@ -115,6 +112,6 @@ export class MiniMap {
   /** Per-frame: camera viewport rectangle. */
   update(): void {
     const v = this.battle.cameraSystem.visibleWorldRect();
-    this.view.clear().lineStyle(1, 0xffffff, 0.9).strokeRect(v.x * this.sx, v.y * this.sy, v.width * this.sx, v.height * this.sy);
+    this.view.clear().lineStyle(1.5, 0xf0d27a, 0.95).strokeRect(v.x * this.sx, v.y * this.sy, v.width * this.sx, v.height * this.sy);
   }
 }

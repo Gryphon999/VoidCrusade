@@ -87,7 +87,5 @@ export class CapturePointSystem {
     p.refresh();
     p.pulse();
     this.battle.events.emit(EV.pointCaptured, p, owner, old);
-    if (owner === 'player') this.battle.events.emit(EV.message, 'Void-Nexus captured!');
-    else if (old === 'player') this.battle.events.emit(EV.message, 'A Void-Nexus has fallen to the enemy!');
   }
 }

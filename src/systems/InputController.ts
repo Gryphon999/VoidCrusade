@@ -48,15 +48,21 @@ export class InputController {
     this.refreshCursor();
   }
 
-  /** Crosshair for attack orders (attack-move or hovering an enemy), green pointer for move. */
+  /** Contextual cursor: build while placing, attack over enemies, capture over Void-Nexus zones, move otherwise. */
   private refreshCursor(): void {
     const b = this.battle;
     const p = b.input.activePointer;
-    let kind: 'default' | 'move' | 'attack' = 'default';
-    if (this.mode === 'attackMove') kind = 'attack';
+    let kind: 'default' | 'move' | 'attack' | 'capture' | 'build' = 'default';
+    if (b.placement.isActive) kind = 'build';
+    else if (this.mode === 'attackMove') kind = 'attack';
     else if (this.mode === 'move') kind = 'move';
-    else if (b.selection.hasSquads && !b.placement.isActive && !this.overUI(p)) {
-      kind = this.enemyAt(p) ? 'attack' : 'move';
+    else if (b.selection.hasSquads && !this.overUI(p)) {
+      if (this.enemyAt(p)) kind = 'attack';
+      else {
+        const w = this.world(p);
+        const pt = b.capture.points.find((c) => c.contains(w.x, w.y) && c.owner !== 'player');
+        kind = pt ? 'capture' : 'move';
+      }
     }
     b.hud?.setCursor(kind);
   }

@@ -8,6 +8,9 @@ import { createFxTextures } from '../assets/FxTextures';
 import { createCaptureTextures } from '../assets/CaptureTextures';
 import { getCursors } from '../assets/Cursors';
 import { createPropTextures } from '../render/PropArt';
+import { createHudArt } from '../ui/HudArt';
+import { createPlanetArt } from '../render/PlanetArt';
+import { createGlyphIcons } from '../ui/GlyphIcons';
 import { createCaptureArt } from '../render/CaptureArt';
 import { createBuildingIcons, ensureBuildingArt } from '../render/buildings/BuildingArt';
 import { Projection } from '../render/Projection';
@@ -43,7 +46,12 @@ export class PreloadScene extends Phaser.Scene {
 
     const steps: [string, () => void][] = [
       ['Surveying terrain', () => createTileTextures(this)],
-      ['Forging icons', () => createUITextures(this)],
+      ['Forging icons', () => {
+        createUITextures(this);
+        createHudArt(this);
+        createGlyphIcons(this);
+        createPlanetArt(this);
+      }],
       ['Raising fortifications', () => {
         createBuildingTextures(this);
         createBuildingIcons(this, 0.65);
