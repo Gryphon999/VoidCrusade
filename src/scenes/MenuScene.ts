@@ -6,6 +6,7 @@ import { MenuBackground } from '../ui/MenuBackground';
 import { Button } from '../ui/Button';
 import { textStyle } from '../ui/uiStyle';
 import { SkirmishSetup } from '../ui/SkirmishSetup';
+import { Ambience } from '../systems/Ambience';
 
 export class MenuScene extends Phaser.Scene {
   private bg!: MenuBackground;
@@ -19,6 +20,7 @@ export class MenuScene extends Phaser.Scene {
     this.busy = false;
     this.input.setDefaultCursor('default');
     this.bg = new MenuBackground(this);
+    Ambience.menu();
     const logo = this.add.text(GAME_WIDTH / 2, 170, 'VOIDCRUSADE', {
       fontFamily: GOTHIC_FONT, fontSize: '120px', fontStyle: 'bold', stroke: '#1a0000', strokeThickness: 10,
       shadow: { offsetX: 0, offsetY: 0, color: '#ff2010', blur: 28, fill: false, stroke: true },

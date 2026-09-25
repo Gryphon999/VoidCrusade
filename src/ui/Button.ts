@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { textStyle } from './uiStyle';
+import { AudioSystem } from '../systems/AudioSystem';
 
 export interface ButtonOpts {
   x: number;
@@ -49,7 +50,9 @@ export class Button {
       this.onHover?.(null, 0, 0);
     });
     this.bg.on('pointerdown', (p: Phaser.Input.Pointer) => {
-      if (p.leftButtonDown() && this.enabled) opts.onClick();
+      if (!p.leftButtonDown()) return;
+      AudioSystem.uiClick();
+      if (this.enabled) opts.onClick();
     });
   }
 

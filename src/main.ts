@@ -7,6 +7,7 @@ import { CampaignScene } from './scenes/CampaignScene';
 import { BattleScene } from './scenes/BattleScene';
 import { HudScene } from './scenes/HudScene';
 import { SettingsScene } from './scenes/SettingsScene';
+import { AudioSystem } from './systems/AudioSystem';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -29,3 +30,8 @@ const config: Phaser.Types.Core.GameConfig = {
 
 const game = new Phaser.Game(config);
 if (import.meta.env.DEV) (window as unknown as { game: Phaser.Game }).game = game;
+
+// Browsers only allow audio after a user gesture.
+const unlock = (): void => AudioSystem.unlock();
+window.addEventListener('pointerdown', unlock);
+window.addEventListener('keydown', unlock);
