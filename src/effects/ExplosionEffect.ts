@@ -64,7 +64,14 @@ export class ExplosionEffect {
     }
   }
 
-  /** Small burst when a projectile hits a structure. */
+  /** Shell blast at a view-space ground point (artillery, tank cannon): fireball, sparks, a little debris. */
+  blast(x: number, y: number, size = 1): void {
+    this.fire.explode(Math.round(6 + 6 * size), x, y - 6);
+    this.sparks.explode(Math.round(6 * size), x, y - 6);
+    this.debris.explode(Math.round(3 + 3 * size), x, y);
+    this.chimney.emitParticleAt(x, y - 10, 2);
+  }
+
   /** Small burst at a view-space point. */
   impact(x: number, y: number): void {
     this.sparks.explode(3, x, y);

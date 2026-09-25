@@ -13,6 +13,8 @@ export interface UnitModel {
   anchorY: number;
   /** Muzzle/strike point in model space for the attack frame (px, before scale). */
   build(anim: AnimName, frame: number): { parts: Part[]; pose: Pose };
+  /** Optional independently rotating turret, baked into its own atlas (frame 0 rest, 1 firing). */
+  turret?(frame: number): { parts: Part[]; pose: Pose };
 }
 
 /** Normalised animation phase helpers. */

@@ -211,6 +211,17 @@ class AudioEngine {
     this.burst(o, 0.05, 'lowpass', huge ? 400 : 900, 1);
   }
 
+  /** Diesel engine growl for a moving vehicle; `heavy` = tank/walker. */
+  engine(vol = 1, pan = 0, heavy = false): void {
+    if (!this.allow('engine', 300)) return;
+    const o = this.out((heavy ? 0.22 : 0.14) * vol, pan);
+    if (!o) return;
+    const f = heavy ? 42 : 70;
+    this.tone(o, 'sawtooth', f, f * 0.95, 0.34, 0, 0.35);
+    this.tone(o, 'square', f * 2, f * 1.9, 0.3, 0.02, 0.12);
+    this.burst(o, 0.3, 'lowpass', heavy ? 300 : 500, 0.7);
+  }
+
   /** Metallic construction clank. */
   clank(vol = 1, pan = 0): void {
     if (!this.allow('clank', 350)) return;

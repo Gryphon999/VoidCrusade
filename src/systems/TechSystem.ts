@@ -19,7 +19,7 @@ export interface TierUpgrade {
 /** HQ upgrades that unlock the next tech tier. */
 export const TIER_UPGRADES: Record<2 | 3, TierUpgrade> = {
   2: { to: 2, cost: { scrip: 200, flux: 100 }, time: 40, requires: ['infantry'] },
-  3: { to: 3, cost: { scrip: 350, flux: 250 }, time: 60, requires: ['heavy', 'research'] },
+  3: { to: 3, cost: { scrip: 350, flux: 250 }, time: 60, requires: ['heavy', 'vehicles'] },
 };
 
 /** Tech tiers per side; the HQ advances them like a research project. */

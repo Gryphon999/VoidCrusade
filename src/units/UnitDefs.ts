@@ -4,13 +4,15 @@ import { ArmorClass, DamageType } from './Damage';
 
 export type UnitId =
   | 'rifleman' | 'ranger' | 'breacher' | 'marksman' | 'engineer' | 'heavy' | 'commander'
-  | 'crawler' | 'spitter' | 'leaper' | 'burrower' | 'shaman' | 'behemoth' | 'overlord';
+  | 'buggy' | 'apc' | 'tank' | 'artillery'
+  | 'crawler' | 'spitter' | 'leaper' | 'burrower' | 'shaman' | 'behemoth' | 'overlord'
+  | 'skimmer' | 'carrier' | 'siegebeast' | 'titan';
 export type Faction = 'ironvoid' | 'nullhorde';
 
 export type UnitCategory = 'infantry' | 'vehicle' | 'monster' | 'hero';
 export type Tier = 1 | 2 | 3;
 /** Visual weapon effect (the damage rules come from damageType). */
-export type ProjectileLook = 'bullet' | 'shell' | 'spit' | 'melee' | 'flame' | 'sniper' | 'psy';
+export type ProjectileLook = 'bullet' | 'shell' | 'spit' | 'melee' | 'flame' | 'sniper' | 'psy' | 'lob' | 'acidlob' | 'cannon';
 
 export interface UnitDef {
   id: UnitId;
@@ -58,6 +60,26 @@ export interface UnitDef {
   burrow?: { ambush: number; speedMult: number };
   /** Heals nearby friendly soldiers (HP/s each) and speeds them up. */
   aura?: { radius: number; heal: number; speed: number };
+  // ---- Vehicles & monsters ----
+  /** Has a turret that turns independently of the hull. */
+  turret?: boolean;
+  /** Number of infantry squads it can carry. */
+  transport?: number;
+  /** Damage per second dealt to light infantry it drives over. */
+  crush?: number;
+  /** Fires over obstacles (no line of sight needed); cannot hit targets closer than minRange. */
+  indirect?: boolean;
+  minRange?: number;
+  /** Area damage radius around the impact (px). */
+  splash?: number;
+  /** Must deploy (immobile) before firing; deploying takes `time` seconds and adds range. */
+  deploy?: { time: number; rangeBonus: number };
+  /** Hovers: crosses cliffs and structures, ignores terrain for pathing. */
+  flying?: boolean;
+  /** HP regenerated per second (Horde beasts). */
+  regen?: number;
+  /** Maximum number alive at once (Titans). */
+  limit?: number;
   description: string;
 }
 
@@ -111,6 +133,34 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
     speed: 80, cost: Z, cooldown: 1.2, trainTime: 30, size: 12, projectile: 'shell',
     isHero: true, description: 'Hero of the crusade. Inspires nearby troops.',
   },
+  buggy: {
+    id: 'buggy', name: 'Scout Buggy', faction: 'ironvoid', category: 'vehicle', tier: 2, requires: [], supply: 3,
+    damageType: 'bullet', armor: 'vehicle', sight: 480, canCapture: false, squadSize: 1, hp: 320, damage: 13, range: 240,
+    speed: 190, cost: { scrip: 140, flux: 40 }, cooldown: 0.35, trainTime: 12, size: 16, projectile: 'bullet',
+    detector: 260,
+    description: 'Fast raider with twin autoguns. Scouts the map and hunts infantry in the open.',
+  },
+  apc: {
+    id: 'apc', name: 'Rhino APC', faction: 'ironvoid', category: 'vehicle', tier: 2, requires: [], supply: 3,
+    damageType: 'bullet', armor: 'vehicle', sight: 320, canCapture: false, squadSize: 1, hp: 750, damage: 10, range: 220,
+    speed: 125, cost: { scrip: 180, flux: 60 }, cooldown: 0.5, trainTime: 16, size: 20, projectile: 'bullet',
+    transport: 1,
+    description: 'Armoured transport. Carries one infantry squad safely and patches up its wounded.',
+  },
+  tank: {
+    id: 'tank', name: 'Iron Tyrant Tank', faction: 'ironvoid', category: 'vehicle', tier: 3, requires: [], supply: 5,
+    damageType: 'explosive', armor: 'vehicle', sight: 340, canCapture: false, squadSize: 1, hp: 1250, damage: 95, range: 300,
+    speed: 70, cost: { scrip: 300, flux: 150 }, cooldown: 3.0, trainTime: 24, size: 24, projectile: 'cannon',
+    turret: true, crush: 45, splash: 40,
+    description: 'Main battle tank. Heavy cannon on a rotating turret; crushes infantry under its treads.',
+  },
+  artillery: {
+    id: 'artillery', name: 'Thunder Mortar', faction: 'ironvoid', category: 'vehicle', tier: 3, requires: [], supply: 5,
+    damageType: 'explosive', armor: 'vehicle', sight: 300, canCapture: false, squadSize: 1, hp: 520, damage: 120, range: 560,
+    speed: 55, cost: { scrip: 280, flux: 180 }, cooldown: 5.0, trainTime: 26, size: 22, projectile: 'lob',
+    indirect: true, minRange: 200, splash: 80, deploy: { time: 3, rangeBonus: 140 },
+    description: 'Siege walker. Must deploy to fire; lobs shells over walls and cliffs at extreme range.',
+  },
   // ---------------------------------------------------------------- Null Horde
   crawler: {
     id: 'crawler', name: 'Void Crawler', faction: 'nullhorde', category: 'infantry', tier: 1, requires: [], supply: 2,
@@ -150,6 +200,34 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
     damageType: 'melee', armor: 'monster', sight: 260, canCapture: true, squadSize: 2, hp: 300, damage: 60, range: 100,
     speed: 45, cost: { scrip: 160, flux: 60 }, cooldown: 2.0, trainTime: 14, size: 14, projectile: 'melee',
     description: 'Hulking bio-titan. Crushes armour and bone alike.',
+  },
+  skimmer: {
+    id: 'skimmer', name: 'Void Skimmer', faction: 'nullhorde', category: 'vehicle', tier: 2, requires: [], supply: 3,
+    damageType: 'acid', armor: 'monster', sight: 420, canCapture: false, squadSize: 1, hp: 290, damage: 12, range: 200,
+    speed: 210, cost: { scrip: 130, flux: 40 }, cooldown: 0.4, trainTime: 11, size: 16, projectile: 'spit',
+    flying: true, regen: 2,
+    description: 'Winged hunter that glides over cliffs and walls. Hit-and-run raider.',
+  },
+  carrier: {
+    id: 'carrier', name: 'Carrier Beast', faction: 'nullhorde', category: 'vehicle', tier: 2, requires: [], supply: 3,
+    damageType: 'melee', armor: 'monster', sight: 300, canCapture: false, squadSize: 1, hp: 820, damage: 22, range: 60,
+    speed: 115, cost: { scrip: 170, flux: 60 }, cooldown: 1.2, trainTime: 16, size: 22, projectile: 'melee',
+    transport: 1, regen: 6,
+    description: 'Armoured brood-mother. Carries one swarm squad in its belly and regenerates.',
+  },
+  siegebeast: {
+    id: 'siegebeast', name: 'Siege Beast', faction: 'nullhorde', category: 'vehicle', tier: 3, requires: [], supply: 5,
+    damageType: 'acid', armor: 'monster', sight: 300, canCapture: false, squadSize: 1, hp: 760, damage: 105, range: 620,
+    speed: 45, cost: { scrip: 260, flux: 160 }, cooldown: 4.5, trainTime: 24, size: 24, projectile: 'acidlob',
+    indirect: true, minRange: 180, splash: 70, regen: 4,
+    description: 'Lumbering artillery beast that hurls sacs of acid over any obstacle.',
+  },
+  titan: {
+    id: 'titan', name: 'Hive Titan', faction: 'nullhorde', category: 'vehicle', tier: 3, requires: [], supply: 10,
+    damageType: 'melee', armor: 'monster', sight: 380, canCapture: false, squadSize: 1, hp: 3200, damage: 150, range: 100,
+    speed: 44, cost: { scrip: 600, flux: 400 }, cooldown: 2.2, trainTime: 45, size: 36, projectile: 'melee',
+    splash: 60, crush: 70, regen: 10, limit: 1,
+    description: 'The swarm\'s living siege engine. Tramples everything; only one can walk the field.',
   },
   overlord: {
     id: 'overlord', name: 'Null Overlord', faction: 'nullhorde', category: 'hero', tier: 1, requires: [], supply: 0,

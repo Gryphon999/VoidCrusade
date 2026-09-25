@@ -24,6 +24,11 @@ export class EffectsSystem {
   private flashes: Phaser.GameObjects.Particles.ParticleEmitter;
   private casings: Phaser.GameObjects.Particles.ParticleEmitter;
   private sparkFx: Phaser.GameObjects.Particles.ParticleEmitter;
+  private exhaustFx: Phaser.GameObjects.Particles.ParticleEmitter;
+  private tracks: Phaser.GameObjects.Image[] = [];
+  private trackBorn = new WeakMap<Phaser.GameObjects.Image, number>();
+  private trackIdx = 0;
+  private trackFade = 0;
   private dustFx: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly detail = GFX[Settings.get().graphics].particleMult;
 
@@ -49,6 +54,16 @@ export class EffectsSystem {
       emitting: false, lifespan: { min: 200, max: 420 }, speed: { min: 40, max: 140 }, angle: { min: 200, max: 340 },
       gravityY: 380, scale: { start: 0.28, end: 0 }, tint: [0xfff0a0, 0xffb040], blendMode: Phaser.BlendModes.ADD,
     }).setDepth(DEPTH.effects);
+    this.exhaustFx = scene.add.particles(0, 0, 'fx_soft', {
+      emitting: false, lifespan: { min: 600, max: 1000 }, speedY: { min: -30, max: -14 }, speedX: { min: -8, max: 8 },
+      scale: { start: 0.25, end: 0.9 }, alpha: { start: 0.4, end: 0 }, tint: [0x3a3836, 0x5a5652],
+    }).setDepth(DEPTH.effects - 1);
+    const trackLayer = scene.add.layer().setDepth(DEPTH.decals + 0.5);
+    for (let i = 0; i < 180; i++) {
+      const img = scene.add.image(0, 0, 'fx_track').setVisible(false);
+      trackLayer.add(img);
+      this.tracks.push(img);
+    }
     const ev = scene.events;
     ev.on(EV.unitDied, (x: number, y: number, u: Unit) => this.onDeath(x, y, u));
     ev.on(EV.unitHit, (x: number, y: number, u: Unit, dir: number) => this.blood.spawnHit(x, y, u.owner === 'enemy', dir));
@@ -66,6 +81,8 @@ export class EffectsSystem {
   }
 
   private onDeath(x: number, y: number, u: Unit): void {
+    // Vehicles and war-beasts are handled by vehicleDeath (called by the wreck system).
+    if (u.def.category === 'vehicle') return;
     const alien = u.owner === 'enemy';
     this.blood.spawnDeath(x, y, (8 + u.def.size * 0.6) * this.detail, alien);
     if (u.def.id === 'crawler' && Math.random() < 0.3) {
@@ -89,6 +106,11 @@ export class EffectsSystem {
   update(dt: number): void {
     this.lights.update();
     this.projectiles.update(dt);
+    this.trackFade -= dt;
+    if (this.trackFade <= 0) {
+      this.trackFade = 0.25;
+      this.fadeTracks();
+    }
   }
 
   /** Muzzle flash sprite + light, and a spent casing for kinetic weapons (view space). */
@@ -99,6 +121,48 @@ export class EffectsSystem {
       this.flashes.emitParticleAt(x, y, 1);
       this.casings.speedX = towardX > 0 ? -40 : 40;
       if (Math.random() < 0.6 * this.detail) this.casings.emitParticleAt(x, y, 1);
+    }
+  }
+
+  /** A vehicle blows up (or a war-beast collapses) and leaves its wreck sprite; returns that sprite. */
+  vehicleDeath(u: Unit): Phaser.GameObjects.Image {
+    const vy = Projection.vy(u.y);
+    if (u.def.faction === 'ironvoid') {
+      this.explosions.explode(u.x, u.y, u.radius * 2, u.height * 0.4);
+      this.lights.flash(u.x, vy, u.radius * 6, 0xff8a30, 700, 1);
+      this.blood.scorch(u.x, u.y, u.radius * 1.4);
+      this.explosions.burn(u.x, vy - 6, u.radius * 0.8, 12);
+    } else {
+      this.blood.spawnDeath(u.x, u.y, 16 * this.detail, true);
+      this.blood.gib(u.x, u.y, 0x5a1f4e, Math.round(8 + u.radius / 3));
+      this.lights.flash(u.x, vy, u.radius * 4, 0xc050ff, 500, 0.8);
+    }
+    return this.corpses.spawn(u);
+  }
+
+  /** Engine exhaust puff at a view-space point. */
+  exhaust(x: number, y: number): void {
+    this.exhaustFx.emitParticleAt(x, y, 1);
+  }
+
+  /** Tread/tyre marks pressed into the ground behind a vehicle (logical position and heading). */
+  trackMark(x: number, y: number, heading: number, width: number): void {
+    const img = this.tracks[this.trackIdx];
+    this.trackIdx = (this.trackIdx + 1) % this.tracks.length;
+    const vy = Projection.vy(y);
+    const rot = Math.atan2(Math.sin(heading) * Projection.tilt, Math.cos(heading));
+    img.setPosition(x, vy).setRotation(rot).setScale(1, width).setAlpha(0.5).setVisible(true);
+    this.trackBorn.set(img, this.scene.time.now);
+  }
+
+  /** Fades old tread marks (called from update). */
+  private fadeTracks(): void {
+    const now = this.scene.time.now;
+    for (const img of this.tracks) {
+      if (!img.visible) continue;
+      const age = (now - (this.trackBorn.get(img) ?? now)) / 1000;
+      if (age > 14) img.setVisible(false);
+      else if (age > 6) img.setAlpha(0.5 * (1 - (age - 6) / 8));
     }
   }
 

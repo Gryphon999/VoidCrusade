@@ -5,6 +5,9 @@ import { ANIMS, ANIM_FRAMES, AnimName, UnitModel } from './Models';
 import { BREACHER_MODEL, COMMANDER_MODEL, ENGINEER_MODEL, HEAVY_MODEL, MARKSMAN_MODEL, RANGER_MODEL, RIFLEMAN_MODEL } from './IronVoidModels';
 import { BEHEMOTH_MODEL, BURROWER_MODEL, CRAWLER_MODEL, LEAPER_MODEL, OVERLORD_MODEL, SHAMAN_MODEL, SPITTER_MODEL } from './HordeModels';
 import type { UnitId } from '../../units/UnitDefs';
+import {
+  APC_MODEL, ARTILLERY_MODEL, BUGGY_MODEL, CARRIER_MODEL, SIEGEBEAST_MODEL, SKIMMER_MODEL, TANK_MODEL, TITAN_MODEL,
+} from './VehicleModels';
 
 export const DIRECTIONS = 8;
 
@@ -16,6 +19,10 @@ export const UNIT_MODELS: Record<UnitId, UnitModel> = {
   engineer: ENGINEER_MODEL,
   heavy: HEAVY_MODEL,
   commander: COMMANDER_MODEL,
+  buggy: BUGGY_MODEL,
+  apc: APC_MODEL,
+  tank: TANK_MODEL,
+  artillery: ARTILLERY_MODEL,
   crawler: CRAWLER_MODEL,
   spitter: SPITTER_MODEL,
   leaper: LEAPER_MODEL,
@@ -23,13 +30,23 @@ export const UNIT_MODELS: Record<UnitId, UnitModel> = {
   shaman: SHAMAN_MODEL,
   behemoth: BEHEMOTH_MODEL,
   overlord: OVERLORD_MODEL,
+  skimmer: SKIMMER_MODEL,
+  carrier: CARRIER_MODEL,
+  siegebeast: SIEGEBEAST_MODEL,
+  titan: TITAN_MODEL,
 };
 
 /** Approximate on-screen height of each model (px at zoom 1) — for picking, bars and aim points. */
 export const MODEL_HEIGHT: Record<UnitId, number> = {
   rifleman: 34, ranger: 33, breacher: 40, marksman: 32, engineer: 36, heavy: 44, commander: 64,
+  buggy: 34, apc: 40, tank: 44, artillery: 60,
   crawler: 24, spitter: 30, leaper: 34, burrower: 22, shaman: 44, behemoth: 80, overlord: 74,
+  skimmer: 30, carrier: 46, siegebeast: 68, titan: 118,
 };
+
+export function turretKey(id: UnitId): string {
+  return `turret_${id}`;
+}
 
 export function atlasKey(id: UnitId): string {
   return `units_${id}`;
@@ -78,14 +95,41 @@ export function createUnitAtlases(scene: Phaser.Scene): void {
     const tex = scene.textures.addCanvas(key, canvas);
     if (!tex) continue;
     for (const [name, x, y] of frames) tex.add(name, 0, x, y, m.cellW, m.cellH);
+    if (m.turret) bakeTurret(scene, id, m);
     // HUD portrait: three-quarter view, idle pose.
     const p = makeCanvas(m.cellW, m.cellH);
     const r = new PuppetRenderer(p.ctx, m.anchorX, m.anchorY, Math.PI * 0.35);
     const { parts, pose } = m.build('idle', 0);
     r.setPose(pose);
     r.draw(parts);
+    if (m.turret) {
+      const tb = m.turret(0);
+      r.setPose(tb.pose);
+      r.draw(tb.parts);
+    }
     scene.textures.addCanvas(portraitKey(id), trim(p.canvas));
   }
+}
+
+/** Turret atlas: 2 frames (rest, fire) x 8 facings, same cell and anchor as the hull. */
+function bakeTurret(scene: Phaser.Scene, id: UnitId, m: UnitModel): void {
+  const build = m.turret;
+  if (!build) return;
+  const { canvas, ctx } = makeCanvas(2 * m.cellW, DIRECTIONS * m.cellH);
+  const frames: [string, number, number][] = [];
+  for (let dir = 0; dir < DIRECTIONS; dir++) {
+    for (let f = 0; f < 2; f++) {
+      const x = f * m.cellW;
+      const y = dir * m.cellH;
+      const r = new PuppetRenderer(ctx, x + m.anchorX, y + m.anchorY, (dir * Math.PI) / 4);
+      const { parts, pose } = build(f);
+      r.setPose(pose);
+      r.draw(parts);
+      frames.push([`turret${f}_${dir}`, x, y]);
+    }
+  }
+  const tex = scene.textures.addCanvas(turretKey(id), canvas);
+  if (tex) for (const [name, x, y] of frames) tex.add(name, 0, x, y, m.cellW, m.cellH);
 }
 
 /** Crops a canvas to its opaque pixels (plus a small margin). */

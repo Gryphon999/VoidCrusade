@@ -41,7 +41,8 @@ function squadCommands(b: BattleScene, squads: Squad[]): Command[] {
   const reinforceable = (): Squad[] => squads.filter((s) => s.alive && units.canReinforce(s));
   const cost = (): number => reinforceable().reduce((a, s) => a + units.reinforceCost(s).scrip, 0);
   const all = (st: Squad['stance']): boolean => squads.every((s) => s.stance === st);
-  return [
+  const canEverReinforce = squads.some((s) => !s.def.isHero && s.def.category !== 'vehicle');
+  const cmds: Command[] = [
     { slot: slotOf('R'), icon: GLYPH.reinforce, title: t('cmd.reinforce'),
       body: () => `${t('cmd.reinforce.desc')}${reinforceable().length ? `\n${t('cmd.reinforce.cost', { n: cost() })}` : ''}`,
       onClick: () => ic.reinforceSelected(), enabled: () => reinforceable().length > 0 && b.resources.getResources('player').scrip >= cost(),
@@ -59,7 +60,47 @@ function squadCommands(b: BattleScene, squads: Squad[]): Command[] {
       onClick: () => squads.forEach((s) => s.hold()), active: () => all('hold') },
     { slot: slotOf('J'), icon: GLYPH.move, title: t('cmd.move'), body: () => t('cmd.move.desc'),
       onClick: () => ic.setMode('move'), active: () => ic.mode === 'move' },
+    ...vehicleCommands(b, squads),
   ];
+  // Vehicles and heroes are repaired or respawned, never reinforced.
+  return canEverReinforce ? cmds : cmds.filter((c) => c.icon !== GLYPH.reinforce);
+}
+
+/** Deploy / pack up (artillery) and unload (transports) on G. */
+function vehicleCommands(b: BattleScene, squads: Squad[]): Command[] {
+  const out: Command[] = [];
+  const arty = squads.filter((s) => s.def.deploy);
+  if (arty.length) {
+    out.push({
+      slot: slotOf('G'), icon: GLYPH.deploy, title: t('cmd.deploy'),
+      body: () => t('cmd.deploy.desc', { t: arty[0].def.deploy?.time ?? 0, r: arty[0].def.deploy?.rangeBonus ?? 0 }),
+      onClick: () => arty.forEach((s) => b.vehicles.toggleDeploy(s)),
+      active: () => arty.every((s) => s.deployState === 'deployed'),
+      progress: () => {
+        const s = arty[0];
+        const d = s.def.deploy;
+        if (!d || (s.deployState !== 'deploying' && s.deployState !== 'packing')) return null;
+        return s.deployT / (s.deployState === 'deploying' ? d.time : d.time * 0.6);
+      },
+    });
+  }
+  const carriers = squads.filter((s) => s.def.transport);
+  if (carriers.length) {
+    out.push({
+      slot: slotOf('G'), icon: GLYPH.unload, title: t('cmd.unload'),
+      body: () => {
+        const names = carriers.flatMap((c) => c.cargo.map((s) => unitName(s.def.id)));
+        return `${t('cmd.unload.desc')}${names.length ? `\n${t('cmd.cargo', { list: names.join(', ') })}` : ''}`;
+      },
+      onClick: () => carriers.forEach((c) => b.vehicles.unload(c)),
+      enabled: () => carriers.some((c) => c.cargo.length > 0),
+      badge: () => {
+        const n = carriers.reduce((a, c) => a + c.cargo.length, 0);
+        return n ? `${n}` : '';
+      },
+    });
+  }
+  return out;
 }
 
 const CATEGORY_GLYPH: Record<BuildCategory, string> = {

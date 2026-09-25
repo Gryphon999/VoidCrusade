@@ -14,6 +14,7 @@ import type { BattleScene } from '../scenes/BattleScene';
 
 const SPEAKERS: Partial<Record<UnitId, Speaker>> = {
   commander: 'commander', heavy: 'heavy', ranger: 'ranger', breacher: 'breacher', marksman: 'marksman', engineer: 'engineer',
+  buggy: 'crew', apc: 'crew', tank: 'crew', artillery: 'crew',
 };
 
 export function speakerFor(s: Squad): Speaker {

@@ -17,6 +17,7 @@ export class CoverSystem implements CoverQueries {
     this.grid = new Uint8Array(battle.map.width * battle.map.height);
     this.rebuild();
     battle.events.on(EV.buildingDestroyed, () => this.rebuild());
+    battle.events.on(EV.wreckChanged, () => this.rebuild());
   }
 
   rebuild(): void {
@@ -25,6 +26,12 @@ export class CoverSystem implements CoverQueries {
       for (let tx = 0; tx < m.width; tx++) {
         const t = m.getTile(tx, ty);
         let cover = t === TILE.RUINS;
+        // Wrecks and carcasses shelter the tiles around them.
+        if (!cover && !m.isBlocked(tx, ty)) {
+          for (let dy = -1; dy <= 1 && !cover; dy++) {
+            for (let dx = -1; dx <= 1 && !cover; dx++) if ((dx || dy) && m.isBlocked(tx + dx, ty + dy)) cover = true;
+          }
+        }
         if (!cover && t !== TILE.CLIFF) {
           for (let dy = -1; dy <= 1 && !cover; dy++) {
             for (let dx = -1; dx <= 1 && !cover; dx++) {

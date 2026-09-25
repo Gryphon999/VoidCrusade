@@ -139,6 +139,7 @@ export class HudScene extends Phaser.Scene {
         if (b.owner === 'player') this.alarm();
       }],
       [EV.tierUp, () => this.refreshCommands()],
+      [EV.transportChanged, () => this.refreshCommands()],
       [EV.buildingComplete, () => this.refreshCommands()],
     ];
     for (const [e, h] of handlers) ev.on(e, h);

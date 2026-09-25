@@ -57,7 +57,7 @@ export class SelectionSystem {
       this.building = null;
       dirty = true;
     }
-    const alive = this.squads.filter((s) => s.alive);
+    const alive = this.squads.filter((s) => s.alive && !s.embarked);
     if (alive.length !== this.squads.length) {
       this.squads = alive;
       dirty = true;

@@ -176,6 +176,25 @@ const GLYPHS: Record<string, Glyph> = {
     c.arc(C, C, 4, 0, Math.PI * 2);
     c.fill();
   },
+  deploy: (c) => {
+    // Mortar tube on braced legs.
+    line(c, [[C - 4, C + 6], [C + 10, C - 13]], 5);
+    line(c, [[C - 12, C + 14], [C - 2, C + 4], [C + 8, C + 14]], 2.5);
+    line(c, [[C - 15, C + 14], [C + 15, C + 14]], 2);
+  },
+  unload: (c) => {
+    // Figures stepping out of a hatch.
+    c.fillRect(C - 14, C - 4, 12, 16);
+    c.fillStyle = '#1a140c';
+    c.fillRect(C - 11, C, 6, 12);
+    c.fillStyle = c.strokeStyle;
+    c.beginPath();
+    c.arc(C + 7, C - 8, 3.5, 0, Math.PI * 2);
+    c.fill();
+    line(c, [[C + 7, C - 4], [C + 7, C + 5], [C + 3, C + 13]], 2.5);
+    line(c, [[C + 7, C + 5], [C + 11, C + 13]], 2.5);
+    line(c, [[C + 2, C - 1], [C + 12, C - 1]], 2.2);
+  },
   back: (c) => {
     poly(c, [[C - 14, C], [C - 2, C - 12], [C - 2, C - 5], [C + 13, C - 5], [C + 13, C + 5], [C - 2, C + 5], [C - 2, C + 12]]);
   },
@@ -215,7 +234,7 @@ export const GLYPH = {
   build: 'glyph_build', rally: 'glyph_rally', capture: 'glyph_capture',
   defend: 'glyph_defend', aggressive: 'glyph_aggressive', retreat: 'glyph_retreat', repeat: 'glyph_repeat',
   tierUp: 'glyph_tierUp', economy: 'glyph_economy', military: 'glyph_military', defense: 'glyph_defense',
-  tech: 'glyph_tech', back: 'glyph_back',
+  tech: 'glyph_tech', back: 'glyph_back', deploy: 'glyph_deploy', unload: 'glyph_unload',
 } as const;
 
 export function researchGlyph(id: string): string {

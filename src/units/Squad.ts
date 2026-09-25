@@ -6,6 +6,7 @@ import { UnitDef } from './UnitDefs';
 import { Unit } from './Unit';
 import { Building } from '../buildings/Building';
 import type { BattleScene } from '../scenes/BattleScene';
+import type { Wreck } from './WreckSystem';
 
 export type SquadOrder = 'idle' | 'move' | 'attackMove' | 'attack' | 'hold' | 'retreat';
 /** Hold = never move; Defend = fight nearby then return to the guard point; Aggressive = chase anything. */
@@ -73,6 +74,19 @@ export class Squad {
   /** Speed bonus from a friendly aura, and until when (battle seconds). */
   auraSpeed = 0;
   auraUntil = 0;
+  // ---- Vehicle state (driven by VehicleSystem) ----
+  deployState: 'mobile' | 'deploying' | 'deployed' | 'packing' = 'mobile';
+  deployT = 0;
+  /** Move order waiting until a deployed weapon has packed up. */
+  pendingMove: { x: number; y: number; attack: boolean } | null = null;
+  /** Squads riding inside this transport. */
+  readonly cargo: Squad[] = [];
+  /** The transport this squad rides in (null when on foot). */
+  carrier: Squad | null = null;
+  /** Transport this squad is walking toward to board. */
+  boardTarget: Squad | null = null;
+  /** Wreck the engineers were ordered to salvage. */
+  salvageTarget: Wreck | null = null;
   private offsets: Pt[];
   private repathTimer = 0;
   private retargetTimer = 0;
@@ -168,6 +182,17 @@ export class Squad {
   /** Move order; with `queue` the destination is appended after the current path (shift-click). */
   moveTo(x: number, y: number, attackMove = false, queue = false): void {
     this.repairTarget = null;
+    this.boardTarget = null;
+    this.salvageTarget = null;
+    if (this.deployState !== 'mobile') {
+      // Artillery must pack up first; the move resumes when it is mobile again.
+      this.pendingMove = { x, y, attack: attackMove };
+      if (this.deployState === 'deployed' || this.deployState === 'deploying') {
+        this.deployState = 'packing';
+        this.deployT = 0;
+      }
+      return;
+    }
     if (queue && (this.order === 'move' || this.order === 'attackMove') && (this.path.length || this.waypoints.length)) {
       this.waypoints.push({ x, y, attack: attackMove });
       return;
@@ -240,9 +265,30 @@ export class Squad {
     return m;
   }
 
-  /** True if `viewer` cannot see this squad at all (burrowed and undetected). */
+  /** True if `viewer` cannot see this squad at all (burrowed and undetected, or riding in a transport). */
   hiddenFrom(viewer: Owner): boolean {
-    return viewer !== this.owner && this.burrowed && !this.detected;
+    return !!this.carrier || (viewer !== this.owner && this.burrowed && !this.detected);
+  }
+
+  get embarked(): boolean {
+    return !!this.carrier;
+  }
+
+  get isVehicle(): boolean {
+    return this.def.category === 'vehicle';
+  }
+
+  /** Weapon reach, including the deployed-artillery bonus. */
+  get range(): number {
+    return this.def.range + (this.deployState === 'deployed' ? this.def.deploy?.rangeBonus ?? 0 : 0);
+  }
+
+  /** Walk to a friendly transport and climb in. */
+  board(t: Squad): void {
+    this.stop();
+    this.boardTarget = t;
+    this.setPath(t.center.x, t.center.y);
+    this.order = 'move';
   }
 
   /** Orders engineers to walk over and repair a friendly structure. */
@@ -262,7 +308,17 @@ export class Squad {
   }
 
   private setPath(x: number, y: number): void {
-    this.path = this.battle.pathfinder.find(this.x, this.y, x, y);
+    if (this.def.flying) {
+      const m = this.battle.map;
+      this.path = [{ x: Phaser.Math.Clamp(x, 32, m.worldWidth - 32), y: Phaser.Math.Clamp(y, 32, m.worldHeight - 32) }];
+      return;
+    }
+    this.path = this.battle.pathfinder.find(this.x, this.y, x, y, this.isVehicle && this.def.size >= 18);
+  }
+
+  /** Public path request (used by support systems). */
+  pathTo(x: number, y: number): void {
+    this.setPath(x, y);
   }
 
   // ---- Update -------------------------------------------------------------
@@ -303,7 +359,8 @@ export class Squad {
     this.retargetTimer = UNITS.retargetInterval;
     const c = this.center;
     if (this.order !== 'attack') {
-      const reach = this.def.range + (this.order === 'hold' ? 0 : this.stance === 'aggressive' ? UNITS.acquireBonus * 2 : UNITS.acquireBonus);
+      const deployedArty = !!this.def.deploy && this.deployState === 'deployed';
+      const reach = this.range + (this.order === 'hold' || deployedArty ? 0 : this.stance === 'aggressive' ? UNITS.acquireBonus * 2 : UNITS.acquireBonus);
       const found = this.battle.units.findTarget(this.owner, c.x, c.y, reach);
       if (found) this.target = found;
       else if (this.target) {
@@ -314,7 +371,7 @@ export class Squad {
       // Defensive squads give up the chase once the enemy leads them too far from their post.
       if (this.target && this.stance === 'defend' && this.order === 'idle') {
         const tp1 = targetPos(this.target);
-        if (Phaser.Math.Distance.Between(this.guard.x, this.guard.y, tp1.x, tp1.y) > this.def.range + LEASH) {
+        if (Phaser.Math.Distance.Between(this.guard.x, this.guard.y, tp1.x, tp1.y) > this.range + LEASH) {
           this.target = null;
           if (Phaser.Math.Distance.Between(c.x, c.y, this.guard.x, this.guard.y) > 40) this.setPath(this.guard.x, this.guard.y);
         }
@@ -325,8 +382,13 @@ export class Squad {
     const tp = targetPos(t);
     const gap = Phaser.Math.Distance.Between(c.x, c.y, tp.x, tp.y) - (isSquad(t) ? 0 : t.radius);
     this.repathTimer -= UNITS.retargetInterval;
-    const clear = this.battle.cover?.hasLineOfSight(c.x, c.y, tp.x, tp.y) ?? true;
-    if (gap > this.def.range * 0.85 || !clear) {
+    const clear = this.def.indirect || this.def.flying || (this.battle.cover?.hasLineOfSight(c.x, c.y, tp.x, tp.y) ?? true);
+    // Deployed or deploying artillery never walks after targets.
+    if (this.deployState !== 'mobile') {
+      this.path = [];
+      return;
+    }
+    if (gap > this.range * 0.85 || !clear) {
       if (this.repathTimer <= 0 || this.path.length === 0) {
         this.repathTimer = UNITS.repathInterval;
         this.setPath(tp.x, tp.y);

@@ -118,4 +118,28 @@ const nest: BuildingPainter = (o, S, H, rnd, a) => {
   a.lights.push({ x: S / 2, y: S / 2 + 6, z: 22 });
 };
 
-export const HORDE_PAINTERS: Record<string, BuildingPainter> = { hive, spire, nest, brood, maw, spine };
+/** Gestation Vat: a ribbed flesh cauldron brimming with glowing fluid and a half-formed beast. */
+const vat: BuildingPainter = (o, S, H, rnd, a) => {
+  o.groundShadow(0, 0, S, S);
+  tendrils(o, S / 2, S / 2, 10, S * 0.5, rnd);
+  for (let i = 0; i < 14; i++) {
+    const t = (i / 14) * Math.PI * 2;
+    o.blob(S / 2 + Math.cos(t) * 88, S / 2 + Math.sin(t) * 76, 14, 24, 26, i % 2 ? FLESH : CHITIN);
+  }
+  // The pool itself: glowing acid with something curled up inside.
+  o.blob(S / 2, S / 2, 20, 80, 10, 0x2a4a10);
+  o.blob(S / 2, S / 2, 26, 70, 6, 0x6ab030);
+  o.blob(S / 2 - 10, S / 2 + 4, 30, 30, 14, 0x5a2a48);
+  o.light(S / 2, S / 2, 30, 10, ACID);
+  // Ribs arching over the vat.
+  for (let i = 0; i < 5; i++) {
+    const x = S / 2 - 70 + i * 35;
+    spike(o, x, S / 2 - 50, 30, (S / 2 - x) * 0.35, H - 20, 5);
+    spike(o, x, S / 2 + 50, 30, (S / 2 - x) * 0.35, H - 26, 5);
+  }
+  for (let i = 0; i < 6; i++) o.light(S / 2 + (rnd() - 0.5) * 120, S / 2 + (rnd() - 0.5) * 90, 28, 1.6, ACID);
+  a.lights.push({ x: S / 2, y: S / 2, z: 30 });
+  a.smoke.push({ x: S / 2 + 20, y: S / 2, z: 40 });
+};
+
+export const HORDE_PAINTERS: Record<string, BuildingPainter> = { hive, spire, nest, brood, maw, vat, spine };

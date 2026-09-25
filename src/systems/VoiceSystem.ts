@@ -2,7 +2,7 @@ import { MessageKey, getLanguage, onLanguageChange, t } from '../i18n';
 import { Settings } from './Settings';
 
 /** Who is speaking: sets pitch/rate so heroes sound deep and slow, troopers clipped. */
-export type Speaker = 'rifleman' | 'heavy' | 'commander' | 'announcer' | 'ranger' | 'breacher' | 'marksman' | 'engineer';
+export type Speaker = 'rifleman' | 'heavy' | 'commander' | 'announcer' | 'ranger' | 'breacher' | 'marksman' | 'engineer' | 'crew';
 
 /** Priority categories: higher interrupts lower; each has its own cooldown. */
 export type VoiceCategory = 'ack' | 'event' | 'alert';
@@ -16,6 +16,7 @@ const PROFILE: Record<Speaker, { pitch: number; rate: number }> = {
   breacher: { pitch: 0.62, rate: 0.96 },
   marksman: { pitch: 0.8, rate: 0.86 },
   engineer: { pitch: 0.9, rate: 1.0 },
+  crew: { pitch: 0.72, rate: 1.04 },
 };
 const PRIORITY: Record<VoiceCategory, number> = { ack: 1, event: 2, alert: 3 };
 const COOLDOWN_MS: Record<VoiceCategory, number> = { ack: 900, event: 2500, alert: 6000 };

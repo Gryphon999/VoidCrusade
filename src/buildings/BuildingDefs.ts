@@ -3,11 +3,11 @@ import { Faction, Tier, UnitId } from '../units/UnitDefs';
 import { DamageType } from '../units/Damage';
 
 export type BuildingId =
-  | 'stronghold' | 'generator' | 'depot' | 'barracks' | 'mechanis' | 'turret' | 'relay' | 'research'
-  | 'hive' | 'spire' | 'nest' | 'brood' | 'maw' | 'spine';
+  | 'stronghold' | 'generator' | 'depot' | 'barracks' | 'mechanis' | 'foundry' | 'turret' | 'relay' | 'research'
+  | 'hive' | 'spire' | 'nest' | 'brood' | 'maw' | 'vat' | 'spine';
 
 /** Functional role — lets the AI and rules treat both factions uniformly. */
-export type BuildingRole = 'hq' | 'power' | 'supply' | 'infantry' | 'heavy' | 'defense' | 'relay' | 'research';
+export type BuildingRole = 'hq' | 'power' | 'supply' | 'infantry' | 'heavy' | 'vehicles' | 'defense' | 'relay' | 'research';
 
 /** Build-menu page a structure appears on. */
 export type BuildCategory = 'economy' | 'military' | 'defense' | 'tech';
@@ -71,6 +71,11 @@ export const BUILDING_DEFS: Record<BuildingId, BuildingDef> = {
     fluxGen: 0, hp: 1200, buildTime: 20, size: 3, height: 70, buildRadius: 10, requires: ['power', 'infantry'], produces: ['heavy'],
     description: 'Trains Iron Guard heavy squads.',
   },
+  foundry: {
+    id: 'foundry', name: 'Vehicle Foundry', faction: 'ironvoid', role: 'vehicles', category: 'military', tier: 2, cost: { scrip: 250, flux: 150 },
+    fluxGen: 0, hp: 1500, buildTime: 25, size: 4, height: 78, buildRadius: 10, requires: ['power', 'infantry'],
+    produces: ['buggy', 'apc', 'tank', 'artillery'], description: 'Assembles buggies, transports, tanks and siege walkers.',
+  },
   turret: {
     id: 'turret', name: 'Void Turret', faction: 'ironvoid', role: 'defense', category: 'defense', tier: 1, cost: { scrip: 75, flux: 50 },
     fluxGen: 0, hp: 700, buildTime: 10, size: 2, height: 40, buildRadius: 6, requires: ['power'], produces: [],
@@ -111,6 +116,11 @@ export const BUILDING_DEFS: Record<BuildingId, BuildingDef> = {
     fluxGen: 0, hp: 1100, buildTime: 20, size: 3, height: 60, buildRadius: 10, requires: ['power', 'infantry'],
     produces: ['behemoth', 'burrower'], regen: 3, description: 'Births Behemoths and Burrowers.',
   },
+  vat: {
+    id: 'vat', name: 'Gestation Vat', faction: 'nullhorde', role: 'vehicles', category: 'military', tier: 2, cost: { scrip: 250, flux: 150 },
+    fluxGen: 0, hp: 1400, buildTime: 25, size: 4, height: 70, buildRadius: 10, requires: ['power', 'infantry'],
+    produces: ['skimmer', 'carrier', 'siegebeast', 'titan'], regen: 4, description: 'A womb-pool that grows skimmers, carriers, siege beasts and titans.',
+  },
   spine: {
     id: 'spine', name: 'Spine Tower', faction: 'nullhorde', role: 'defense', category: 'defense', tier: 1, cost: { scrip: 75, flux: 50 },
     fluxGen: 0, hp: 650, buildTime: 10, size: 2, height: 54, buildRadius: 6, requires: ['power'], produces: [],
@@ -119,7 +129,7 @@ export const BUILDING_DEFS: Record<BuildingId, BuildingDef> = {
 };
 
 /** Buildings the player may construct, in build-menu order. */
-export const PLAYER_BUILD_LIST: BuildingId[] = ['generator', 'depot', 'relay', 'barracks', 'mechanis', 'turret', 'research'];
+export const PLAYER_BUILD_LIST: BuildingId[] = ['generator', 'depot', 'relay', 'barracks', 'mechanis', 'foundry', 'turret', 'research'];
 
 export function buildList(faction: Faction): BuildingId[] {
   return (Object.values(BUILDING_DEFS) as BuildingDef[]).filter((d) => d.faction === faction && d.role !== 'hq').map((d) => d.id);

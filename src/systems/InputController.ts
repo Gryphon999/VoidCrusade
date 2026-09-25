@@ -206,6 +206,29 @@ export class InputController {
       const enemy = this.enemyAt(p);
       const v = this.view(p);
       const own = enemy ? undefined : this.battle.buildings.buildingAtView(v.x, v.y);
+      // Infantry right-clicking a friendly transport climbs in.
+      const ride = enemy ? undefined : this.battle.units.squadAtView(v.x, v.y, 'player');
+      if (ride && ride.def.transport) {
+        const riders = sel.squads.filter((s) => this.battle.vehicles.canBoard(s, ride));
+        if (riders.length) {
+          riders.slice(0, ride.def.transport - ride.cargo.length).forEach((s) => s.board(ride));
+          this.battle.effects.orderMarker(ride.center.x, ride.center.y, false);
+          this.acknowledge('move');
+          return;
+        }
+      }
+      // Engineers right-clicking a wreck strip it for Scrip.
+      const wreck = enemy ? null : this.battle.wrecks.wreckAtView(v.x, v.y);
+      const salvagers = wreck ? sel.squads.filter((s) => s.def.repairRate) : [];
+      if (wreck && salvagers.length) {
+        salvagers.forEach((s) => {
+          s.stop();
+          s.salvageTarget = wreck;
+        });
+        this.battle.effects.orderMarker(wreck.x, wreck.y, false);
+        if (!VoiceBridge.repair(salvagers[0])) this.acknowledge('move');
+        return;
+      }
       const fixers = own && own.owner === 'player' && (own.hp < own.maxHp || !own.isReady) ? sel.squads.filter((s) => s.def.repairRate) : [];
       if (own && fixers.length) {
         fixers.forEach((s) => s.repair(own));

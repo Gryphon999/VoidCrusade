@@ -24,7 +24,7 @@ export class UnitSystem {
 
   spawnSquad(id: UnitId, owner: Owner, x: number, y: number, size?: number): Squad {
     const def = UNIT_DEFS[id];
-    const bonus = def.isHero ? 0 : this.battle.modifiers[owner].squadSizeBonus;
+    const bonus = def.isHero || def.category === 'vehicle' ? 0 : this.battle.modifiers[owner].squadSizeBonus;
     const max = def.squadSize + bonus;
     const p = this.findOpenSpot(x, y);
     const squad = new Squad(this.battle, def, owner, p.x, p.y, size ?? max, max);
@@ -77,7 +77,7 @@ export class UnitSystem {
     let best: Squad | undefined;
     let bestY = -Infinity;
     for (const s of this.squads) {
-      if (!s.alive || (owner && s.owner !== owner)) continue;
+      if (!s.alive || s.embarked || (owner && s.owner !== owner)) continue;
       for (const u of s.units) {
         if (u.y > bestY && u.containsView(vx, vy)) {
           best = s;
@@ -90,8 +90,8 @@ export class UnitSystem {
 
   /** Squads with any soldier's body inside a view-space rectangle (drag box). */
   squadsInViewRect(r: Phaser.Geom.Rectangle, owner: Owner): Squad[] {
-    return this.squads.filter((s) => s.alive && s.owner === owner
-      && s.units.some((u) => r.contains(u.x, Projection.vy(u.y) - u.height * 0.5)));
+    return this.squads.filter((s) => s.alive && !s.embarked && s.owner === owner
+      && s.units.some((u) => r.contains(u.x, Projection.vy(u.y) - u.lift - u.height * 0.5)));
   }
 
   /** Nearest visible enemy squad or building within `reach` of (x, y). */
@@ -145,8 +145,9 @@ export class UnitSystem {
 
   update(dt: number): void {
     this.rebuildGrid();
-    for (const s of this.squads) s.update(dt);
+    for (const s of this.squads) if (!s.embarked) s.update(dt);
     for (const s of this.squads) {
+      if (s.embarked) continue;
       for (const u of s.units) this.steer(u, dt);
     }
     this.drawBars();
@@ -169,7 +170,7 @@ export class UnitSystem {
   private drawBars(): void {
     const g = this.bars.clear();
     for (const s of this.squads) {
-      if (!s.alive || s.units.length === 0) continue;
+      if (!s.alive || s.units.length === 0 || s.embarked) continue;
       const frac = s.hp / s.maxHp;
       if (!s.selected && frac >= 0.999) continue;
       if (s.owner === 'enemy' && !s.units.some((u) => u.isShown)) continue;
@@ -178,7 +179,7 @@ export class UnitSystem {
       let x1 = -Infinity;
       let bottom = -Infinity;
       for (const u of s.units) {
-        const gy = Projection.vy(u.y);
+        const gy = Projection.vy(u.y) - u.lift;
         top = Math.min(top, gy - u.height);
         bottom = Math.max(bottom, gy + 4);
         x0 = Math.min(x0, u.x - 10);
@@ -272,7 +273,8 @@ export class UnitSystem {
       return;
     }
     let goal = u.squad.slotPos(u);
-    if (!map.isPassableWorld(goal.x, goal.y)) goal = { x: u.squad.x, y: u.squad.y };
+    const flying = !!u.def.flying;
+    if (!flying && !map.isPassableWorld(goal.x, goal.y)) goal = { x: u.squad.x, y: u.squad.y };
     let dx = goal.x - u.x;
     let dy = goal.y - u.y;
     const dist = Math.hypot(dx, dy);
@@ -286,7 +288,7 @@ export class UnitSystem {
     }
     const sepR = UNITS.separationRadius + u.radius;
     for (const o of this.neighbors(u.x, u.y, sepR, this.scratch)) {
-      if (o === u) continue;
+      if (o === u || !!o.def.flying !== flying) continue;
       dx = u.x - o.x;
       dy = u.y - o.y;
       const d = Math.hypot(dx, dy);
@@ -301,7 +303,11 @@ export class UnitSystem {
     u.vy = vy;
     const nx = u.x + vx * dt;
     const ny = u.y + vy * dt;
-    if (map.isPassableWorld(nx, ny)) {
+    if (flying) {
+      // Hovering: cliffs and structures are no obstacle, only the map edge.
+      u.x = Phaser.Math.Clamp(nx, 16, map.worldWidth - 16);
+      u.y = Phaser.Math.Clamp(ny, 16, map.worldHeight - 16);
+    } else if (map.isPassableWorld(nx, ny)) {
       u.x = nx;
       u.y = ny;
     } else if (map.isPassableWorld(nx, u.y)) {
@@ -317,7 +323,7 @@ export class UnitSystem {
     const t = u.squad.engaged;
     if (t && !u.squad.isMoving()) {
       const tp = 'units' in t ? t.center : { x: t.x, y: t.y };
-      u.face(tp.x, tp.y);
+      u.aim(tp.x, tp.y);
     } else if (Math.abs(vx) + Math.abs(vy) > 8) {
       u.face(u.x + vx, u.y + vy);
     }

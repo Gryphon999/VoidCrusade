@@ -5,7 +5,7 @@ import { textStyle } from '../ui/uiStyle';
 
 const SPEAKER_COLOR: Record<Speaker, string> = {
   rifleman: '#9cc8ff', heavy: '#9cc8ff', commander: '#f0d27a', announcer: '#e8e0c8',
-  ranger: '#b0e0a0', breacher: '#ffb080', marksman: '#b0e0a0', engineer: '#f0e090',
+  ranger: '#b0e0a0', breacher: '#ffb080', marksman: '#b0e0a0', engineer: '#f0e090', crew: '#c8d0e0',
 };
 
 /** Always-on-top overlay that shows voice-line subtitles in every scene. */

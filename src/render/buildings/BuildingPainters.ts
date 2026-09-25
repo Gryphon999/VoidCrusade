@@ -240,6 +240,31 @@ const depot: BuildingPainter = (o, S, H, rnd, a) => {
   a.smoke.push({ x: 20, y: 22, z: H + 4 });
 };
 
+/** Vehicle Foundry: a big assembly hall with a rolling gate, gantry crane and smokestacks. */
+const foundry: BuildingPainter = (o, S, H, _r, a) => {
+  o.groundShadow(0, 0, S, S);
+  o.box(4, 8, 0, S - 8, S - 16, 12, STONE_D);
+  o.box(10, 14, 12, S - 20, S - 34, H - 34, STEEL);
+  // Saw-tooth factory roof.
+  for (let i = 0; i < 5; i++) o.box(12 + i * ((S - 24) / 5), 16, H - 22, (S - 24) / 5 - 2, S - 38, 10 + (i % 2) * 6, i % 2 ? 0x4a525c : 0x3e454e);
+  // Rolling gate with hazard stripes and a half-built hull inside.
+  o.frontRect(30, S - 20, 12, S - 60, H - 40, '#0e0e10');
+  o.box(46, S - 34, 12, S - 92, 12, 12, 0x3c4450);
+  o.box(60, S - 32, 24, S - 120, 8, 8, 0x2f63c8);
+  for (let i = 0; i < 12; i++) o.frontRect(28 + i * ((S - 56) / 12), S - 20, H - 30, (S - 56) / 24, 6, i % 2 ? '#1a1a1a' : '#d8b030');
+  crest(o, S / 2, S - 20, H - 18, 11);
+  // Gantry crane over the yard and twin stacks.
+  o.strut(14, S - 12, 12, 14, S - 12, H + 18, 3, BRASS);
+  o.strut(S - 14, S - 12, 12, S - 14, S - 12, H + 18, 3, BRASS);
+  o.strut(14, S - 12, H + 18, S - 14, S - 12, H + 18, 3, BRASS);
+  for (const x of [30, 60]) {
+    o.cylinder(x, 30, H - 22, 8, 40, STEEL_D, 0x1a1a1a);
+    a.smoke.push({ x, y: 30, z: H + 20 });
+  }
+  o.light(S / 2, S - 12, H + 18, 2.4, 0xff3020);
+  a.lights.push({ x: S / 2, y: S - 12, z: H + 18 }, { x: S / 2, y: S - 20, z: 30 });
+};
+
 export const IRON_PAINTERS: Record<string, BuildingPainter> = {
-  stronghold, generator, depot, barracks, mechanis, turret, relay, research,
+  stronghold, generator, depot, barracks, mechanis, foundry, turret, relay, research,
 };

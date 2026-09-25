@@ -69,21 +69,38 @@ export class Pathfinder {
     this.closed = new Uint32Array(n);
   }
 
-  /** Returns world-space waypoints from start to goal (excluding start). */
-  find(sx: number, sy: number, gx: number, gy: number): Pt[] {
+  /**
+   * Wide-body passability: the tile is open and belongs to at least one fully open 2x2 block,
+   * so vehicles never squeeze through one-tile gaps.
+   */
+  isWidePassable(tx: number, ty: number): boolean {
+    const m = this.map;
+    if (!m.isPassable(tx, ty)) return false;
+    for (const [ox, oy] of [[0, 0], [-1, 0], [0, -1], [-1, -1]]) {
+      const x = tx + ox;
+      const y = ty + oy;
+      if (m.isPassable(x, y) && m.isPassable(x + 1, y) && m.isPassable(x, y + 1) && m.isPassable(x + 1, y + 1)) return true;
+    }
+    return false;
+  }
+
+  /** Returns world-space waypoints from start to goal (excluding start). `wide` = vehicle clearance. */
+  find(sx: number, sy: number, gx: number, gy: number, wide = false): Pt[] {
     const m = this.map;
     const W = m.width;
+    const pass = wide ? (x: number, y: number): boolean => this.isWidePassable(x, y) : (x: number, y: number): boolean => m.isPassable(x, y);
+    const clearance = wide ? 26 : 10;
     const s = m.worldToTile(sx, sy);
     let goal = m.worldToTile(gx, gy);
-    if (!m.isPassable(goal.tx, goal.ty)) {
-      const alt = this.nearestPassable(goal.tx, goal.ty);
+    if (!pass(goal.tx, goal.ty)) {
+      const alt = this.nearestPassable(goal.tx, goal.ty, pass);
       if (!alt) return [];
       goal = alt;
       const w = m.tileToWorld(alt.tx, alt.ty);
       gx = w.x;
       gy = w.y;
     }
-    if (this.hasLine(sx, sy, gx, gy)) return [{ x: gx, y: gy }];
+    if (this.hasLine(sx, sy, gx, gy, clearance)) return [{ x: gx, y: gy }];
     this.run++;
     const start = s.ty * W + s.tx;
     const target = goal.ty * W + goal.tx;
@@ -106,8 +123,8 @@ export class Pathfinder {
       for (const [dx, dy, cost] of DIRS) {
         const nx = cx + dx;
         const ny = cy + dy;
-        if (!m.isPassable(nx, ny)) continue;
-        if (dx !== 0 && dy !== 0 && (!m.isPassable(cx + dx, cy) || !m.isPassable(cx, cy + dy))) continue;
+        if (!pass(nx, ny)) continue;
+        if (dx !== 0 && dy !== 0 && (!pass(cx + dx, cy) || !pass(cx, cy + dy))) continue;
         const ni = ny * W + nx;
         if (this.closed[ni] === this.run) continue;
         const ng = this.g[cur] + cost;
@@ -123,7 +140,7 @@ export class Pathfinder {
     }
     tiles.reverse();
     if (tiles.length) tiles[tiles.length - 1] = { x: gx, y: gy };
-    return this.smooth({ x: sx, y: sy }, tiles);
+    return this.smooth({ x: sx, y: sy }, tiles, clearance);
   }
 
   private visit(i: number, g: number, f: number, parent: number): void {
@@ -133,13 +150,13 @@ export class Pathfinder {
     this.parent[i] = parent;
   }
 
-  private smooth(start: Pt, pts: Pt[]): Pt[] {
+  private smooth(start: Pt, pts: Pt[], clearance: number): Pt[] {
     const out: Pt[] = [];
     let anchor = start;
     let i = 0;
     while (i < pts.length) {
       let j = pts.length - 1;
-      while (j > i && !this.hasLine(anchor.x, anchor.y, pts[j].x, pts[j].y)) j--;
+      while (j > i && !this.hasLine(anchor.x, anchor.y, pts[j].x, pts[j].y, clearance)) j--;
       out.push(pts[j]);
       anchor = pts[j];
       i = j + 1;
@@ -148,11 +165,11 @@ export class Pathfinder {
   }
 
   /** True if a straight walk between two world points stays on passable tiles (with body clearance). */
-  hasLine(x0: number, y0: number, x1: number, y1: number): boolean {
+  hasLine(x0: number, y0: number, x1: number, y1: number, clearance = 10): boolean {
     const d = Math.hypot(x1 - x0, y1 - y0);
     const steps = Math.ceil(d / (TILE_SIZE / 4));
-    const nx = d > 0 ? (-(y1 - y0) / d) * 10 : 0;
-    const ny = d > 0 ? ((x1 - x0) / d) * 10 : 0;
+    const nx = d > 0 ? (-(y1 - y0) / d) * clearance : 0;
+    const ny = d > 0 ? ((x1 - x0) / d) * clearance : 0;
     for (let s = 0; s <= steps; s++) {
       const t = steps === 0 ? 0 : s / steps;
       const x = x0 + (x1 - x0) * t;
@@ -162,12 +179,12 @@ export class Pathfinder {
     return true;
   }
 
-  nearestPassable(tx: number, ty: number): { tx: number; ty: number } | null {
+  nearestPassable(tx: number, ty: number, pass = (x: number, y: number): boolean => this.map.isPassable(x, y)): { tx: number; ty: number } | null {
     for (let r = 1; r < 12; r++) {
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
           if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-          if (this.map.isPassable(tx + dx, ty + dy)) return { tx: tx + dx, ty: ty + dy };
+          if (pass(tx + dx, ty + dy)) return { tx: tx + dx, ty: ty + dy };
         }
       }
     }

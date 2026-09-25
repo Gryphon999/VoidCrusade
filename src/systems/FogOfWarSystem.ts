@@ -70,7 +70,7 @@ export class FogOfWarSystem implements FogQueries {
     for (let i = 0; i < this.state.length; i++) if (this.state[i] === VISIBLE) this.state[i] = EXPLORED;
     if (!this.enabled) this.state.fill(VISIBLE);
     for (const s of this.battle.units.squads) {
-      if (s.owner !== 'player' || !s.alive) continue;
+      if (s.owner !== 'player' || !s.alive || s.embarked) continue;
       for (const u of s.units) this.reveal(u.x, u.y, u.def.sight);
     }
     for (const b of this.battle.buildings.buildings) {

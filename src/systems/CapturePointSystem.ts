@@ -29,7 +29,7 @@ export class CapturePointSystem {
   presence(p: CapturePoint): Record<Owner, number> {
     const out: Record<Owner, number> = { player: 0, enemy: 0 };
     for (const s of this.battle.units.squads) {
-      if (s.alive && s.def.canCapture && !s.burrowed && s.units.some((u) => p.contains(u.x, u.y))) out[s.owner]++;
+      if (s.alive && s.def.canCapture && !s.burrowed && !s.embarked && s.units.some((u) => p.contains(u.x, u.y))) out[s.owner]++;
     }
     return out;
   }

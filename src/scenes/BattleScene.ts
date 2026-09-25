@@ -21,6 +21,8 @@ import { BuildingPlacementUI } from '../buildings/BuildingPlacementUI';
 import { UnitSystem } from '../units/UnitSystem';
 import { CombatSystem } from '../units/CombatSystem';
 import { SupportSystem } from '../units/SupportSystem';
+import { VehicleSystem } from '../units/VehicleSystem';
+import { WreckSystem } from '../units/WreckSystem';
 import { Unit } from '../units/Unit';
 import { Squad } from '../units/Squad';
 import { RESOURCES, SUPPLY } from '../config';
@@ -65,6 +67,8 @@ export class BattleScene extends Phaser.Scene {
   units!: UnitSystem;
   combat!: CombatSystem;
   support!: SupportSystem;
+  vehicles!: VehicleSystem;
+  wrecks!: WreckSystem;
   production!: ProductionSystem;
   research!: ResearchSystem;
   tech!: TechSystem;
@@ -118,6 +122,7 @@ export class BattleScene extends Phaser.Scene {
     this.units = new UnitSystem(this);
     this.combat = new CombatSystem(this);
     this.support = new SupportSystem(this);
+    this.vehicles = new VehicleSystem(this);
     this.production = new ProductionSystem(this);
     this.research = new ResearchSystem(this);
     this.tech = new TechSystem(this, this.factions);
@@ -126,6 +131,7 @@ export class BattleScene extends Phaser.Scene {
     new PropSystem(this, this.map.def.id.length * 7919 + (data.mapIndex ?? 0));
     this.selection = new SelectionSystem(this);
     this.effects = new EffectsSystem(this);
+    this.wrecks = new WreckSystem(this);
     this.placement = new BuildingPlacementUI(this, this.buildings, (x, y) => this.cameraSystem.screenToWorld(x, y));
 
     const { playerBase, enemyBase } = this.map.def;
@@ -197,6 +203,8 @@ export class BattleScene extends Phaser.Scene {
     this.units.update(dt);
     this.combat.update(dt);
     this.support.update(dt);
+    this.vehicles.update(dt);
+    this.wrecks.update();
     this.cover?.update(dt);
     this.capture.update(dt);
     this.ai.update(dt);

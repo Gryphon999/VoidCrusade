@@ -10,7 +10,7 @@ import type { BattleScene } from '../scenes/BattleScene';
 const OWNER = 'enemy';
 
 /** Initial build order (roles), executed first 60s then continued as funds allow. */
-const BUILD_ORDER: BuildingRole[] = ['power', 'power', 'infantry', 'supply', 'defense', 'power', 'supply', 'heavy', 'defense', 'infantry', 'supply', 'defense'];
+const BUILD_ORDER: BuildingRole[] = ['power', 'power', 'infantry', 'supply', 'defense', 'power', 'supply', 'heavy', 'defense', 'vehicles', 'supply', 'infantry', 'defense', 'supply'];
 
 /**
  * Null Horde opponent. Behaviours, in priority order:
@@ -64,6 +64,10 @@ export class AIController {
     const cap = this.battle.units.supplyCap(OWNER);
     if (cap < SUPPLY.hardMax && this.battle.production.supplyUsed(OWNER) + 4 > cap && this.tryBuild('supply')) return;
     const inBuildPhase = this.battle.elapsed < AI.buildPhase;
+    // Push for Tier 3 once the vehicle factory stands.
+    if (this.battle.tech.tierOf(OWNER) < 3 && bs.hasRole(OWNER, 'vehicles') && this.battle.tech.checkAdvance(OWNER) === null) {
+      this.battle.tech.advance(OWNER);
+    }
     if (this.buildIndex >= BUILD_ORDER.length) {
       // Late game: rebuild lost production and add defenses when rich.
       if (!bs.hasRole(OWNER, 'infantry', false)) this.buildIndex = BUILD_ORDER.indexOf('infantry');

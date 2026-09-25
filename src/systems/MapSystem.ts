@@ -13,12 +13,15 @@ export class MapSystem {
   private tiles: number[][];
   /** Tiles occupied by buildings (blocks movement). */
   private occupied: Uint8Array;
+  /** Tiles blocked by wrecks (counter, so overlapping wrecks stack). */
+  private blocked: Uint8Array;
   private terrain?: TerrainRenderer;
 
   constructor(def: MapDef) {
     this.def = def;
     this.tiles = def.tiles.map((r) => r.slice());
     this.occupied = new Uint8Array(MAP_W * MAP_H);
+    this.blocked = new Uint8Array(MAP_W * MAP_H);
   }
 
   /** Bakes the projected terrain. */
@@ -54,7 +57,7 @@ export class MapSystem {
 
   /** Passable for units: not a cliff and not covered by a building. */
   isPassable(tx: number, ty: number): boolean {
-    return this.isTerrainPassable(tx, ty) && this.occupied[ty * MAP_W + tx] === 0;
+    return this.isTerrainPassable(tx, ty) && this.occupied[ty * MAP_W + tx] === 0 && this.blocked[ty * MAP_W + tx] === 0;
   }
 
   isPassableWorld(wx: number, wy: number): boolean {
@@ -63,7 +66,18 @@ export class MapSystem {
   }
 
   isOccupied(tx: number, ty: number): boolean {
-    return !this.inBounds(tx, ty) || this.occupied[ty * MAP_W + tx] !== 0;
+    return !this.inBounds(tx, ty) || this.occupied[ty * MAP_W + tx] !== 0 || this.blocked[ty * MAP_W + tx] !== 0;
+  }
+
+  /** Adds/removes a wreck blocker on one tile. */
+  setBlocked(tx: number, ty: number, on: boolean): void {
+    if (!this.inBounds(tx, ty)) return;
+    const i = ty * MAP_W + tx;
+    this.blocked[i] = Math.max(0, this.blocked[i] + (on ? 1 : -1));
+  }
+
+  isBlocked(tx: number, ty: number): boolean {
+    return this.inBounds(tx, ty) && this.blocked[ty * MAP_W + tx] !== 0;
   }
 
   setOccupied(tx: number, ty: number, w: number, h: number, value: boolean): void {

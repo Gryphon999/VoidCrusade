@@ -3,7 +3,7 @@ import { DEPTH } from '../config';
 import { Projection } from '../render/Projection';
 import { Owner } from '../types';
 import { UnitDef } from './UnitDefs';
-import { MODEL_HEIGHT, UNIT_MODELS, atlasKey, dirFromAngle, frameName } from '../render/puppet/UnitAtlas';
+import { MODEL_HEIGHT, UNIT_MODELS, atlasKey, dirFromAngle, frameName, turretKey } from '../render/puppet/UnitAtlas';
 import { AnimName } from '../render/puppet/Models';
 import type { Squad } from './Squad';
 
@@ -32,6 +32,11 @@ export class Unit {
   angle: number;
   /** Height above ground (leaps), px. */
   lift = 0;
+  /** Turret facing (tanks); follows the hull when there is nothing to shoot. */
+  turretAngle: number;
+  private turret?: Phaser.GameObjects.Image;
+  private turretFrame = '';
+  private hoverT = Math.random() * 6;
   /** Multiplier for the next attack (leap landing, ambush). */
   strikeMult = 1;
   /** Active leap arc. */
@@ -63,6 +68,7 @@ export class Unit {
     this.hp = this.maxHp;
     this.cooldown = Math.random() * this.def.cooldown;
     this.angle = this.owner === 'player' ? -Math.PI / 4 : (Math.PI * 3) / 4;
+    this.turretAngle = this.angle;
     const k = Projection.tilt;
     const m = UNIT_MODELS[this.def.id];
     const w = this.def.size * 3;
@@ -78,6 +84,10 @@ export class Unit {
     const key = atlasKey(this.def.id);
     this.sprite = scene.add.image(x, Projection.vy(y), key, frameName('idle', 0, 2)).setDepth(Projection.depth(y));
     this.sprite.setOrigin(m.anchorX / m.cellW, m.anchorY / m.cellH);
+    if (this.def.turret) {
+      this.turret = scene.add.image(x, Projection.vy(y), turretKey(this.def.id), 'turret0_2').setDepth(Projection.depth(y) + 0.5);
+      this.turret.setOrigin(this.sprite.originX, this.sprite.originY);
+    }
     this.silhouette = scene.add.image(x, y, key, frameName('idle', 0, 2)).setDepth(DEPTH.silhouettes);
     this.silhouette.setOrigin(this.sprite.originX, this.sprite.originY).setTintFill(0x9ad0ff).setAlpha(0.35).setVisible(false);
     this.shield = scene.add.image(x, y, 'icon_cover').setDepth(DEPTH.bars - 1).setVisible(false);
@@ -95,12 +105,12 @@ export class Unit {
 
   /** Chest-height point in view space (projectile origin / impact). */
   aimPoint(): { x: number; y: number } {
-    return { x: this.x, y: Projection.vy(this.y) - this.height * 0.55 };
+    return { x: this.x, y: Projection.vy(this.y) - this.lift - this.height * 0.55 };
   }
 
   /** True if a view-space point lies on this unit's drawn body. */
   containsView(vx: number, vy: number): boolean {
-    const gy = Projection.vy(this.y);
+    const gy = Projection.vy(this.y) - this.lift;
     const r = Math.max(this.def.size + 5, this.height * 0.3);
     return vx >= this.x - r && vx <= this.x + r && vy >= gy - this.height - 2 && vy <= gy + 6;
   }
@@ -122,9 +132,16 @@ export class Unit {
     return false;
   }
 
-  /** Turns toward a logical point (smoothed). */
+  /** Turns toward a logical point (smoothed). Vehicles turn slowly. */
   face(tx: number, ty: number): void {
-    this.angle = Phaser.Math.Angle.RotateTo(this.angle, Math.atan2(ty - this.y, tx - this.x), 0.3);
+    const rate = this.def.category === 'vehicle' ? 0.12 : 0.3;
+    this.angle = Phaser.Math.Angle.RotateTo(this.angle, Math.atan2(ty - this.y, tx - this.x), rate);
+  }
+
+  /** Points the weapon at a logical point: the turret if there is one, else the whole body. */
+  aim(tx: number, ty: number): void {
+    if (this.turret) this.turretAngle = Phaser.Math.Angle.RotateTo(this.turretAngle, Math.atan2(ty - this.y, tx - this.x), 0.4);
+    else this.face(tx, ty);
   }
 
   /** Muzzle flash / strike frame; holds the aim pose afterwards. */
@@ -141,6 +158,7 @@ export class Unit {
     if (this.shown === shown) return;
     this.shown = shown;
     this.sprite.setVisible(shown);
+    this.turret?.setVisible(shown);
     this.shadow.setVisible(shown && !this.squad.burrowed);
     this.aura?.setVisible(shown);
     this.mound?.setVisible(shown && this.squad.burrowed);
@@ -189,6 +207,18 @@ export class Unit {
     return true;
   }
 
+  /** Riding in a transport: nothing of the soldier is drawn. */
+  setEmbarked(on: boolean): void {
+    for (const o of [this.sprite, this.shadow, this.ring, this.shield, this.silhouette]) o.setVisible(false);
+    this.aura?.setVisible(false);
+    this.turret?.setVisible(false);
+    if (!on) {
+      this.sprite.setVisible(this.shown);
+      this.shadow.setVisible(this.shown);
+      this.aura?.setVisible(this.shown);
+    }
+  }
+
   setCover(cover: boolean): void {
     this.inCover = cover;
     this.shield.setVisible(cover && this.shown);
@@ -214,6 +244,10 @@ export class Unit {
       frame = 1;
     } else if (this.leapArc) {
       anim = 'attack';
+    } else if (this.squad.deployState === 'deployed' || this.squad.deployState === 'deploying') {
+      // Braced firing stance.
+      anim = 'attack';
+      frame = this.fireT > -0.15 && this.fireT < 0.1 ? 1 : 0;
     } else if (speed > 12) {
       this.walkT += dt * (speed / this.def.speed) * 9;
       anim = 'walk';
@@ -236,12 +270,25 @@ export class Unit {
       this.sprite.setFrame(name);
       if (this.occluded) this.silhouette.setFrame(name);
     }
+    if (this.turret) {
+      if (!this.squad.engaged) this.turretAngle = Phaser.Math.Angle.RotateTo(this.turretAngle, this.angle, dt * 1.5);
+      const tn = `turret${this.fireT > 0 ? 1 : 0}_${dirFromAngle(this.turretAngle)}`;
+      if (tn !== this.turretFrame) {
+        this.turretFrame = tn;
+        this.turret.setFrame(tn);
+      }
+    }
   }
 
   syncSprite(dt = 0): void {
     this.animate(dt);
+    if (this.def.flying) {
+      this.hoverT += dt;
+      this.lift = 30 + Math.sin(this.hoverT * 2.2) * 4;
+    }
     const gy = Projection.vy(this.y);
-    this.sprite.setPosition(this.x, gy - this.lift).setDepth(Projection.depth(this.y));
+    this.sprite.setPosition(this.x, gy - this.lift).setDepth(Projection.depth(this.y) + (this.def.flying ? 60 : 0));
+    this.turret?.setPosition(this.x, gy - this.lift).setDepth(this.sprite.depth + 0.5);
     this.shadow.setPosition(this.x + 3 + this.lift * 0.3, gy + 1);
     this.mound?.setPosition(this.x, gy);
     this.ring.setPosition(this.x, gy);
@@ -254,5 +301,6 @@ export class Unit {
     for (const o of [this.sprite, this.ring, this.shield, this.shadow, this.silhouette]) o.destroy();
     this.aura?.destroy();
     this.mound?.destroy();
+    this.turret?.destroy();
   }
 }

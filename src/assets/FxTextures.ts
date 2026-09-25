@@ -61,6 +61,15 @@ export function createFxTextures(scene: Phaser.Scene): void {
       c.fill();
     }
   });
+  // Two parallel tread impressions (points along +x).
+  canvasTex(scene, 'fx_track', 20, 22, (c) => {
+    for (const y of [2, 15]) {
+      c.fillStyle = 'rgba(12,10,8,0.8)';
+      c.fillRect(0, y, 20, 5);
+      c.fillStyle = 'rgba(40,34,28,0.7)';
+      for (let x = 1; x < 20; x += 4) c.fillRect(x, y + 1, 2, 3);
+    }
+  });
   canvasTex(scene, 'fx_casing', 4, 2, (c) => {
     c.fillStyle = '#e0b040';
     c.fillRect(0, 0, 4, 2);

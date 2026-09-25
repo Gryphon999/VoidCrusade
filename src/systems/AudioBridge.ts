@@ -67,10 +67,19 @@ export class AudioBridge {
     const view = this.battle.cameraSystem.visibleWorldRect();
     // Footfalls of heavy units and clanks from construction sites on screen.
     for (const sq of this.battle.units.squads) {
-      if (!['heavy', 'commander', 'behemoth', 'overlord', 'breacher'].includes(sq.def.id)) continue;
+      if (!['heavy', 'commander', 'behemoth', 'overlord', 'breacher', 'carrier', 'siegebeast', 'titan'].includes(sq.def.id)) continue;
       const u = sq.units.find((q) => Math.hypot(q.vx, q.vy) > 12 && view.contains(q.x, q.y) && q.isShown);
       if (u) {
-        this.spatial(u.x, u.y, (v, p) => AudioSystem.footstep(v, p, sq.def.id === 'behemoth' || sq.def.id === 'overlord'));
+        this.spatial(u.x, u.y, (v, p) => AudioSystem.footstep(v, p, ['behemoth', 'overlord', 'carrier', 'siegebeast', 'titan'].includes(sq.def.id)));
+        break;
+      }
+    }
+    // Engine growl of the loudest vehicle on screen.
+    for (const sq of this.battle.units.squads) {
+      if (!sq.isVehicle || sq.def.faction !== 'ironvoid') continue;
+      const u = sq.units.find((q) => Math.hypot(q.vx, q.vy) > 12 && view.contains(q.x, q.y) && q.isShown);
+      if (u) {
+        this.spatial(u.x, u.y, (v, p) => AudioSystem.engine(v, p, sq.def.id === 'tank' || sq.def.id === 'artillery'));
         break;
       }
     }

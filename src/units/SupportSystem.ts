@@ -6,6 +6,7 @@ import { Unit } from './Unit';
 import type { BattleScene } from '../scenes/BattleScene';
 import { Projection } from '../render/Projection';
 import { EV } from '../events';
+import { SALVAGE_WORK } from './WreckSystem';
 
 const TICK = 0.25;
 
@@ -116,8 +117,45 @@ export class SupportSystem {
 
   // ---- Repair --------------------------------------------------------------
 
-  /** Engineers walk to a damaged friendly structure and weld it back together. */
+  /** Engineers strip a wreck for Scrip. */
+  private salvage(s: Squad, dt: number): boolean {
+    const w = s.salvageTarget;
+    if (!w) return false;
+    if (!w.alive) {
+      s.salvageTarget = null;
+      return false;
+    }
+    const c = s.center;
+    const gap = Phaser.Math.Distance.Between(c.x, c.y, w.x, w.y) - w.radius;
+    if (gap > 40) {
+      const last = this.repairPathAt.get(s) ?? -99;
+      if (!s.isMoving() && this.battle.elapsed - last > 1.5) {
+        this.repairPathAt.set(s, this.battle.elapsed);
+        s.pathTo(w.x + (c.x > w.x ? 1 : -1) * (w.radius + 26), w.y + 20);
+      }
+      return true;
+    }
+    w.work += dt * s.units.length;
+    for (const u of s.units) {
+      u.face(w.x, w.y);
+      if (Math.random() < dt * 2) {
+        u.playAttack();
+        this.battle.effects.sparks(u.x + Math.cos(u.angle) * 14, this.viewY(u) - 10);
+      }
+    }
+    if (w.work >= SALVAGE_WORK) {
+      this.battle.resources.grant(s.owner, 'scrip', w.value);
+      if (s.owner === 'player') this.battle.events.emit(EV.message, 'note.salvage', { n: w.value });
+      this.battle.wrecks.remove(w);
+      s.salvageTarget = null;
+    }
+    return true;
+  }
+
+  /** Engineers walk to a damaged friendly structure (or vehicle) and weld it back together. */
   private repair(s: Squad, dt: number): void {
+    if (this.salvage(s, dt)) return;
+    if (this.repairVehicle(s, dt)) return;
     let b = s.repairTarget;
     if (b && (!b.alive || b.owner !== s.owner || (b.hp >= b.maxHp && b.isReady))) {
       b = s.repairTarget = null;
@@ -148,6 +186,28 @@ export class SupportSystem {
         this.battle.effects.sparks(u.x + Math.cos(u.angle) * 14, this.viewY(u) - 10);
       }
     }
+  }
+
+  /** Iron Void engineers also patch up damaged friendly vehicles standing close by. */
+  private repairVehicle(s: Squad, dt: number): boolean {
+    if (s.repairTarget || s.order !== 'idle' || s.engaged) return false;
+    const c = s.center;
+    for (const o of this.battle.units.squads) {
+      if (!o.alive || o.owner !== s.owner || !o.isVehicle || o.def.faction !== s.def.faction) continue;
+      const v = o.units[0];
+      if (!v || v.hp >= v.maxHp) continue;
+      if (Phaser.Math.Distance.Between(c.x, c.y, v.x, v.y) > 110) continue;
+      v.hp = Math.min(v.maxHp, v.hp + (s.def.repairRate ?? 0) * s.units.length * dt * 0.6);
+      for (const u of s.units) {
+        u.face(v.x, v.y);
+        if (Math.random() < dt * 2) {
+          u.playAttack();
+          this.battle.effects.sparks(v.x + (Math.random() - 0.5) * 20, this.viewY(v) - v.height * 0.4);
+        }
+      }
+      return true;
+    }
+    return false;
   }
 
   private nearestDamaged(s: Squad, reach: number): Building | null {

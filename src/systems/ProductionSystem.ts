@@ -45,6 +45,10 @@ export class ProductionSystem {
     if (!b.def.produces.includes(id)) return 'err.cannotTrain';
     if (this.lockReason(b, id)) return this.battle.tech.tierOf(b.owner) < def.tier ? 'err.tier' : 'err.requires';
     if (b.queue.length >= UNITS.queueMax) return 'err.queueFull';
+    if (def.limit !== undefined) {
+      const alive = this.battle.units.getSquads(b.owner).filter((s) => s.def.id === id).length;
+      if (alive + this.queuedCount(b.owner, (q) => q === id) >= def.limit) return 'err.limit';
+    }
     if (def.isHero) {
       const alive = this.battle.units.getSquads(b.owner).some((s) => s.def.id === id);
       if (alive || this.queuedCount(b.owner, (q) => q === id) > 0) return 'err.heroDeployed';

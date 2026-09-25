@@ -12,7 +12,7 @@ export class CorpseSystem {
 
   constructor(private scene: Phaser.Scene) {}
 
-  spawn(u: Unit): void {
+  spawn(u: Unit): Phaser.GameObjects.Image {
     const m = UNIT_MODELS[u.def.id];
     const dir = u.dir;
     const img = this.scene.add.image(u.x, Projection.vy(u.y), atlasKey(u.def.id), frameName('death', 0, dir));
@@ -27,7 +27,8 @@ export class CorpseSystem {
         img.setFrame(frameName('death', f, dir));
         // Once down, bodies lie under the living.
         if (f === ANIM_FRAMES.death - 1) {
-          img.setDepth(DEPTH.decals + 1);
+          // Infantry bodies lie under the living; wrecks stay Y-sorted (they block movement).
+          if (u.def.category !== 'vehicle') img.setDepth(DEPTH.decals + 1);
           img.setTint(0xb8b0a8);
           Culler.for(this.scene).add(img, img.x, img.y);
         }
@@ -38,5 +39,6 @@ export class CorpseSystem {
       const old = this.corpses.shift() as Phaser.GameObjects.Image;
       this.scene.tweens.add({ targets: old, alpha: 0, duration: 1500, onComplete: () => old.destroy() });
     }
+    return img;
   }
 }

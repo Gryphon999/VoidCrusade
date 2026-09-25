@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { DEPTH, UNITS } from '../config';
 import type { ExplosionEffect } from './ExplosionEffect';
 
-export type ProjectileKind = 'bullet' | 'shell' | 'spit' | 'spine' | 'flame' | 'sniper' | 'psy';
+export type ProjectileKind = 'bullet' | 'shell' | 'spit' | 'spine' | 'flame' | 'sniper' | 'psy' | 'lob' | 'acidlob' | 'cannon';
 
 interface Shot {
   img: Phaser.GameObjects.Image;
@@ -26,7 +26,13 @@ const LOOK: Record<ProjectileKind, { tex: string; tint: number; add: boolean; ar
   flame: { tex: 'fx_soft', tint: 0xffa040, add: true, arc: 4, scale: 0.5, speed: 0.55 },
   sniper: { tex: 'fx_tracer', tint: 0xe0f4ff, add: true, arc: 0, scale: 1.8, speed: 3 },
   psy: { tex: 'fx_glob', tint: 0xd070ff, add: true, arc: 16, scale: 1.2, speed: 0.8 },
+  lob: { tex: 'fx_bolt', tint: 0xffc070, add: true, arc: 170, scale: 1.7, speed: 0.5 },
+  acidlob: { tex: 'fx_glob', tint: 0xa0ff50, add: true, arc: 160, scale: 2.2, speed: 0.45 },
+  cannon: { tex: 'fx_bolt', tint: 0xffe0a0, add: true, arc: 0, scale: 2, speed: 1.6 },
 };
+
+/** Kinds that arc high regardless of distance (indirect fire). */
+const HIGH_ARC = new Set<ProjectileKind>(['lob', 'acidlob']);
 
 /** Pooled projectiles in view space: straight tracers/bolts, arcing globs and spines, with trails. */
 export class ProjectileSystem {
@@ -69,7 +75,7 @@ export class ProjectileSystem {
     const dist = Phaser.Math.Distance.Between(from.x, from.y, to.x, to.y);
     this.live.push({
       img, kind, x0: from.x, y0: from.y, x1: to.x, y1: to.y, t: 0,
-      dur: Math.max(0.06, dist / (UNITS.projectileSpeed * look.speed)), arc: look.arc * Math.min(1, dist / 250), trailT: 0, onArrive,
+      dur: Math.max(0.06, dist / (UNITS.projectileSpeed * look.speed)), arc: HIGH_ARC.has(kind) ? look.arc * Math.min(1.4, 0.5 + dist / 600) : look.arc * Math.min(1, dist / 250), trailT: 0, onArrive,
     });
     this.place(this.live[this.live.length - 1]);
   }
@@ -90,10 +96,10 @@ export class ProjectileSystem {
       this.place(s);
       s.trailT -= dt;
       if (s.trailT <= 0) {
-        if (s.kind === 'shell') {
-          s.trailT = 0.03;
+        if (s.kind === 'shell' || s.kind === 'lob' || s.kind === 'cannon') {
+          s.trailT = s.kind === 'shell' ? 0.03 : 0.018;
           this.smoke.emitParticleAt(s.img.x, s.img.y, 1);
-        } else if (s.kind === 'spit') {
+        } else if (s.kind === 'spit' || s.kind === 'acidlob') {
           s.trailT = 0.025;
           this.acid.emitParticleAt(s.img.x, s.img.y, 1);
         } else if (s.kind === 'flame') {
@@ -112,6 +118,8 @@ export class ProjectileSystem {
       s.img.setVisible(false);
       this.pool.push(s.img);
       if (s.kind === 'shell') this.explosions.impact(s.x1, s.y1);
+      else if (s.kind === 'lob' || s.kind === 'cannon') this.explosions.blast(s.x1, s.y1, s.kind === 'lob' ? 1 : 0.6);
+      else if (s.kind === 'acidlob') this.acid.emitParticleAt(s.x1, s.y1, 18);
       else if (s.kind === 'flame') this.flame.emitParticleAt(s.x1, s.y1, 4);
       else if (s.kind === 'psy') this.psy.emitParticleAt(s.x1, s.y1, 6);
       s.onArrive();

@@ -20,9 +20,11 @@ export class CombatSystem {
 
   update(dt: number): void {
     for (const s of this.battle.units.squads) {
-      if (!s.alive || s.order === 'move' || s.order === 'retreat') continue;
+      if (!s.alive || s.order === 'move' || s.order === 'retreat' || s.embarked) continue;
       const t = s.engaged;
-      if (!t || s.burrowed || (isSquad(t) && t.hiddenFrom(s.owner))) {
+      // Artillery only fires once deployed.
+      const armed = !s.def.deploy || s.deployState === 'deployed';
+      if (!t || s.burrowed || !armed || (isSquad(t) && t.hiddenFrom(s.owner))) {
         for (const u of s.units) u.cooldown = Math.max(0, u.cooldown - dt);
         if (t && isSquad(t) && t.hiddenFrom(s.owner)) s.target = null;
         continue;
@@ -32,14 +34,14 @@ export class CombatSystem {
         if (u.cooldown > 0 || u.leapArc) continue;
         const victim = isSquad(t) ? (u.def.precision ? this.weakestUnit(t) : this.nearestUnit(t, u.x, u.y)) : t;
         if (!victim) continue;
-        const reach = u.def.range + victim.radius;
+        const reach = s.range + victim.radius;
         const dist = Phaser.Math.Distance.Between(u.x, u.y, victim.x, victim.y);
-        if (dist > reach) continue;
+        if (dist > reach || (u.def.minRange && dist < u.def.minRange)) continue;
         u.cooldown = u.def.cooldown * Phaser.Math.FloatBetween(0.85, 1.15);
         let dmg = u.def.damage * this.battle.modifiers[u.owner].damageMult * u.strikeMult;
         u.strikeMult = 1;
         if (u.def.precision && dist < u.def.precision.closeRange) dmg *= 0.5;
-        u.face(victim.x, victim.y);
+        u.aim(victim.x, victim.y);
         u.playAttack();
         this.fire(u.x, u.y, u.owner, victim, dmg, u.def.projectile, u.squad, u.aimPoint(), u.def.damageType);
       }
@@ -105,15 +107,19 @@ export class CombatSystem {
    */
   fire(x: number, y: number, owner: Owner, victim: Victim, dmg: number, kind: ProjKind, from: Squad | null,
     muzzle: { x: number; y: number }, type: DamageType): void {
-    dmg *= damageMult(type, victim instanceof Building ? 'building' : victim.def.armor);
     const aim = victim instanceof Building ? victim.view.aimPoint() : victim.aimPoint();
-    const los = this.battle.cover?.hasLineOfSight(x, y, victim.x, victim.y) ?? true;
+    const lobbed = !!from && (from.def.indirect || from.def.flying);
+    const los = lobbed || (this.battle.cover?.hasLineOfSight(x, y, victim.x, victim.y) ?? true);
+    const splash = from?.def.splash ?? 0;
+    const gx = victim.x;
+    const gy = victim.y;
     this.battle.events.emit(EV.unitFired, x, y, kind, owner);
     if (kind === 'melee') {
       const fx = this.battle.add.image(aim.x, aim.y, 'fx_slash').setDepth(DEPTH.effects);
       fx.rotation = Phaser.Math.Angle.Between(muzzle.x, muzzle.y, aim.x, aim.y);
       this.battle.tweens.add({ targets: fx, alpha: 0, scale: 1.6, duration: 220, onComplete: () => fx.destroy() });
-      this.applyDamage(victim, dmg, from);
+      this.applyDamage(victim, dmg, from, type);
+      if (splash) this.splash(gx, gy, splash, dmg * 0.5, owner, from, type, victim);
       return;
     }
     this.battle.effects.muzzle(muzzle.x, muzzle.y, kind, aim.x - muzzle.x);
@@ -129,14 +135,41 @@ export class CombatSystem {
         blocked = true;
       }
     }
+    // Indirect shells land where the target stood.
+    if (lobbed && from?.def.indirect) {
+      tx = gx + Phaser.Math.Between(-10, 10);
+      ty = Projection.vy(gy);
+    }
     this.battle.effects.projectiles.launch(kind, muzzle, { x: tx, y: ty }, () => {
-      if (blocked) this.battle.effects.dust(tx, ty);
-      else this.applyDamage(victim, dmg, from);
+      if (blocked) {
+        this.battle.effects.dust(tx, ty);
+        return;
+      }
+      this.applyDamage(victim, dmg, from, type);
+      if (splash) this.splash(gx, gy, splash, dmg * 0.5, owner, from, type, victim);
     });
   }
 
-  applyDamage(victim: Victim, dmg: number, from: Squad | null): void {
+  /** Area damage around a logical point (half damage at the rim). */
+  private splash(x: number, y: number, r: number, dmg: number, owner: Owner, from: Squad | null, type: DamageType, skip: Victim): void {
+    const foe = opponent(owner);
+    for (const s of this.battle.units.squads) {
+      if (!s.alive || s.owner !== foe || s.embarked) continue;
+      for (const u of s.units.slice()) {
+        if (u === skip) continue;
+        const d = Phaser.Math.Distance.Between(x, y, u.x, u.y);
+        if (d <= r) this.applyDamage(u, dmg * (1 - (d / r) * 0.5), from, type);
+      }
+    }
+    for (const b of this.battle.buildings.buildings) {
+      if (b === skip || !b.alive || b.owner !== foe) continue;
+      if (Phaser.Math.Distance.Between(x, y, b.x, b.y) <= r + b.radius) this.applyDamage(b, dmg * 0.5, from, type);
+    }
+  }
+
+  applyDamage(victim: Victim, dmg: number, from: Squad | null, type?: DamageType): void {
     if (!victim.alive) return;
+    if (type) dmg *= damageMult(type, victim instanceof Building ? 'building' : victim.def.armor);
     if (victim instanceof Building) {
       this.battle.buildings.damage(victim, dmg);
       return;

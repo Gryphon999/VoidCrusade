@@ -15,5 +15,7 @@ export const EV = {
   battleEnded: 'battle-ended',
   researchDone: 'research-done',
   tierUp: 'tier-up',
+  wreckChanged: 'wreck-changed',
+  transportChanged: 'transport-changed',
   message: 'hud-message',
 } as const;
