@@ -8,6 +8,12 @@ import { BattleScene } from './scenes/BattleScene';
 import { HudScene } from './scenes/HudScene';
 import { SettingsScene } from './scenes/SettingsScene';
 import { AudioSystem } from './systems/AudioSystem';
+import { Settings } from './systems/Settings';
+import { detectLanguage, setLanguage } from './i18n';
+
+// Language: saved choice, else Yandex Games SDK / browser language.
+setLanguage(Settings.get().language ?? detectLanguage());
+Settings.onChange((s) => setLanguage(s.language ?? detectLanguage()));
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,

@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, GOTHIC_FONT } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { dyn, headingFont, t } from '../i18n';
+import { mapName } from '../i18n/names';
 import { MAP_BUILDERS } from '../maps';
 import { Settings } from '../systems/Settings';
 import { Button } from './Button';
@@ -16,16 +18,16 @@ export class SkirmishSetup {
     const y = (GAME_HEIGHT - h) / 2;
     const g = scene.add.graphics();
     drawPanel(g, x, y, w, h);
-    const title = scene.add.text(GAME_WIDTH / 2, y + 40, 'Skirmish', { fontFamily: GOTHIC_FONT, fontSize: '42px', color: '#ffd060' }).setOrigin(0.5);
+    const title = scene.add.text(GAME_WIDTH / 2, y + 40, t('skirmish.title'), { fontFamily: headingFont(), fontSize: '42px', color: '#ffd060' }).setOrigin(0.5);
     const diff = Settings.get().difficulty;
-    const note = scene.add.text(GAME_WIDTH / 2, y + 80, `Difficulty: ${diff} (change in Settings)`, textStyle(14, '#99a')).setOrigin(0.5);
+    const note = scene.add.text(GAME_WIDTH / 2, y + 80, t('skirmish.difficulty', { d: t(dyn(`diff.${diff}`)) }), textStyle(14, '#99a')).setOrigin(0.5);
     root.add([dim, g, title, note]);
     MAP_BUILDERS.forEach((build, i) => {
       const m = build();
-      const b = new Button(scene, { x: GAME_WIDTH / 2, y: y + 124 + i * 56, w: 360, h: 44, label: m.name, onClick: () => onStart(i) });
+      const b = new Button(scene, { x: GAME_WIDTH / 2, y: y + 124 + i * 56, w: 360, h: 44, label: mapName(m.id), onClick: () => onStart(i) });
       root.add(b.container);
     });
-    const cancel = new Button(scene, { x: GAME_WIDTH / 2, y: y + h - 30, w: 140, h: 34, label: 'Back', onClick: () => {
+    const cancel = new Button(scene, { x: GAME_WIDTH / 2, y: y + h - 30, w: 140, h: 34, label: t('common.back'), onClick: () => {
       root.destroy();
       onCancel();
     } });

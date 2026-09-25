@@ -107,6 +107,6 @@ export class CoverSystem implements CoverQueries {
       slots.push({ x: t.x + off, y: t.y + (Math.floor(i / 2) >= tiles.length ? 14 : 0) });
     }
     s.coverSlots = slots;
-    if (s.owner === 'player') this.battle.events.emit(EV.message, 'Squad taking cover');
+    if (s.owner === 'player') this.battle.events.emit(EV.message, 'note.cover');
   }
 }

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, GOTHIC_FONT } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { headingFont, t } from '../i18n';
 import { BattleResult } from '../scenes/BattleTypes';
 import type { BattleScene } from '../scenes/BattleScene';
 import { Button } from './Button';
@@ -15,17 +16,17 @@ export function showEndScreen(scene: Phaser.Scene, battle: BattleScene, result: 
   dim.setAlpha(0);
   scene.tweens.add({ targets: dim, alpha: 1, duration: 600 });
   const color = win ? '#ffd060' : '#ff3030';
-  const title = scene.add.text(cx, cy - 120, win ? 'VICTORY' : 'DEFEAT', {
-    fontFamily: GOTHIC_FONT, fontSize: '110px', color, stroke: '#000', strokeThickness: 10,
+  const title = scene.add.text(cx, cy - 120, win ? t('end.victory') : t('end.defeat'), {
+    fontFamily: headingFont(), fontSize: '110px', color, stroke: '#000', strokeThickness: 10,
   }).setOrigin(0.5).setScale(3).setAlpha(0);
   scene.tweens.add({ targets: title, scale: 1, alpha: 1, duration: 700, ease: 'Back.easeOut', delay: 200 });
-  const sub = win ? 'The Null Horde is broken. Glory to the Iron Void.' : 'Your Bastion has fallen. The void claims all.';
+  const sub = win ? t('end.victory.sub') : t('end.defeat.sub');
   const subtitle = scene.add.text(cx, cy - 30, sub, textStyle(22, '#dde')).setOrigin(0.5).setAlpha(0);
   const s = result.stats;
   const lines = [
-    `Battle time: ${formatTime(result.time)}`,
-    `Enemies slain: ${s.kills}      Soldiers lost: ${s.losses}`,
-    `Structures razed: ${s.buildingsDestroyed}      Structures lost: ${s.buildingsLost}`,
+    t('end.time', { t: formatTime(result.time) }),
+    t('end.kills', { k: s.kills, l: s.losses }),
+    t('end.structures', { d: s.buildingsDestroyed, l: s.buildingsLost }),
   ];
   const stats = scene.add.text(cx, cy + 40, lines.join('\n'), { ...textStyle(18, '#aab'), align: 'center', lineSpacing: 8 });
   stats.setOrigin(0.5).setAlpha(0);
@@ -36,10 +37,10 @@ export function showEndScreen(scene: Phaser.Scene, battle: BattleScene, result: 
 
   const campaign = result.data.mode === 'campaign';
   const buttons: { label: string; action: () => void }[] = campaign
-    ? [{ label: win ? 'Continue' : 'Back to Campaign', action: () => battle.scene.start('CampaignScene', { result }) }]
+    ? [{ label: win ? t('end.continue') : t('end.backToCampaign'), action: () => battle.scene.start('CampaignScene', { result }) }]
     : [
-        { label: 'Play Again', action: () => battle.scene.restart(result.data) },
-        { label: 'Main Menu', action: () => battle.scene.start('MenuScene') },
+        { label: t('end.again'), action: () => battle.scene.restart(result.data) },
+        { label: t('end.menu'), action: () => battle.scene.start('MenuScene') },
       ];
   buttons.forEach((b, i) => {
     const x = cx + (i - (buttons.length - 1) / 2) * 220;

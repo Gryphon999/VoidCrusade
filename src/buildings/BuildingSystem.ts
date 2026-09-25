@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { BUILD, TILE, TILE_SIZE } from '../config';
 import { EV } from '../events';
+import type { MessageKey } from '../i18n';
+import { roleName } from '../i18n/names';
 import { Owner } from '../types';
 import { MapSystem } from '../systems/MapSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
@@ -9,7 +11,9 @@ import { BUILDING_DEFS, BuildingId, BuildingRole } from './BuildingDefs';
 
 export interface PlacementCheck {
   ok: boolean;
-  reason?: string;
+  /** Translation key explaining why placement is invalid. */
+  reason?: MessageKey;
+  params?: Record<string, string>;
 }
 
 /** Owns every building on the field: placement rules, construction, damage and destruction. */
@@ -50,13 +54,13 @@ export class BuildingSystem {
     const def = BUILDING_DEFS[id];
     for (let y = ty; y < ty + def.size; y++) {
       for (let x = tx; x < tx + def.size; x++) {
-        if (!this.map.isTerrainPassable(x, y)) return { ok: false, reason: 'Blocked terrain' };
-        if (this.map.isOccupied(x, y)) return { ok: false, reason: 'Space occupied' };
-        if (this.reserved.has(y * this.map.width + x)) return { ok: false, reason: 'Too close to a Void-Nexus' };
+        if (!this.map.isTerrainPassable(x, y)) return { ok: false, reason: 'err.blocked' };
+        if (this.map.isOccupied(x, y)) return { ok: false, reason: 'err.occupied' };
+        if (this.reserved.has(y * this.map.width + x)) return { ok: false, reason: 'err.nexus' };
       }
     }
     const missing = def.requires.find((r) => !this.hasRole(owner, r));
-    if (missing) return { ok: false, reason: `Requires ${missing} building` };
+    if (missing) return { ok: false, reason: 'err.requires', params: { what: roleName(missing) } };
     const cx = tx + def.size / 2;
     const cy = ty + def.size / 2;
     const inRange = this.buildings.some((b) => {
@@ -64,8 +68,8 @@ export class BuildingSystem {
       const d = Phaser.Math.Distance.Between(cx, cy, b.tx + b.def.size / 2, b.ty + b.def.size / 2);
       return d <= b.def.buildRadius;
     });
-    if (!inRange) return { ok: false, reason: 'Outside buildable area' };
-    if (!this.resources.canAfford(owner, def.cost)) return { ok: false, reason: 'Not enough resources' };
+    if (!inRange) return { ok: false, reason: 'err.outside' };
+    if (!this.resources.canAfford(owner, def.cost)) return { ok: false, reason: 'err.resources' };
     return { ok: true };
   }
 

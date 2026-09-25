@@ -5,15 +5,12 @@ import { buildingIconKey } from '../render/buildings/BuildingArt';
 import { portraitKey } from '../render/puppet/UnitAtlas';
 import { UNIT_DEFS } from '../units/UnitDefs';
 import { RESEARCH_DEFS } from '../systems/ResearchSystem';
-import { Resources } from '../systems/ResourceSystem';
 import { Squad } from '../units/Squad';
 import { Command } from './CommandGrid';
 import { GLYPH, researchGlyph } from './GlyphIcons';
+import { t } from '../i18n';
+import { buildingDesc, buildingName, costText, researchDesc, researchName, roleName, unitDesc, unitName } from '../i18n/names';
 
-export function costText(c: Resources): string {
-  if (!c.scrip && !c.flux) return 'Free';
-  return `${c.scrip} Scrip${c.flux ? ` · ${c.flux} Flux` : ''}`;
-}
 
 function squadCommands(b: BattleScene, squads: Squad[]): Command[] {
   const units = b.units;
@@ -21,13 +18,13 @@ function squadCommands(b: BattleScene, squads: Squad[]): Command[] {
   const reinforceable = (): Squad[] => squads.filter((s) => s.alive && units.canReinforce(s));
   const cost = (): number => reinforceable().reduce((a, s) => a + units.reinforceCost(s).scrip, 0);
   return [
-    { icon: GLYPH.reinforce, hotkey: 'R', title: 'Reinforce', body: () => `Replenish fallen soldiers over time.\nHalf price per missing soldier.${reinforceable().length ? `\nCost: ${cost()} Scrip` : ''}`,
+    { icon: GLYPH.reinforce, hotkey: 'R', title: t('cmd.reinforce'), body: () => `${t('cmd.reinforce.desc')}${reinforceable().length ? `\n${t('cmd.reinforce.cost', { n: cost() })}` : ''}`,
       onClick: () => ic.reinforceSelected(), enabled: () => reinforceable().length > 0 && b.resources.getResources('player').scrip >= cost(),
       badge: () => (reinforceable().length ? `${cost()}` : '') },
-    { icon: GLYPH.move, hotkey: 'M', title: 'Move', body: () => 'Move without stopping to fight.\n(Right-click also moves.)', onClick: () => ic.setMode('move'), active: () => ic.mode === 'move' },
-    { icon: GLYPH.attack, hotkey: 'G', title: 'Attack-move', body: () => 'Advance, engaging every enemy on the way.', onClick: () => ic.setMode('attackMove'), active: () => ic.mode === 'attackMove' },
-    { icon: GLYPH.hold, hotkey: 'H', title: 'Hold position', body: () => 'Stand ground; soldiers seek nearby cover.', onClick: () => squads.forEach((s) => s.hold()), active: () => squads.every((s) => s.order === 'hold') },
-    { icon: GLYPH.stop, hotkey: 'X', title: 'Stop', body: () => 'Cancel current orders.', onClick: () => squads.forEach((s) => s.stop()) },
+    { icon: GLYPH.move, hotkey: 'M', title: t('cmd.move'), body: () => t('cmd.move.desc'), onClick: () => ic.setMode('move'), active: () => ic.mode === 'move' },
+    { icon: GLYPH.attack, hotkey: 'G', title: t('cmd.attackMove'), body: () => t('cmd.attackMove.desc'), onClick: () => ic.setMode('attackMove'), active: () => ic.mode === 'attackMove' },
+    { icon: GLYPH.hold, hotkey: 'H', title: t('cmd.hold'), body: () => t('cmd.hold.desc'), onClick: () => squads.forEach((s) => s.hold()), active: () => squads.every((s) => s.order === 'hold') },
+    { icon: GLYPH.stop, hotkey: 'X', title: t('cmd.stop'), body: () => t('cmd.stop.desc'), onClick: () => squads.forEach((s) => s.stop()) },
   ];
 }
 
@@ -35,11 +32,12 @@ function buildCommands(b: BattleScene): Command[] {
   return PLAYER_BUILD_LIST.map((id, i) => {
     const d = BUILDING_DEFS[id];
     return {
-      icon: buildingIconKey(id), hotkey: `${i + 1}`, key: `Digit${i + 1}`, title: d.name,
-      body: () => `${costText(d.cost)} · ${d.buildTime}s\n${d.description}${d.requires.length ? `\nRequires: ${d.requires.join(', ')}` : ''}`,
+      icon: buildingIconKey(id), hotkey: `${i + 1}`, key: `Digit${i + 1}`, title: buildingName(id),
+      body: () => `${t('cost.time', { cost: costText(d.cost), t: d.buildTime })}\n${buildingDesc(id)}${d.requires.length
+        ? `\n${t('cmd.requires', { what: d.requires.map(roleName).join(', ') })}` : ''}`,
       onClick: () => {
         const check = b.buildings.validate('player', id, -99, -99);
-        if (check.reason === 'Not enough resources' || check.reason?.startsWith('Requires')) b.hud.showMessage(check.reason);
+        if (check.reason === 'err.resources' || check.reason === 'err.requires') b.hud.showMessage(check.reason, check.params);
         else b.placement.start(id);
       },
       enabled: () => b.resources.canAfford('player', d.cost) && d.requires.every((r) => b.buildings.hasRole('player', r)),
@@ -55,8 +53,8 @@ function buildingCommands(b: BattleScene, bld: Building): Command[] {
   bld.def.produces.forEach((id, i) => {
     const d = UNIT_DEFS[id];
     out.push({
-      icon: portraitKey(id), hotkey: i === 0 ? 'T' : '', key: i === 0 ? 'KeyT' : undefined, title: d.name,
-      body: () => `${costText(d.cost)} · ${d.trainTime}s\n${d.description}\nSquad of ${d.squadSize} · HP ${d.hp} · Dmg ${d.damage}`,
+      icon: portraitKey(id), hotkey: i === 0 ? 'T' : '', key: i === 0 ? 'KeyT' : undefined, title: unitName(id),
+      body: () => `${t('cost.time', { cost: costText(d.cost), t: d.trainTime })}\n${unitDesc(id)}\n${t('cmd.squadStats', { n: d.squadSize, hp: d.hp, dmg: d.damage })}`,
       onClick: () => prod.enqueue(bld, id), enabled: () => prod.checkEnqueue(bld, id) === null,
       progress: () => (bld.queue[0] === id ? bld.productionFraction() : null),
       badge: () => {
@@ -69,8 +67,8 @@ function buildingCommands(b: BattleScene, bld: Building): Command[] {
     const rs = b.research;
     for (const r of RESEARCH_DEFS) {
       out.push({
-        icon: researchGlyph(r.id), title: r.name,
-        body: () => `${costText(r.cost)} · ${r.time}s\n${r.description}${rs.isDone('player', r.id) ? '\n— Researched —' : ''}`,
+        icon: researchGlyph(r.id), title: researchName(r.id),
+        body: () => `${t('cost.time', { cost: costText(r.cost), t: r.time })}\n${researchDesc(r.id)}${rs.isDone('player', r.id) ? `\n${t('cmd.researched')}` : ''}`,
         onClick: () => rs.start(bld, r.id),
         enabled: () => !rs.isDone('player', r.id) && !rs.isResearching('player', r.id) && !rs.activeAt(bld) && b.resources.canAfford('player', r.cost),
         active: () => rs.isDone('player', r.id),

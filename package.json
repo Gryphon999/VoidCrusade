@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "zip": "npm run build && cd dist && zip -r ../voidcrusade.zip .",
-    "preview-maps": "tsx scripts/preview-maps.ts"
+    "preview-maps": "tsx scripts/preview-maps.ts",
+    "check:i18n": "tsx scripts/check-i18n.ts"
   },
   "dependencies": {
     "phaser": "3.90.0"

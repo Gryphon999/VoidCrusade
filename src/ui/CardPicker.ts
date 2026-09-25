@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, GOTHIC_FONT } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { headingFont, t } from '../i18n';
+import { cardDesc, cardName } from '../i18n/names';
 import { CardDef } from '../campaign/UpgradeCards';
 import { textStyle } from './uiStyle';
 
@@ -7,10 +9,10 @@ import { textStyle } from './uiStyle';
 export function showCardPicker(scene: Phaser.Scene, cards: CardDef[], onPick: (c: CardDef) => void): void {
   const root = scene.add.container(0, 0).setDepth(400);
   const dim = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.75).setOrigin(0).setInteractive();
-  const title = scene.add.text(GAME_WIDTH / 2, 110, 'Spoils of War', {
-    fontFamily: GOTHIC_FONT, fontSize: '56px', color: '#ffd060', stroke: '#000', strokeThickness: 6,
+  const title = scene.add.text(GAME_WIDTH / 2, 110, t('cards.title'), {
+    fontFamily: headingFont(), fontSize: '56px', color: '#ffd060', stroke: '#000', strokeThickness: 6,
   }).setOrigin(0.5);
-  const sub = scene.add.text(GAME_WIDTH / 2, 165, 'Choose one boon for the crusade', textStyle(18, '#bbc')).setOrigin(0.5);
+  const sub = scene.add.text(GAME_WIDTH / 2, 165, t('cards.sub'), textStyle(18, '#bbc')).setOrigin(0.5);
   root.add([dim, title, sub]);
   cards.forEach((c, i) => {
     const x = GAME_WIDTH / 2 + (i - 1) * 260;
@@ -19,8 +21,8 @@ export function showCardPicker(scene: Phaser.Scene, cards: CardDef[], onPick: (c
     const bg = scene.add.rectangle(0, 0, 220, 300, 0x14142a).setStrokeStyle(3, 0x8a7a40);
     const inner = scene.add.rectangle(0, 0, 204, 284).setStrokeStyle(1, 0x3a3a5a);
     const icon = scene.add.image(0, -70, c.icon).setScale(3);
-    const name = scene.add.text(0, 10, c.name, { ...textStyle(20, '#ffe8a0'), align: 'center', wordWrap: { width: 190 } }).setOrigin(0.5);
-    const desc = scene.add.text(0, 70, c.description, { ...textStyle(15, '#ccd'), align: 'center', wordWrap: { width: 180 } }).setOrigin(0.5);
+    const name = scene.add.text(0, 10, cardName(c.id), { ...textStyle(20, '#ffe8a0'), align: 'center', wordWrap: { width: 190 } }).setOrigin(0.5);
+    const desc = scene.add.text(0, 70, cardDesc(c.id), { ...textStyle(15, '#ccd'), align: 'center', wordWrap: { width: 180 } }).setOrigin(0.5);
     card.add([bg, inner, icon, name, desc]);
     root.add(card);
     scene.tweens.add({ targets: card, alpha: 1, y, duration: 450, delay: 150 * i, ease: 'Back.easeOut' });

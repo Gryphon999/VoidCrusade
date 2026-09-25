@@ -114,7 +114,7 @@ export class AIController {
   private rush(): void {
     const target = this.battle.buildings.getHQ('player');
     if (!target) return;
-    if (!this.rushing) this.battle.events.emit(EV.message, 'The Null Horde surges toward your Bastion!');
+    if (!this.rushing) this.battle.events.emit(EV.message, 'note.rush');
     this.rushing = true;
     for (const s of this.squads) {
       if (s.role === 'defend') continue;

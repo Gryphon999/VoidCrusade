@@ -18,14 +18,9 @@ import { Settings } from '../systems/Settings';
 import { createUnitAtlases } from '../render/puppet/UnitAtlas';
 import { MAP_BUILDERS } from '../maps';
 import { textStyle } from '../ui/uiStyle';
+import { MessageKey, t } from '../i18n';
 
-const TIPS = [
-  'Hold Void-Nexus points: each one pours 25 Scrip per second into your coffers.',
-  'Order squads to Hold (H) near ruins or cliff edges — cover halves incoming damage.',
-  'Cliffs block line of sight. Flank around them.',
-  'Reinforce (R) battered squads instead of training new ones.',
-  'Press B to select your Command Bastion and open the build menu.',
-];
+const TIPS: MessageKey[] = ['tip.1', 'tip.2', 'tip.3', 'tip.4', 'tip.5'];
 
 /** Loading screen: generates every procedural texture step by step with a progress bar. */
 export class PreloadScene extends Phaser.Scene {
@@ -38,41 +33,41 @@ export class PreloadScene extends Phaser.Scene {
     const cy = GAME_HEIGHT / 2;
     this.add.text(cx, cy - 110, 'VOIDCRUSADE', { fontFamily: GOTHIC_FONT, fontSize: '64px', color: '#c8a060' }).setOrigin(0.5);
     const label = this.add.text(cx, cy + 40, '', textStyle(16, '#aab')).setOrigin(0.5);
-    this.add.text(cx, cy + 120, Phaser.Utils.Array.GetRandom(TIPS) as string, { ...textStyle(15, '#778'), fontStyle: 'italic' }).setOrigin(0.5);
+    this.add.text(cx, cy + 120, t(Phaser.Utils.Array.GetRandom(TIPS) as MessageKey), { ...textStyle(15, '#778'), fontStyle: 'italic' }).setOrigin(0.5);
     const w = 520;
     const frame = this.add.graphics();
     frame.lineStyle(2, 0x5a5a7a, 1).strokeRect(cx - w / 2 - 4, cy - 14, w + 8, 28);
     const bar = this.add.graphics();
 
     const steps: [string, () => void][] = [
-      ['Surveying terrain', () => createTileTextures(this)],
-      ['Forging icons', () => {
+      [t('load.terrain'), () => createTileTextures(this)],
+      [t('load.icons'), () => {
         createUITextures(this);
         createHudArt(this);
         createGlyphIcons(this);
         createPlanetArt(this);
       }],
-      ['Raising fortifications', () => {
+      [t('load.buildings'), () => {
         createBuildingTextures(this);
         createBuildingIcons(this, 0.65);
         Projection.setTilt(Settings.get().tilt);
         ensureBuildingArt(this, Projection.tilt);
       }],
-      ['Mustering the Iron Void', () => createUnitTextures(this)],
-      ['Breeding the Null Horde', () => createUnitAtlases(this)],
-      ['Distilling blood and fire', () => createFxTextures(this)],
-      ['Charging Void-Nexus obelisks', () => {
+      [t('load.ironvoid'), () => createUnitTextures(this)],
+      [t('load.horde'), () => createUnitAtlases(this)],
+      [t('load.fx'), () => createFxTextures(this)],
+      [t('load.nexus'), () => {
         createCaptureTextures(this);
         createCaptureArt(this);
       }],
-      ['Scattering the debris of war', () => createPropTextures(this)],
-      ['Charting battlefields', () => MAP_BUILDERS.forEach((b) => b())],
-      ['Calibrating targeting reticles', () => getCursors()],
+      [t('load.props'), () => createPropTextures(this)],
+      [t('load.maps'), () => MAP_BUILDERS.forEach((b) => b())],
+      [t('load.cursors'), () => getCursors()],
     ];
     let i = 0;
     const next = (): void => {
       if (i >= steps.length) {
-        label.setText('Ready');
+        label.setText(t('load.ready'));
         this.time.delayedCall(250, () => this.scene.start('MenuScene'));
         return;
       }

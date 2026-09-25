@@ -1,4 +1,5 @@
 import { Difficulty, PROJECTION } from '../config';
+import type { Lang } from '../i18n';
 
 const KEY = 'voidcrusade.settings.v1';
 
@@ -12,6 +13,8 @@ export interface GameSettings {
   tilt: number;
   graphics: GraphicsQuality;
   screenShake: boolean;
+  /** UI language; undefined until chosen (then auto-detected). */
+  language?: Lang;
 }
 
 const DEFAULTS: GameSettings = { musicVolume: 0.5, sfxVolume: 0.7, difficulty: 'normal', tilt: PROJECTION.defaultTilt, graphics: 'medium', screenShake: true };
@@ -32,6 +35,7 @@ export const Settings = {
     }
     current = { ...DEFAULTS, ...loaded };
     if (!['easy', 'normal', 'hard'].includes(current.difficulty)) current.difficulty = 'normal';
+    if (current.language !== undefined && current.language !== 'en' && current.language !== 'ru') current.language = undefined;
     if (!['low', 'medium', 'high'].includes(current.graphics)) current.graphics = 'medium';
     if (typeof current.tilt !== 'number' || !Number.isFinite(current.tilt)) current.tilt = PROJECTION.defaultTilt;
     return current;

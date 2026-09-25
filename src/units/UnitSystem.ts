@@ -126,7 +126,7 @@ export class UnitSystem {
     if (!this.canReinforce(s)) return false;
     const cost = this.reinforceCost(s);
     if (!this.battle.resources.trySpend(s.owner, cost)) {
-      if (s.owner === 'player') this.battle.events.emit(EV.message, 'Not enough resources');
+      if (s.owner === 'player') this.battle.events.emit(EV.message, 'err.resources');
       return false;
     }
     s.pendingReinforce = s.maxSize - s.units.length;

@@ -3,6 +3,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { BONUS_ICON, TERRITORIES, TerritoryDef, adjacencyPairs, getTerritory } from '../campaign/CampaignData';
 import { makeRng } from '../utils/rng';
 import { textStyle } from './uiStyle';
+import { territoryName } from '../i18n/names';
 import { addPlanet } from '../render/PlanetArt';
 
 const HEX = 72;
@@ -62,7 +63,7 @@ export class CampaignMapView {
       scene.tweens.add({ targets: swords, scale: 0.68, duration: 600, yoyo: true, repeat: -1 });
       this.swords.set(h.def.id, swords);
       scene.add.image(h.x, h.y - 16, BONUS_ICON[h.def.bonus]).setScale(1.4);
-      scene.add.text(h.x, h.y + 18, h.def.name, { ...textStyle(13), align: 'center', wordWrap: { width: HEX * 1.5 } })
+      scene.add.text(h.x, h.y + 18, territoryName(h.def.id), { ...textStyle(13), align: 'center', wordWrap: { width: HEX * 1.5 } })
         .setOrigin(0.5).setStroke('#000', 3);
     }
     scene.input.on('pointermove', (p: Phaser.Input.Pointer) => this.setHover(this.hit(p.x, p.y)));

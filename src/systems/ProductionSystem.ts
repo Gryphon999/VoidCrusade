@@ -1,5 +1,6 @@
 import { UNITS } from '../config';
 import { EV } from '../events';
+import type { MessageKey } from '../i18n';
 import { Building } from '../buildings/Building';
 import { UNIT_DEFS, UnitId } from '../units/UnitDefs';
 import { Squad } from '../units/Squad';
@@ -17,19 +18,19 @@ export class ProductionSystem {
   }
 
   /** Returns an error message, or null if the unit can be queued. */
-  checkEnqueue(b: Building, id: UnitId): string | null {
+  checkEnqueue(b: Building, id: UnitId): MessageKey | null {
     const def = UNIT_DEFS[id];
-    if (!b.isReady) return 'Building not ready';
-    if (!b.def.produces.includes(id)) return 'Cannot train here';
-    if (b.queue.length >= UNITS.queueMax) return 'Queue full';
+    if (!b.isReady) return 'err.notReady';
+    if (!b.def.produces.includes(id)) return 'err.cannotTrain';
+    if (b.queue.length >= UNITS.queueMax) return 'err.queueFull';
     if (def.isHero) {
       const alive = this.battle.units.getSquads(b.owner).some((s) => s.def.id === id);
-      if (alive || this.queuedCount(b.owner, (q) => q === id) > 0) return 'Commander already deployed';
+      if (alive || this.queuedCount(b.owner, (q) => q === id) > 0) return 'err.heroDeployed';
     } else {
       const army = this.battle.units.armyCount(b.owner) + this.queuedCount(b.owner, (q) => !UNIT_DEFS[q].isHero);
-      if (army >= this.battle.units.maxSquads(b.owner)) return 'Squad cap reached';
+      if (army >= this.battle.units.maxSquads(b.owner)) return 'err.squadCap';
     }
-    if (!this.battle.resources.canAfford(b.owner, def.cost)) return 'Not enough resources';
+    if (!this.battle.resources.canAfford(b.owner, def.cost)) return 'err.resources';
     return null;
   }
 

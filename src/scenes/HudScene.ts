@@ -22,6 +22,8 @@ import { Squad } from '../units/Squad';
 import { Unit } from '../units/Unit';
 import { CapturePoint } from '../systems/CapturePoint';
 import { Owner } from '../types';
+import { MessageKey, onLanguageChange, t } from '../i18n';
+import { buildingName, unitName } from '../i18n/names';
 
 interface Blocker {
   rect: Phaser.Geom.Rectangle;
@@ -76,6 +78,11 @@ export class HudScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-F10', () => this.pause.toggle());
     this.panel.refresh();
     this.wireEvents();
+    // Language switch: rebuild the HUD in place (keeping the pause menu open if the battle is paused).
+    const off = onLanguageChange(() => this.scene.restart({ battle: this.battle }));
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, off);
+    if (this.battle.scene.isPaused()) this.pause.open(true);
+    this.refreshSelection();
   }
 
   private createGrain(): void {
@@ -98,7 +105,7 @@ export class HudScene extends Phaser.Scene {
     const ev = this.battle.events;
     const handlers: [string, (...a: never[]) => void][] = [
       [EV.selectionChanged, () => this.refreshSelection()],
-      [EV.message, (m: string) => this.notify(m, 'warn')],
+      [EV.message, (m: MessageKey, p?: Record<string, string | number>) => this.notify(t(m, p), 'warn')],
       [EV.battleEnded, (r: BattleResult) => {
         this.ended = true;
         this.tooltip.hide();
@@ -106,14 +113,14 @@ export class HudScene extends Phaser.Scene {
         this.time.delayedCall(1200, () => showEndScreen(this, this.battle, r));
       }],
       [EV.pointCaptured, (_p: CapturePoint, owner: Owner, old: Owner | null) => {
-        if (owner === 'player') this.notify('Void-Nexus captured', 'good');
-        else if (old === 'player') this.notify('Void-Nexus lost!', 'bad');
+        if (owner === 'player') this.notify(t('note.captured'), 'good');
+        else if (old === 'player') this.notify(t('note.lost'), 'bad');
       }],
       [EV.squadDestroyed, (s: Squad) => {
-        if (s.owner === 'player') this.notify(`${s.def.name} lost`, 'bad');
+        if (s.owner === 'player') this.notify(t('note.squadLost', { name: unitName(s.def.id) }), 'bad');
       }],
       [EV.buildingComplete, (b: Building) => {
-        if (b.owner === 'player') this.notify(`${b.def.name} complete`, 'good');
+        if (b.owner === 'player') this.notify(t('note.complete', { name: buildingName(b.def.id) }), 'good');
       }],
       [EV.unitHit, (_x: number, _y: number, u: Unit) => {
         if (u.owner === 'player') this.alarm();
@@ -132,7 +139,7 @@ export class HudScene extends Phaser.Scene {
   private alarm(): void {
     if (this.time.now - this.lastAlarm < 20000) return;
     this.lastAlarm = this.time.now;
-    this.notify('We are under attack!', 'bad');
+    this.notify(t('note.underAttack'), 'bad');
   }
 
   notify(text: string, kind: NoticeKind = 'info'): void {
@@ -149,8 +156,8 @@ export class HudScene extends Phaser.Scene {
     return this.blockers.some((b) => b.active() && b.rect.contains(x, y));
   }
 
-  showMessage(msg: string): void {
-    this.notify(msg, 'warn');
+  showMessage(key: MessageKey, params?: Record<string, string>): void {
+    this.notify(t(key, params), 'warn');
   }
 
   setCursor(kind: CursorKind | 'default'): void {

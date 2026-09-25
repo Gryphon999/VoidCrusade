@@ -70,7 +70,7 @@ export class BuildingPlacementUI {
     const id = this.active;
     const check = this.buildings.validate('player', id, this.tile.tx, this.tile.ty);
     if (!check.ok) {
-      this.scene.events.emit(EV.message, check.reason ?? 'Cannot build here');
+      this.scene.events.emit(EV.message, check.reason ?? 'err.cannotBuild', check.params);
       return false;
     }
     this.buildings.tryPlace('player', id, this.tile.tx, this.tile.ty);

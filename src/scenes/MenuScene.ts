@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH, GOTHIC_FONT } from '../config';
+import { onLanguageChange, t } from '../i18n';
 import { Settings } from '../systems/Settings';
 import { CampaignState } from '../campaign/CampaignState';
 import { MenuBackground } from '../ui/MenuBackground';
@@ -20,6 +21,9 @@ export class MenuScene extends Phaser.Scene {
     this.busy = false;
     this.input.setDefaultCursor('default');
     this.bg = new MenuBackground(this);
+    // Rebuild the menu in the new language as soon as it changes.
+    const off = onLanguageChange(() => this.scene.restart());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, off);
     Ambience.menu();
     const logo = this.add.text(GAME_WIDTH / 2, 170, 'VOIDCRUSADE', {
       fontFamily: GOTHIC_FONT, fontSize: '120px', fontStyle: 'bold', stroke: '#1a0000', strokeThickness: 10,
@@ -33,23 +37,23 @@ export class MenuScene extends Phaser.Scene {
     logo.setFill(grd);
     logo.setScale(0.9).setAlpha(0);
     this.tweens.add({ targets: logo, scale: 1, alpha: 1, duration: 1200, ease: 'Cubic.easeOut' });
-    const sub = this.add.text(GAME_WIDTH / 2, 262, 'In the void between stars, only iron survives',
+    const sub = this.add.text(GAME_WIDTH / 2, 262, t('menu.subtitle'),
       { ...textStyle(24, '#c8c8d8'), fontStyle: 'italic' }).setOrigin(0.5).setAlpha(0);
     this.tweens.add({ targets: sub, alpha: 1, duration: 1200, delay: 600 });
 
     const hasSave = !!CampaignState.load();
     const items: [string, () => void][] = [
-      ['New Campaign', () => this.go('CampaignScene', { fresh: true })],
-      ...(hasSave ? [['Continue Campaign', () => this.go('CampaignScene', {})] as [string, () => void]] : []),
-      ['Skirmish', () => this.openSkirmish()],
-      ['Settings', () => this.openSettings()],
+      [t('menu.newCampaign'), () => this.go('CampaignScene', { fresh: true })],
+      ...(hasSave ? [[t('menu.continue'), () => this.go('CampaignScene', {})] as [string, () => void]] : []),
+      [t('menu.skirmish'), () => this.openSkirmish()],
+      [t('menu.settings'), () => this.openSettings()],
     ];
     items.forEach(([label, fn], i) => {
       const b = new Button(this, { x: GAME_WIDTH / 2, y: 360 + i * 62, w: 300, h: 48, label, onClick: () => !this.busy && fn() });
       b.container.setAlpha(0);
       this.tweens.add({ targets: b.container, alpha: 1, duration: 500, delay: 900 + i * 120 });
     });
-    this.add.text(GAME_WIDTH - 12, GAME_HEIGHT - 10, 'WASD/edge scroll · wheel zoom · drag to select · right-click to order',
+    this.add.text(GAME_WIDTH - 12, GAME_HEIGHT - 10, t('menu.hint'),
       textStyle(12, '#667')).setOrigin(1, 1);
   }
 

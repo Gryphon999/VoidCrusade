@@ -1,4 +1,5 @@
 import { EV } from '../events';
+import { researchName } from '../i18n/names';
 import { Building } from '../buildings/Building';
 import { Resources } from './ResourceSystem';
 import { Modifiers } from './Modifiers';
@@ -62,7 +63,7 @@ export class ResearchSystem {
     if (!def || !b.isReady || b.def.role !== 'research' || this.active.has(b)) return false;
     if (this.isDone(b.owner, id) || this.isResearching(b.owner, id)) return false;
     if (!this.battle.resources.trySpend(b.owner, def.cost)) {
-      this.battle.events.emit(EV.message, 'Not enough resources');
+      this.battle.events.emit(EV.message, 'err.resources');
       return false;
     }
     this.active.set(b, { id, t: 0 });
@@ -100,6 +101,6 @@ export class ResearchSystem {
     }
     this.battle.buildings.buildSpeed[owner] = mods.buildSpeedMult;
     this.battle.events.emit(EV.researchDone, owner, def);
-    if (owner === 'player') this.battle.events.emit(EV.message, `Research complete: ${def.name}`);
+    if (owner === 'player') this.battle.events.emit(EV.message, 'note.research', { name: researchName(def.id) });
   }
 }

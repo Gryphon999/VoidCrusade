@@ -8,16 +8,18 @@ import { RESEARCH_DEFS } from '../systems/ResearchSystem';
 import { HUD } from './HudArt';
 import { researchGlyph } from './GlyphIcons';
 import { textStyle } from './uiStyle';
+import { plural, t } from '../i18n';
+import { buildingDesc, buildingName, researchName, unitName } from '../i18n/names';
 
 const P = HUD.center;
 const INFO_X = P.x + 132;
 
 function orderText(s: Squad): string {
-  if (s.pendingReinforce > 0) return 'Reinforcing…';
-  if (s.order === 'hold') return 'Holding position';
-  if (s.engaged) return 'Engaging the enemy!';
-  if (s.isMoving()) return s.order === 'attackMove' ? 'Attack-moving' : 'On the move';
-  return 'Awaiting orders';
+  if (s.pendingReinforce > 0) return t('order.reinforcing');
+  if (s.order === 'hold') return t('order.hold');
+  if (s.engaged) return t('order.engaging');
+  if (s.isMoving()) return s.order === 'attackMove' ? t('order.attackMove') : t('order.move');
+  return t('order.idle');
 }
 
 /** Centre HUD panel describing the current selection. */
@@ -30,7 +32,7 @@ export class SelectionPanel {
   constructor(private scene: Phaser.Scene, private battle: BattleScene) {
     this.content = scene.add.container(0, 0);
     this.bars = scene.add.graphics();
-    this.empty = scene.add.text(P.x + P.w / 2, P.y + P.h / 2, 'Select a squad or structure\nB — Command Bastion · Q — whole army',
+    this.empty = scene.add.text(P.x + P.w / 2, P.y + P.h / 2, t('hud.empty'),
       { ...textStyle(14, '#8a8478'), align: 'center' }).setOrigin(0.5);
   }
 
@@ -79,7 +81,7 @@ export class SelectionPanel {
   private buildSquads(squads: Squad[]): void {
     const first = squads[0];
     this.portrait(portraitKey(first.def.id), !!first.def.isHero);
-    const title = squads.length === 1 ? first.def.name : `${squads.length} squads`;
+    const title = squads.length === 1 ? unitName(first.def.id) : plural(squads.length, 'hud.squads');
     const name = this.scene.add.text(INFO_X, P.y + 10, title, textStyle(19, HUD.goldHi)).setStroke('#000', 3);
     const state = this.scene.add.text(INFO_X, P.y + 52, '', textStyle(13, '#9fe09f'));
     const info = this.scene.add.text(P.x + P.w - 12, P.y + 12, '', textStyle(13, '#bcb4a0')).setOrigin(1, 0);
@@ -95,7 +97,7 @@ export class SelectionPanel {
       const hp = alive.reduce((a, s) => a + s.hp, 0);
       const max = alive.reduce((a, s) => a + s.maxHp, 0) || 1;
       this.bar(INFO_X, P.y + 38, 280, 9, hp / max);
-      info.setText(`Army ${units.armyCount('player')}/${units.maxSquads('player')}`);
+      info.setText(t('hud.army', { n: units.armyCount('player'), max: units.maxSquads('player') }));
       state.setText(alive.length === 1 ? orderText(alive[0]) : '');
       // Cards: one per soldier for a single squad, one per squad otherwise.
       const single = alive.length === 1;
@@ -121,9 +123,9 @@ export class SelectionPanel {
 
   private buildBuilding(b: Building): void {
     this.portrait(buildingIconKey(b.def.id), b.def.role === 'hq');
-    const name = this.scene.add.text(INFO_X, P.y + 10, b.def.name, textStyle(19, HUD.goldHi)).setStroke('#000', 3);
+    const name = this.scene.add.text(INFO_X, P.y + 10, buildingName(b.def.id), textStyle(19, HUD.goldHi)).setStroke('#000', 3);
     const info = this.scene.add.text(INFO_X, P.y + 52, '', textStyle(13, '#bcb4a0'));
-    const desc = this.scene.add.text(INFO_X, P.y + 74, b.def.description, { ...textStyle(12, '#8a8478'), wordWrap: { width: 300 } });
+    const desc = this.scene.add.text(INFO_X, P.y + 74, buildingDesc(b.def.id), { ...textStyle(12, '#8a8478'), wordWrap: { width: 300 } });
     this.content.add([name, info, desc]);
     const queue = this.scene.add.container(0, 0);
     this.content.add(queue);
@@ -132,11 +134,11 @@ export class SelectionPanel {
     this.updater = (): void => {
       this.bars.clear();
       this.bar(INFO_X, P.y + 38, 280, 9, b.hp / b.maxHp);
-      let status = `HP ${Math.ceil(b.hp)}/${b.maxHp}`;
-      if (b.state === 'constructing') status += `  ·  Constructing ${Math.floor(b.progress * 100)}%`;
-      if (b.def.fluxGen) status += `  ·  +${b.def.fluxGen} Flux/s`;
+      let status = t('hud.hp', { hp: Math.ceil(b.hp), max: b.maxHp });
+      if (b.state === 'constructing') status += `  ·  ${t('hud.constructing', { p: Math.floor(b.progress * 100) })}`;
+      if (b.def.fluxGen) status += `  ·  ${t('hud.fluxGen', { n: b.def.fluxGen })}`;
       const res = this.battle.research.activeAt(b);
-      if (res) status += `  ·  ${res.def.name} ${Math.floor(res.frac * 100)}%`;
+      if (res) status += `  ·  ${t('hud.researching', { name: researchName(res.def.id), p: Math.floor(res.frac * 100) })}`;
       info.setText(status);
       const key = b.queue.join(',');
       if (key !== lastQueue) {
