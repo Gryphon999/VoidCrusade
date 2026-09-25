@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { EV } from '../events';
+import { Projection } from '../render/Projection';
 import { Owner } from '../types';
 import { Squad } from './Squad';
 import { Unit } from './Unit';
@@ -101,6 +102,16 @@ export class MoraleSystem {
     for (const s of b.units.squads) {
       if (!s.alive) continue;
       if (now - s.lastSuppressedAt > 2) s.suppression = Math.max(0, s.suppression - 16 * dt);
+      // Suppressed squads sit in a hail of near misses: dust kicks and ricochets around them.
+      if (s.suppression >= 50 && s.units.length && Math.random() < dt * (s.suppression >= 85 ? 6 : 3)) {
+        const u = s.units[Math.floor(Math.random() * s.units.length)];
+        if (u.sprite.visible) {
+          const x = u.x + (Math.random() - 0.5) * 36;
+          const y = Projection.vy(u.y + (Math.random() - 0.5) * 24);
+          if (Math.random() < 0.7) b.effects.dust(x, y);
+          else b.effects.sparks(x, y - 6);
+        }
+      }
       if (!this.subject(s)) continue;
       // Morale regeneration: slow alone, quick beside a hero or a banner relic.
       let regen = s.suppression > 50 ? 0 : 2;

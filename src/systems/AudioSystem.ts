@@ -299,6 +299,47 @@ class AudioEngine {
     ABILITY_SOUNDS[id]({ tone, burst });
   }
 
+  /** Hatch clank and boots: squads entering or leaving a bunker or transport. */
+  garrison(vol = 1, pan = 0): void {
+    if (!this.allow('garrison', 250)) return;
+    const o = this.out(0.4 * vol, pan);
+    if (!o) return;
+    this.tone(o, 'square', 320, 180, 0.06, 0, 0.5);
+    this.burst(o, 0.08, 'bandpass', 2600, 6, 1800, 0.02);
+    for (const d of [0.1, 0.2, 0.3]) this.burst(o, 0.04, 'lowpass', 500, 1, 200, d);
+  }
+
+  /** Incoming drop: a falling whine (pod) or a wet subterranean rumble (brood rift). */
+  dropIncoming(horde: boolean, vol = 1, pan = 0): void {
+    const o = this.out(0.5 * vol, pan);
+    if (!o) return;
+    if (horde) {
+      this.tone(o, 'triangle', 55, 40, 2.6, 0, 0.8);
+      this.burst(o, 2.4, 'lowpass', 300, 1.2, 120);
+    } else {
+      this.tone(o, 'sawtooth', 2400, 300, 2.8, 0, 0.35);
+      this.tone(o, 'sine', 1800, 200, 2.8, 0.05, 0.3);
+    }
+  }
+
+  /** Shield projector coming up: rising electrical hum. */
+  shieldUp(vol = 1, pan = 0): void {
+    const o = this.out(0.4 * vol, pan);
+    if (!o) return;
+    this.tone(o, 'sawtooth', 70, 140, 0.9, 0, 0.5);
+    this.tone(o, 'sine', 420, 840, 0.9, 0.05, 0.4);
+    this.burst(o, 0.6, 'bandpass', 5000, 8, 7000, 0.2);
+  }
+
+  /** Burning hulk settling: a metallic groan and ticking. */
+  wreck(vol = 1, pan = 0): void {
+    if (!this.allow('wreck', 400)) return;
+    const o = this.out(0.35 * vol, pan);
+    if (!o) return;
+    this.tone(o, 'sawtooth', 140, 70, 0.8, 0.15, 0.35);
+    for (const d of [0.3, 0.55, 0.9]) this.burst(o, 0.03, 'bandpass', 3500, 8, undefined, d);
+  }
+
   /** Soft two-note bell for tips and tutorial steps. */
   hint(): void {
     if (!this.allow('hint', 400)) return;

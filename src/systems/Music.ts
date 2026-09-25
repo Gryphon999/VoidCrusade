@@ -161,6 +161,20 @@ class MusicEngine {
     }
   }
 
+  /** Short rising brass call when a new tech tier comes online (music keeps playing). */
+  tierStinger(horde = false): void {
+    AudioSystem.onReady(() => {
+      if (!this.init()) return;
+      const out = this.ctx.createGain();
+      out.gain.value = 0.8;
+      out.connect(this.duck);
+      const t = this.ctx.currentTime + 0.05;
+      const notes = horde ? [45, 46, 50] : [55, 62, 67];
+      notes.forEach((n, i) => brass(this.ctx, out, n, t + i * 0.18, i === 2 ? 1.4 : 0.2, 0.26));
+      drum(this.ctx, out, t + 0.36, 0.5, horde ? 38 : 48);
+    });
+  }
+
   /** Victory fanfare or defeat lament, then silence. */
   stinger(win: boolean): void {
     AudioSystem.onReady(() => {

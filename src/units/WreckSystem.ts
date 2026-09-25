@@ -75,7 +75,7 @@ export class WreckSystem {
       expires: this.battle.elapsed + LIFETIME, alive: true,
     };
     this.wrecks.push(w);
-    this.battle.events.emit(EV.wreckChanged);
+    this.battle.events.emit(EV.wreckChanged, w, true);
   }
 
   remove(w: Wreck, fade = true): void {
@@ -89,7 +89,7 @@ export class WreckSystem {
     }
     const i = this.wrecks.indexOf(w);
     if (i >= 0) this.wrecks.splice(i, 1);
-    this.battle.events.emit(EV.wreckChanged);
+    this.battle.events.emit(EV.wreckChanged, w, false);
   }
 
   /** Wreck drawn under a view-space point (for salvage orders). */

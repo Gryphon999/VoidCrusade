@@ -181,7 +181,7 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
   spitter: {
     abilities: ['acidcloud'],
     id: 'spitter', name: 'Acid Spitters', faction: 'nullhorde', category: 'infantry', tier: 1, requires: [], supply: 2,
-    damageType: 'acid', armor: 'light', sight: 300, canCapture: true, squadSize: 5, hp: 55, damage: 12, range: 230,
+    damageType: 'acid', armor: 'light', sight: 300, canCapture: true, squadSize: 5, hp: 55, damage: 12, range: 220,
     speed: 95, cost: { scrip: 90, flux: 20 }, cooldown: 1.4, trainTime: 8, size: 7, projectile: 'spit',
     description: 'Bloated ranged beasts that lob corrosive bile. Melt vehicles; fragile.',
   },
@@ -189,7 +189,7 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
     abilities: ['pounce'],
     id: 'leaper', name: 'Void Leapers', faction: 'nullhorde', category: 'infantry', tier: 2, requires: [], supply: 2,
     damageType: 'melee', armor: 'light', sight: 300, canCapture: true, squadSize: 4, hp: 90, damage: 20, range: 40,
-    speed: 130, cost: { scrip: 100, flux: 30 }, cooldown: 1.0, trainTime: 9, size: 8, projectile: 'melee',
+    speed: 130, cost: { scrip: 110, flux: 30 }, cooldown: 1.0, trainTime: 9, size: 8, projectile: 'melee',
     leap: { range: 300, cooldown: 10, mult: 2.5 },
     description: 'Bounding killers that leap onto their prey. Devastating first strike; weak if left unsupported.',
   },

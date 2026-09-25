@@ -229,6 +229,8 @@ export class AIController {
         const have = mine.filter((s) => s.def.id === u).length + producers.reduce((a, q) => a + q.queue.filter((x) => x === u).length, 0);
         if (d.repairRate && (have >= 1 || b.elapsed < 180)) continue;
         if (d.aura && (have >= 1 || b.elapsed < 150)) continue;
+        // Transports only earn their keep with infantry aboard; one is enough.
+        if (d.transport && have >= 1) continue;
         options.push({ id: u, at });
       }
     }

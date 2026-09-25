@@ -81,7 +81,8 @@ export const STYLE: Record<Personality, Style> = {
     homeGuard: 1, waveSupply: 10, waveMult: 0.65, towers: 0, walls: false, heavyShare: 0.25, allIn: true,
   },
   turtler: {
-    order: ['power', 'power', 'infantry', 'defense', 'supply', 'defense', 'power', 'heavy', 'research', 'supply', 'defense', 'vehicles', 'hospital',
+    // Army first even for turtlers: towers without a field army lose the map to an early rush.
+    order: ['power', 'infantry', 'supply', 'power', 'defense', 'supply', 'heavy', 'defense', 'research', 'supply', 'vehicles', 'defense', 'hospital',
       'supply', 'longrange', 'sensor', 'defense', 'beacon'],
     homeGuard: 3, waveSupply: 26, waveMult: 1.5, towers: 2, walls: true, heavyShare: 0.45, allIn: false,
   },

@@ -25,6 +25,17 @@ export class AudioBridge {
       this.shots.push(battle.time.now);
       this.shot(x, y, kind);
     });
+    ev.on(EV.tierUp, (o: Owner) => o === 'player' && Music.tierStinger(battle.factions.player === 'nullhorde'));
+    ev.on(EV.transportChanged, (t: Building | Squad) => {
+      const p = t instanceof Building ? t : t.center;
+      this.spatial(p.x, p.y, (v, pan) => AudioSystem.garrison(v, pan));
+    });
+    ev.on(EV.dropIncoming, (o: Owner, x: number, y: number) =>
+      this.spatial(x, y, (v, p) => AudioSystem.dropIncoming(battle.factions[o] === 'nullhorde', v, p), 3200));
+    ev.on(EV.shieldRaised, (b: Building) => this.spatial(b.x, b.y, (v, p) => AudioSystem.shieldUp(v, p)));
+    ev.on(EV.wreckChanged, (w: { x: number; y: number } | undefined, added: boolean) => {
+      if (w && added) this.spatial(w.x, w.y, (v, p) => AudioSystem.wreck(v, p));
+    });
     ev.on(EV.battleEnded, (r: BattleResult) => Music.stinger(r.winner === 'player'));
     ev.on(EV.unitDied, (x: number, y: number) => this.spatial(x, y, (v, p) => AudioSystem.unitDeath(v, p)));
     ev.on(EV.buildingDestroyed, (b: Building) => this.spatial(b.x, b.y, (v, p) => AudioSystem.explosion(v, p), 2600));
