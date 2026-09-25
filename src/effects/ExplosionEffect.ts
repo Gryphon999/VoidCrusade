@@ -7,6 +7,7 @@ import { Projection } from '../render/Projection';
 export class ExplosionEffect {
   private fire: Phaser.GameObjects.Particles.ParticleEmitter;
   private sparks: Phaser.GameObjects.Particles.ParticleEmitter;
+  private chimney: Phaser.GameObjects.Particles.ParticleEmitter;
 
   constructor(private scene: Phaser.Scene) {
     this.fire = scene.add.particles(0, 0, 'fx_soft', {
@@ -32,6 +33,11 @@ export class ExplosionEffect {
     });
     this.sparks.addParticleProcessor(new DragProcessor(0.2));
     this.sparks.setDepth(DEPTH.effects + 3);
+    this.chimney = scene.add.particles(0, 0, 'fx_soft', {
+      emitting: false, speedY: { min: -32, max: -18 }, speedX: { min: 4, max: 14 }, scale: { start: 0.5, end: 2.2 },
+      alpha: { start: 0.4, end: 0 }, lifespan: { min: 1800, max: 2600 }, tint: [0x3a3836, 0x504c48, 0x2a2826],
+    });
+    this.chimney.setDepth(DEPTH.effects - 2);
   }
 
   /** Explosion at a logical ground point, centred `lift` px above the ground. */
@@ -53,6 +59,32 @@ export class ExplosionEffect {
   /** Small burst at a view-space point. */
   impact(x: number, y: number): void {
     this.sparks.explode(4, x, y);
+  }
+
+  /** One chimney/exhaust smoke puff at a view-space point. */
+  puff(x: number, y: number): void {
+    this.chimney.emitParticleAt(x, y, 1);
+  }
+
+  /** A burning ruin: flames and smoke for a while after a building falls. */
+  burn(x: number, y: number, radius: number, seconds: number): void {
+    const flames = this.scene.add.particles(x, y, 'fx_soft', {
+      frequency: 90, quantity: 1, x: { min: -radius * 0.5, max: radius * 0.5 }, y: { min: -radius * 0.2, max: radius * 0.2 },
+      speedY: { min: -60, max: -25 }, scale: { start: 1.1, end: 0.2 }, alpha: { start: 0.9, end: 0 },
+      lifespan: { min: 400, max: 800 }, tint: [0xff5010, 0xff9020, 0xffc040], blendMode: Phaser.BlendModes.ADD,
+    }).setDepth(DEPTH.effects);
+    const smoke = this.scene.add.particles(x, y - 10, 'fx_soft', {
+      frequency: 160, x: { min: -radius * 0.4, max: radius * 0.4 }, speedY: { min: -50, max: -20 }, speedX: { min: 4, max: 18 },
+      scale: { start: 1.2, end: 3.5 }, alpha: { start: 0.35, end: 0 }, lifespan: 2400, tint: [0x2a2a2a, 0x3a3634],
+    }).setDepth(DEPTH.effects - 1);
+    this.scene.time.delayedCall(seconds * 1000, () => {
+      flames.stop();
+      smoke.stop();
+    });
+    this.scene.time.delayedCall(seconds * 1000 + 3000, () => {
+      flames.destroy();
+      smoke.destroy();
+    });
   }
 
   private smoke(x: number, y: number, radius: number): void {

@@ -8,6 +8,10 @@ import { createFxTextures } from '../assets/FxTextures';
 import { createCaptureTextures } from '../assets/CaptureTextures';
 import { getCursors } from '../assets/Cursors';
 import { createPropTextures } from '../render/PropArt';
+import { createCaptureArt } from '../render/CaptureArt';
+import { createBuildingIcons, ensureBuildingArt } from '../render/buildings/BuildingArt';
+import { Projection } from '../render/Projection';
+import { Settings } from '../systems/Settings';
 import { createUnitAtlases } from '../render/puppet/UnitAtlas';
 import { MAP_BUILDERS } from '../maps';
 import { textStyle } from '../ui/uiStyle';
@@ -40,11 +44,19 @@ export class PreloadScene extends Phaser.Scene {
     const steps: [string, () => void][] = [
       ['Surveying terrain', () => createTileTextures(this)],
       ['Forging icons', () => createUITextures(this)],
-      ['Raising fortifications', () => createBuildingTextures(this)],
+      ['Raising fortifications', () => {
+        createBuildingTextures(this);
+        createBuildingIcons(this, 0.65);
+        Projection.setTilt(Settings.get().tilt);
+        ensureBuildingArt(this, Projection.tilt);
+      }],
       ['Mustering the Iron Void', () => createUnitTextures(this)],
       ['Breeding the Null Horde', () => createUnitAtlases(this)],
       ['Distilling blood and fire', () => createFxTextures(this)],
-      ['Charging Void-Nexus obelisks', () => createCaptureTextures(this)],
+      ['Charging Void-Nexus obelisks', () => {
+        createCaptureTextures(this);
+        createCaptureArt(this);
+      }],
       ['Scattering the debris of war', () => createPropTextures(this)],
       ['Charting battlefields', () => MAP_BUILDERS.forEach((b) => b())],
       ['Calibrating targeting reticles', () => getCursors()],

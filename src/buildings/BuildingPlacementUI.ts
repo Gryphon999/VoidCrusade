@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { DEPTH, TILE_SIZE } from '../config';
 import { BuildingSystem } from './BuildingSystem';
 import { BUILDING_DEFS, BuildingId } from './BuildingDefs';
-import { ensureBuildingVolumes, volumeTextureKey } from '../assets/BuildingTextures';
+import { buildingArt } from '../render/buildings/BuildingArt';
 import { Projection } from '../render/Projection';
 import { EV } from '../events';
 
@@ -14,9 +14,8 @@ export class BuildingPlacementUI {
   private tile = { tx: 0, ty: 0 };
 
   constructor(private scene: Phaser.Scene, private buildings: BuildingSystem, private toWorld: (px: number, py: number) => Phaser.Math.Vector2) {
-    ensureBuildingVolumes(scene, Projection.tilt);
-    this.ghost = scene.add.image(0, 0, volumeTextureKey('generator', Projection.tilt)).setVisible(false).setAlpha(0.6);
-    this.ghost.setOrigin(0.5, 1).setDepth(DEPTH.overlay);
+    this.ghost = scene.add.image(0, 0, buildingArt(scene, 'generator', Projection.tilt).body).setVisible(false).setAlpha(0.6);
+    this.ghost.setDepth(DEPTH.overlay);
     this.overlay = scene.add.graphics().setDepth(DEPTH.overlay - 1);
     scene.input.keyboard?.on('keydown-ESC', () => this.cancel());
   }
@@ -31,7 +30,8 @@ export class BuildingPlacementUI {
 
   start(id: BuildingId): void {
     this.active = id;
-    this.ghost.setTexture(volumeTextureKey(id, Projection.tilt)).setVisible(true);
+    const art = buildingArt(this.scene, id, Projection.tilt);
+    this.ghost.setTexture(art.body).setOrigin(art.originX, art.originY).setVisible(true);
     const p = this.scene.input.activePointer;
     const w = this.toWorld(p.x, p.y);
     this.updatePointer(w.x, w.y);

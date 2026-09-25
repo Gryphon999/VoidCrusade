@@ -80,6 +80,7 @@ export class BuildingSystem {
     for (const b of this.buildings) {
       if (!b.alive) continue;
       if (b.updateConstruction(dt, this.buildSpeed[b.owner])) this.onComplete(b, true);
+      b.view.update(dt);
       if (b.def.regen && b.isReady) b.heal(b.def.regen * dt);
     }
   }

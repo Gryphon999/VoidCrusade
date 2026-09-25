@@ -4,7 +4,7 @@ import { Squad } from '../units/Squad';
 import { Building } from '../buildings/Building';
 import { UNIT_DEFS } from '../units/UnitDefs';
 import { portraitKey as unitTextureKey } from '../render/puppet/UnitAtlas';
-import { buildingTextureKey } from '../assets/BuildingTextures';
+import { buildingIconKey as buildingTextureKey } from '../render/buildings/BuildingArt';
 import { RESEARCH_DEFS } from '../systems/ResearchSystem';
 import { Button } from './Button';
 import { drawPanel, textStyle } from './uiStyle';

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH } from '../config';
 import { BUILDING_DEFS, BuildingId, PLAYER_BUILD_LIST } from '../buildings/BuildingDefs';
-import { buildingTextureKey } from '../assets/BuildingTextures';
+import { buildingIconKey as buildingTextureKey } from '../render/buildings/BuildingArt';
 import type { BattleScene } from '../scenes/BattleScene';
 import { drawPanel, textStyle } from './uiStyle';
 import { TOP_BAR_H } from './TopBar';
