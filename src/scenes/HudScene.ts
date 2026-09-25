@@ -4,6 +4,8 @@ import { TopBar, TOP_BAR_H } from '../ui/TopBar';
 import { BuildToolbar } from '../ui/BuildToolbar';
 import { SelectionPanel } from '../ui/SelectionPanel';
 import { MiniMap } from '../ui/MiniMap';
+import { showEndScreen } from '../ui/EndScreen';
+import { BattleResult } from './BattleTypes';
 import { formatTime, textStyle } from '../ui/uiStyle';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { EV } from '../events';
@@ -24,6 +26,7 @@ export class HudScene extends Phaser.Scene {
   private messageText!: Phaser.GameObjects.Text;
   private messageTimer?: Phaser.Time.TimerEvent;
   private blockers: Blocker[] = [];
+  private ended = false;
 
   constructor() {
     super('HudScene');
@@ -32,6 +35,7 @@ export class HudScene extends Phaser.Scene {
   init(data: { battle: BattleScene }): void {
     this.battle = data.battle;
     this.blockers = [];
+    this.ended = false;
   }
 
   create(): void {
@@ -51,11 +55,18 @@ export class HudScene extends Phaser.Scene {
 
     const onSel = (): void => this.refreshSelection();
     const onMsg = (m: string): void => this.showMessage(m);
+    const onEnd = (r: BattleResult): void => {
+      this.ended = true;
+      this.addBlocker(new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT));
+      this.time.delayedCall(1200, () => showEndScreen(this, this.battle, r));
+    };
     this.battle.events.on(EV.selectionChanged, onSel);
     this.battle.events.on(EV.message, onMsg);
+    this.battle.events.on(EV.battleEnded, onEnd);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.battle.events.off(EV.selectionChanged, onSel);
       this.battle.events.off(EV.message, onMsg);
+      this.battle.events.off(EV.battleEnded, onEnd);
     });
   }
 
@@ -96,6 +107,7 @@ export class HudScene extends Phaser.Scene {
   }
 
   update(): void {
+    if (this.ended) return;
     this.topBar.update(formatTime(this.battle.elapsed));
     this.toolbar.update();
     this.panel.update();

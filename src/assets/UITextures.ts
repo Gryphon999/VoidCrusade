@@ -26,4 +26,22 @@ export function createUITextures(scene: Phaser.Scene): void {
     g.fillStyle(0x0a3010, 1).fillTriangle(0, 1, 14, 1, 7, 16);
     g.fillStyle(0x40e060, 1).fillTriangle(2, 2, 12, 2, 7, 13);
   });
+  bakeTexture(scene, 'icon_damage', 24, 24, (g) => {
+    g.fillStyle(0x5a1010, 1).fillCircle(12, 12, 11);
+    g.fillStyle(0xff5040, 1).fillTriangle(12, 2, 7, 18, 17, 18);
+    g.fillStyle(0xffd0a0, 1).fillRect(10, 18, 4, 4);
+  });
+  bakeTexture(scene, 'icon_build', 24, 24, (g) => {
+    g.fillStyle(0x3a3a20, 1).fillCircle(12, 12, 11);
+    g.fillStyle(0xe0b030, 1).fillRect(5, 13, 14, 6).fillRect(9, 6, 6, 8);
+  });
+  bakeTexture(scene, 'icon_turret', 24, 24, (g) => {
+    g.fillStyle(0x20283a, 1).fillCircle(12, 12, 11);
+    g.fillStyle(0x9ab0d0, 1).fillCircle(10, 13, 6).fillRect(12, 9, 10, 3);
+  });
+  bakeTexture(scene, 'icon_throne', 24, 24, (g) => {
+    g.fillStyle(0x3a2a08, 1).fillCircle(12, 12, 11);
+    g.fillStyle(0xf0c040, 1).fillTriangle(4, 18, 7, 6, 10, 18).fillTriangle(9, 18, 12, 3, 15, 18).fillTriangle(14, 18, 17, 6, 20, 18);
+    g.fillRect(4, 17, 16, 3);
+  });
 }

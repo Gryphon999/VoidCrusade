@@ -18,14 +18,15 @@ import { UnitSystem } from '../units/UnitSystem';
 import { CombatSystem } from '../units/CombatSystem';
 import { Unit } from '../units/Unit';
 import { Squad } from '../units/Squad';
-import { Difficulty, RESOURCES } from '../config';
+import { RESOURCES } from '../config';
+import { BattleData, BattleResult, BattleStats } from './BattleTypes';
+import { EV } from '../events';
+import { Building } from '../buildings/Building';
+import { Owner, opponent } from '../types';
 import { EffectsSystem } from '../effects/EffectsSystem';
 import type { HudScene } from './HudScene';
 
-export interface BattleData {
-  mapIndex?: number;
-  difficulty?: Difficulty;
-}
+export type { BattleData } from './BattleTypes';
 
 /** Cover/LOS queries (implemented by CoverSystem). */
 export interface CoverQueries {
@@ -62,6 +63,9 @@ export class BattleScene extends Phaser.Scene {
   effects!: EffectsSystem;
   hud!: HudScene;
   elapsed = 0;
+  battleData!: BattleData;
+  stats!: BattleStats;
+  result: BattleResult | null = null;
 
   constructor() {
     super('BattleScene');
@@ -69,14 +73,28 @@ export class BattleScene extends Phaser.Scene {
 
   create(data: BattleData): void {
     this.elapsed = 0;
+    this.battleData = data;
+    this.result = null;
+    this.stats = { kills: 0, losses: 0, buildingsLost: 0, buildingsDestroyed: 0 };
     this.modifiers = { player: defaultModifiers(), enemy: defaultModifiers() };
+    const bonus = data.bonuses;
+    if (bonus) {
+      Object.assign(this.modifiers.player, {
+        hpMult: bonus.hpMult, damageMult: bonus.damageMult, turretDamageMult: bonus.turretDamageMult,
+        squadSizeBonus: bonus.squadSizeBonus, maxSquadsBonus: bonus.maxSquadsBonus, buildSpeedMult: bonus.buildSpeedMult,
+      });
+    }
     this.map = new MapSystem(getMap(data.mapIndex ?? 0));
     this.map.render(this);
     this.pathfinder = new Pathfinder(this.map);
-    this.resources = new ResourceSystem();
+    this.resources = new ResourceSystem({
+      player: { scrip: RESOURCES.startScrip + (bonus?.startScrip ?? 0), flux: RESOURCES.startFlux + (bonus?.startFlux ?? 0) },
+      enemy: { scrip: RESOURCES.startScrip + (data.enemyBonusScrip ?? 0) },
+    });
     this.resources.addIncome('player', 'scrip', RESOURCES.baseScripIncome);
     this.resources.addIncome('enemy', 'scrip', RESOURCES.baseScripIncome);
     this.buildings = new BuildingSystem(this, this.map, this.resources);
+    this.buildings.buildSpeed.player = this.modifiers.player.buildSpeedMult;
     this.units = new UnitSystem(this);
     this.combat = new CombatSystem(this);
     this.production = new ProductionSystem(this);
@@ -100,6 +118,16 @@ export class BattleScene extends Phaser.Scene {
     this.cameraSystem.centerOn(hq.x + 200, hq.y - 100);
     this.inputController = new InputController(this);
 
+    this.events.on(EV.buildingDestroyed, (b: Building) => {
+      if (b.owner === 'player') this.stats.buildingsLost++;
+      else this.stats.buildingsDestroyed++;
+      if (b.def.role === 'hq') this.endBattle(opponent(b.owner));
+    });
+    this.events.on(EV.unitDied, (_x: number, _y: number, u: Unit) => {
+      if (u.owner === 'player') this.stats.losses++;
+      else this.stats.kills++;
+    });
+
     this.scene.launch('HudScene', { battle: this });
     this.hud = this.scene.get('HudScene') as HudScene;
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -109,8 +137,24 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
+  get ended(): boolean {
+    return this.result !== null;
+  }
+
+  endBattle(winner: Owner): void {
+    if (this.result) return;
+    this.result = { winner, time: this.elapsed, stats: { ...this.stats }, data: this.battleData };
+    this.selection.clear();
+    this.placement.cancel();
+    this.events.emit(EV.battleEnded, this.result);
+  }
+
   update(_time: number, delta: number): void {
     const dt = Math.min(delta, 100) / 1000;
+    if (this.ended) {
+      this.cameraSystem.update(dt);
+      return;
+    }
     this.elapsed += dt;
     this.resources.tick(dt);
     this.buildings.update(dt);
