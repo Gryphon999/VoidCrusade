@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { DEPTH, PROJECTION, TILE, TILE_SIZE } from '../config';
 import { Projection } from './Projection';
+import { Culler } from './Culler';
 import { TerrainPainter } from './TerrainPainter';
 import { biomeForMap } from './Biomes';
 import { makeCanvas } from './CanvasUtil';
@@ -137,6 +138,7 @@ export class TerrainRenderer {
       const name = `occ_${ix0}_${iy0}`;
       if (!c.tex.has(name)) c.tex.add(name, 0, ix0 - c.x0, Math.floor(iy0 - c.y0), ix1 - ix0, Math.ceil(iy1 - iy0));
       const img = this.scene.add.image(ix0, Math.floor(iy0), c.key, name).setOrigin(0).setDepth(depth);
+      Culler.for(this.scene).add(img, (ix0 + ix1) / 2, iy0);
       this.occluders.push(img);
     }
   }

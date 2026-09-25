@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { DEPTH, FX } from '../config';
 import { Projection } from '../render/Projection';
+import { Culler } from '../render/Culler';
 import { UNIT_MODELS, atlasKey, frameName } from '../render/puppet/UnitAtlas';
 import { ANIM_FRAMES } from '../render/puppet/Models';
 import { Unit } from '../units/Unit';
@@ -28,6 +29,7 @@ export class CorpseSystem {
         if (f === ANIM_FRAMES.death - 1) {
           img.setDepth(DEPTH.decals + 1);
           img.setTint(0xb8b0a8);
+          Culler.for(this.scene).add(img, img.x, img.y);
         }
       },
     });

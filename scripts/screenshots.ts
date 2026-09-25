@@ -107,6 +107,13 @@ async function main(): Promise<void> {
         await startScene(page, 'BattleScene', { mode: 'skirmish', mapIndex: 0, difficulty: 'normal' });
         await page.waitForTimeout(2500);
         await shoot(page, `battle-start-${suffix}`);
+        // HUD: the stronghold selected shows its portrait and the build grid.
+        await page.evaluate(() => {
+          type S = { buildings: { getHQ(o: string): unknown }; selection: { selectBuilding(b: unknown): void } };
+          const b = window.game.scene.getScene('BattleScene') as S;
+          b.selection.selectBuilding(b.buildings.getHQ('player'));
+        });
+        await shoot(page, `hud-${suffix}`);
         // Big fight: two armies clash in view.
         await page.evaluate(() => {
           type S = { units: { spawnSquad(id: string, o: string, x: number, y: number): { moveTo(x: number, y: number, a: boolean): void } }; cameraSystem: { centerOn(x: number, y: number): void };

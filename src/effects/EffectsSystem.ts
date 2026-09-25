@@ -7,6 +7,7 @@ import { LightSystem } from './LightSystem';
 import { ProjectileSystem } from './ProjectileSystem';
 import { ruinKey } from '../render/buildings/BuildingArt';
 import { Projection } from '../render/Projection';
+import { Culler } from '../render/Culler';
 import { DEPTH, GFX } from '../config';
 import { EV } from '../events';
 import { Settings } from '../systems/Settings';
@@ -74,7 +75,8 @@ export class EffectsSystem {
   private leaveRuin(b: Building): void {
     const bottom = b.y + b.radius;
     const key = ruinKey(this.scene, b.def.size, Projection.tilt, b.def.faction === 'nullhorde');
-    this.scene.add.image(b.x, Projection.vy(bottom) + 4, key).setOrigin(0.5, 1).setDepth(Projection.depth(bottom - 8));
+    const ruin = this.scene.add.image(b.x, Projection.vy(bottom) + 4, key).setOrigin(0.5, 1).setDepth(Projection.depth(bottom - 8));
+    Culler.for(this.scene).add(ruin, b.x, Projection.vy(b.y));
     this.explosions.burn(b.x, Projection.vy(b.y), b.radius, 25);
     this.lights.fire(b.x, Projection.vy(b.y), b.radius * 2.2, 25);
   }

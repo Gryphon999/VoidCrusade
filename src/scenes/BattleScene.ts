@@ -30,6 +30,7 @@ import { Projection } from '../render/Projection';
 import { Settings } from '../systems/Settings';
 import { PropSystem } from '../render/PropSystem';
 import { Atmosphere } from '../render/Atmosphere';
+import { Culler } from '../render/Culler';
 import { VoiceBridge } from '../systems/VoiceBridge';
 import type { HudScene } from './HudScene';
 
@@ -172,6 +173,7 @@ export class BattleScene extends Phaser.Scene {
     const dt = Math.min(delta, 100) / 1000;
     if (this.ended) {
       this.cameraSystem.update(dt);
+      Culler.for(this).update();
       return;
     }
     this.elapsed += dt;
@@ -190,6 +192,7 @@ export class BattleScene extends Phaser.Scene {
     this.atmosphere.update();
     this.selection.prune();
     this.cameraSystem.update(dt);
+    Culler.for(this).update();
     this.map.flushRender();
     if (this.placement.isActive) {
       const p = this.input.activePointer;

@@ -2,10 +2,68 @@ import Phaser from 'phaser';
 import { DEPTH, FX } from '../config';
 import { DragProcessor } from './DragProcessor';
 import { Projection } from '../render/Projection';
+import { Culler } from '../render/Culler';
+import { makeCanvas } from '../render/CanvasUtil';
 
 const HUMAN = [0x8a0000, 0xa00808, 0x6a0000, 0xc01010];
 /** Null Horde ichor: violet with a sickly green sheen. */
 const ALIEN = [0x6a1a6a, 0x8a2a8a, 0x4a8a20, 0x9a40a0];
+
+/** Decal textures are baked for size BASE and scaled per splat. */
+const BASE = 24;
+const VARIANTS = 6;
+
+const hex = (c: number, a = 1): string => `rgba(${(c >> 16) & 255},${(c >> 8) & 255},${c & 255},${a})`;
+
+/** Pre-renders blood pools, ichor pools and scorch marks once per game (canvas textures). */
+function bakeDecals(scene: Phaser.Scene): void {
+  if (scene.textures.exists('decal_human_0')) return;
+  const S = BASE * 5;
+  const c = S / 2;
+  const circle = (ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void => {
+    ctx.beginPath();
+    ctx.arc(c + x, c + y, r, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  for (const [kind, pal] of [['human', HUMAN], ['alien', ALIEN]] as const) {
+    for (let v = 0; v < VARIANTS; v++) {
+      const { canvas, ctx } = makeCanvas(S, S);
+      const size = BASE;
+      const main = pal[v % 3];
+      ctx.fillStyle = hex(kind === 'alien' ? 0x1a0a1a : 0x3a0000);
+      ctx.beginPath();
+      ctx.ellipse(c, c, size * 0.8, size * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = hex(main);
+      const blobs = 4 + ((v * 3) % 4);
+      for (let i = 0; i < blobs; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const d = Math.random() * size * 0.7;
+        circle(ctx, Math.cos(a) * d, Math.sin(a) * d, size * (0.25 + Math.random() * 0.35));
+      }
+      // Wet highlight and flung droplets.
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.beginPath();
+      ctx.ellipse(c - size * 0.2, c - size * 0.2, size * 0.25, size * 0.125, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = hex(main);
+      for (let i = 0; i < 6; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const d = size * (0.9 + Math.random() * 1.2);
+        circle(ctx, Math.cos(a) * d, Math.sin(a) * d, 1 + Math.random() * 2);
+      }
+      scene.textures.addCanvas(`decal_${kind}_${v}`, canvas);
+    }
+  }
+  for (let v = 0; v < VARIANTS; v++) {
+    const { canvas, ctx } = makeCanvas(S, S);
+    ctx.fillStyle = 'rgba(8,6,4,0.18)';
+    for (let i = 0; i < 6; i++) {
+      circle(ctx, (Math.random() - 0.5) * BASE * 0.6, (Math.random() - 0.5) * BASE * 0.6, BASE * (0.4 + Math.random() * 0.6));
+    }
+    scene.textures.addCanvas(`decal_scorch_${v}`, canvas);
+  }
+}
 
 /** Blood droplets, directional sprays, gibs and persistent ground decals (oldest fade out). */
 export class BloodEffect {
@@ -13,10 +71,14 @@ export class BloodEffect {
   private spray: Phaser.GameObjects.Particles.ParticleEmitter;
   private chunks: Phaser.GameObjects.Particles.ParticleEmitter;
   private decalLayer: Phaser.GameObjects.Layer;
-  private decals: Phaser.GameObjects.Graphics[] = [];
+  private decals: Phaser.GameObjects.Image[] = [];
+  private free: Phaser.GameObjects.Image[] = [];
+  private culler: Culler;
 
   constructor(private scene: Phaser.Scene) {
     this.decalLayer = scene.add.layer().setDepth(DEPTH.decals);
+    this.culler = Culler.for(scene);
+    bakeDecals(scene);
     this.drops = scene.add.particles(0, 0, 'fx_dot', {
       emitting: false, speed: { min: 60, max: 240 }, angle: { min: 0, max: 360 },
       // Random radius 2-6px per droplet (texture radius is 6px).
@@ -66,45 +128,33 @@ export class BloodEffect {
 
   /** Scorched blast mark on the ground. */
   scorch(x: number, y: number, r: number): void {
-    const g = this.scene.add.graphics({ x, y: Projection.vy(y) });
-    for (let i = 0; i < 6; i++) {
-      g.fillStyle(0x080604, 0.18).fillCircle((Math.random() - 0.5) * r * 0.6, (Math.random() - 0.5) * r * 0.6, r * (0.4 + Math.random() * 0.6));
-    }
-    g.setScale(1, Projection.tilt);
-    this.push(g);
+    this.place(`decal_scorch_${Phaser.Math.Between(0, VARIANTS - 1)}`, x, y, r / BASE, 1);
   }
 
   private addDecal(x: number, y: number, size: number, pal: number[]): void {
-    const g = this.scene.add.graphics({ x, y: Projection.vy(y) });
-    const main = Phaser.Utils.Array.GetRandom(pal.slice(0, 3)) as number;
-    g.fillStyle(pal === ALIEN ? 0x1a0a1a : 0x3a0000, 1).fillEllipse(0, 0, size * 1.6, size * 1.2);
-    g.fillStyle(main, 1);
-    const blobs = 4 + Math.floor(Math.random() * 4);
-    for (let i = 0; i < blobs; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const d = Math.random() * size * 0.7;
-      g.fillCircle(Math.cos(a) * d, Math.sin(a) * d, size * (0.25 + Math.random() * 0.35));
-    }
-    // Wet highlight and flung droplets.
-    g.fillStyle(0xffffff, 0.12).fillEllipse(-size * 0.2, -size * 0.2, size * 0.5, size * 0.25);
-    g.fillStyle(main, 1);
-    for (let i = 0; i < 6; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const d = size * (0.9 + Math.random() * 1.2);
-      g.fillCircle(Math.cos(a) * d, Math.sin(a) * d, 1 + Math.random() * 2);
-    }
-    // Squashed so the splat lies flat on the tilted ground.
-    g.setAlpha(FX.decalAlpha).setScale(1, Projection.tilt);
-    this.push(g);
+    const kind = pal === ALIEN ? 'alien' : 'human';
+    this.place(`decal_${kind}_${Phaser.Math.Between(0, VARIANTS - 1)}`, x, y, size / BASE, FX.decalAlpha);
   }
 
-  private push(g: Phaser.GameObjects.Graphics): void {
-    this.decalLayer.add(g);
-    this.decals.push(g);
+  /** Recycles a pooled decal image; squashed so it lies flat on the tilted ground. */
+  private place(key: string, x: number, y: number, scale: number, alpha: number): void {
+    const vy = Projection.vy(y);
+    const img = this.free.pop() ?? this.scene.add.image(0, 0, key);
+    img.setTexture(key).setPosition(x, vy).setAlpha(alpha).setVisible(true).setFlipX(Math.random() < 0.5)
+      .setScale(scale, scale * Projection.tilt);
+    this.decalLayer.add(img);
+    this.culler.add(img, x, vy);
+    this.decals.push(img);
     while (this.decals.length > FX.maxDecals) {
-      const old = this.decals.shift() as Phaser.GameObjects.Graphics;
-      this.scene.tweens.add({ targets: old, alpha: 0, duration: 2000, onComplete: () => old.destroy() });
+      const old = this.decals.shift() as Phaser.GameObjects.Image;
+      this.scene.tweens.add({ targets: old, alpha: 0, duration: 2000, onComplete: () => this.recycle(old) });
     }
+  }
+
+  private recycle(img: Phaser.GameObjects.Image): void {
+    img.setVisible(false);
+    this.culler.remove(img);
+    this.free.push(img);
   }
 
   get decalCount(): number {

@@ -3,6 +3,7 @@ import { DEPTH, TILE, TILE_SIZE } from '../config';
 import { EV } from '../events';
 import { makeRng } from '../utils/rng';
 import { Projection } from './Projection';
+import { Culler } from './Culler';
 import { PROP_VARIANTS, PropKind, propBase, propKey } from './PropArt';
 import { Building } from '../buildings/Building';
 import type { BattleScene } from '../scenes/BattleScene';
@@ -53,6 +54,9 @@ export class PropSystem {
     const w = img.width;
     const shadow = this.battle.add.image(x + w * 0.18, vy + 2, 'fx_soft').setTint(0x000000).setAlpha(0.45)
       .setScale((w * 1.1) / 32, (w * 0.5 * Projection.tilt) / 32).setDepth(DEPTH.shadows);
+    const culler = Culler.for(this.battle);
+    culler.add(img, x, vy);
+    culler.add(shadow, x, vy);
     this.props.push({ x, y, img, shadow });
   }
 
