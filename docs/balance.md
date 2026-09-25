@@ -72,9 +72,18 @@ carrier             9    2070      676       5        33
   squads are faster and more numerous per supply. It shows up as draws rather than losses: both
   bases hold behind towers, regenerating Horde structures and the shield. The next levers, if
   playtests agree, are Horde building regeneration and Spore Node strength.
-- **AI difficulty spread** (Iron Void Hard vs Horde Easy/Brutal, C6 checks): Brutal Horde wins in
-  about 4 minutes, Easy Horde no longer snowballs early. Humans should find Easy clearly beatable
-  because it thinks every 2.5 s, queues one unit at a time and never retreats or counter-picks.
+- **AI difficulty spread** (6 matches each, Iron Void AI on Hard, same seed):
+
+  | Horde difficulty | Iron Void wins | Horde wins | Draws | Decided games |
+  |---|---|---|---|---|
+  | Easy | 3 | 2 | 1 | 7 min 16 s |
+  | Hard | 1 of 9 | 2 of 9 | 6 of 9 | 4 min 24 s |
+  | Brutal | 0 | 3 | 3 | 3 min 44 s |
+
+  Skill, not income, separates the levels: Easy thinks every 2.5 s, queues one unit at a time,
+  never retreats or counter-picks; Brutal thinks every 0.6 s, keeps four-deep queues, scouts,
+  harasses and drops. Even Easy Horde still holds more points than Hard Iron Void, which is the
+  same map-control gap described above.
 
 ## Tests
 
