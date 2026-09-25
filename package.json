@@ -13,7 +13,8 @@
     "screenshots": "tsx scripts/screenshots.ts",
     "test": "tsx --test tests/*.test.ts",
     "check:assets": "tsx scripts/check-assets.ts",
-    "simulate": "tsx scripts/simulate.ts"
+    "simulate": "tsx scripts/simulate.ts",
+    "screenshots:content": "tsx scripts/screenshots-content.ts"
   },
   "dependencies": {
     "phaser": "3.90.0"
