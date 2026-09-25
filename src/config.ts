@@ -91,3 +91,10 @@ export const UNITS = {
 } as const;
 
 export const BUILDING_VISION = 200;
+
+export const FX = {
+  maxDecals: 100,
+  decalAlpha: 0.7,
+  shakeDuration: 300,
+  shakeIntensity: 0.02,
+} as const;
