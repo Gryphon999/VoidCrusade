@@ -228,7 +228,7 @@ export class AIController {
         const d = UNIT_DEFS[u];
         const have = mine.filter((s) => s.def.id === u).length + producers.reduce((a, q) => a + q.queue.filter((x) => x === u).length, 0);
         if (d.repairRate && (have >= 1 || b.elapsed < 180)) continue;
-        if (d.aura && have >= 2) continue;
+        if (d.aura && (have >= 1 || b.elapsed < 150)) continue;
         options.push({ id: u, at });
       }
     }
@@ -249,7 +249,8 @@ export class AIController {
         for (const [k, w] of Object.entries(mix.damage)) def += (w ?? 0) / damageMult(k as keyof typeof mix.damage, d.armor);
         def /= 1.4;
       }
-      let s = off + def * 0.5;
+      // Cheap units that trade well are worth more per resource spent.
+      let s = (off + def * 0.5) * (1.2 - Math.min(0.55, (d.cost.scrip + d.cost.flux) / 500));
       if (wantHeavy && d.category !== 'infantry') s += 0.6;
       // Variety: less of what it already has plenty of.
       s -= mine.filter((q) => q.def.id === o.id).length * 0.06;

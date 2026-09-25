@@ -1,4 +1,7 @@
+import type { AbilityId } from '../units/Abilities';
+import type { Squad } from '../units/Squad';
 import Phaser from 'phaser';
+import type { ProjectileLook } from '../units/UnitDefs';
 import { EV } from '../events';
 import { AudioSystem } from './AudioSystem';
 import { Ambience } from './Ambience';
@@ -17,7 +20,8 @@ export class AudioBridge {
 
   constructor(private battle: BattleScene) {
     const ev = battle.events;
-    ev.on(EV.unitFired, (x: number, y: number, kind: string) => {
+    ev.on(EV.abilityUsed, (sq: Squad, id: AbilityId) => this.spatial(sq.center.x, sq.center.y, (v, p) => AudioSystem.ability(id, v, p), 2200));
+    ev.on(EV.unitFired, (x: number, y: number, kind: ProjectileLook) => {
       this.shots.push(battle.time.now);
       this.shot(x, y, kind);
     });
@@ -43,7 +47,7 @@ export class AudioBridge {
     play(vol, Phaser.Math.Clamp((x - cx) / (v.width / 2), -1, 1) * 0.7);
   }
 
-  private shot(x: number, y: number, kind: string): void {
+  private shot(x: number, y: number, kind: ProjectileLook): void {
     this.spatial(x, y, (v, p) => {
       if (kind === 'bullet') AudioSystem.rifleShot(v, p);
       else if (kind === 'shell') AudioSystem.heavyShot(v, p);
@@ -51,6 +55,8 @@ export class AudioBridge {
       else if (kind === 'flame') AudioSystem.flamer(v, p);
       else if (kind === 'sniper') AudioSystem.sniperShot(v, p);
       else if (kind === 'psy') AudioSystem.psychic(v, p);
+      else if (kind === 'cannon') AudioSystem.cannon(v, p);
+      else if (kind === 'lob' || kind === 'acidlob') AudioSystem.mortar(v, p, kind === 'acidlob');
       else AudioSystem.spit(v, p);
     });
   }

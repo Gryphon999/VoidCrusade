@@ -1,3 +1,4 @@
+import type { AbilityId } from '../units/Abilities';
 import { Settings } from './Settings';
 
 type Ctx = AudioContext;
@@ -146,6 +147,25 @@ class AudioEngine {
     this.burst(o, 0.04, 'highpass', 2500, 0.6);
   }
 
+  /** Tank main gun: a deep, cracking boom with a long low tail. */
+  cannon(vol = 1, pan = 0): void {
+    if (!this.allow('cannon', 150)) return;
+    const o = this.out(0.62 * vol, pan);
+    if (!o) return;
+    this.burst(o, 0.05, 'highpass', 1800, 0.8);
+    this.burst(o, 0.35, 'lowpass', 700, 0.9, 120);
+    this.tone(o, 'sine', 95, 32, 0.45, 0, 0.9);
+  }
+
+  /** Mortar / bile artillery: a hollow launch thump. */
+  mortar(vol = 1, pan = 0, organic = false): void {
+    if (!this.allow('mortar', 200)) return;
+    const o = this.out(0.45 * vol, pan);
+    if (!o) return;
+    this.tone(o, organic ? 'triangle' : 'sine', organic ? 140 : 180, 60, 0.22, 0, 0.8);
+    this.burst(o, 0.12, organic ? 'bandpass' : 'lowpass', organic ? 600 : 900, organic ? 3 : 0.8, 200);
+  }
+
   spit(vol = 1, pan = 0): void {
     if (!this.allow('spit', 45)) return;
     const o = this.out(0.3 * vol, pan);
@@ -269,6 +289,16 @@ class AudioEngine {
     base.forEach((f, i) => this.tone(o, 'sine', f, f * 1.01, 0.9, i * 0.12, 0.6));
   }
 
+  /** One procedural cue per active ability (see ABILITY_SOUNDS). */
+  ability(id: AbilityId, vol = 1, pan = 0): void {
+    if (!this.allow(`ab_${id}`, 150)) return;
+    const o = this.out(0.45 * vol, pan);
+    if (!o) return;
+    const tone = (type: OscillatorType, f0: number, f1: number, dur: number, delay = 0, peak = 1): void => this.tone(o, type, f0, f1, dur, delay, peak);
+    const burst = (dur: number, filter: BiquadFilterType, freq: number, q = 1, freqEnd?: number, delay = 0): void => this.burst(o, dur, filter, freq, q, freqEnd, delay);
+    ABILITY_SOUNDS[id]({ tone, burst });
+  }
+
   /** Soft two-note bell for tips and tutorial steps. */
   hint(): void {
     if (!this.allow('hint', 400)) return;
@@ -311,5 +341,28 @@ class AudioEngine {
     osc.stop(t + 0.32);
   }
 }
+
+type Voice = {
+  tone(type: OscillatorType, f0: number, f1: number, dur: number, delay?: number, peak?: number): void;
+  burst(dur: number, filter: BiquadFilterType, freq: number, q?: number, freqEnd?: number, delay?: number): void;
+};
+
+/** Sound recipe per ability: every ability id must have one (checked by scripts/check-assets.ts). */
+export const ABILITY_SOUNDS: Record<AbilityId, (v: Voice) => void> = {
+  frag: (v) => { v.tone('square', 1800, 1700, 0.04, 0, 0.3); v.burst(0.05, 'highpass', 3000, 0.7, undefined, 0.02); },
+  sprint: (v) => { v.tone('triangle', 330, 660, 0.18, 0, 0.6); v.tone('triangle', 440, 880, 0.18, 0.08, 0.5); },
+  smoke: (v) => { v.burst(0.5, 'lowpass', 1500, 0.6, 400); v.tone('square', 1200, 1100, 0.03, 0, 0.3); },
+  rally: (v) => [392, 523.3, 659.3].forEach((f, i) => v.tone('sawtooth', f, f, 0.35, i * 0.1, 0.35)),
+  barrage: (v) => { v.tone('sine', 1500, 1500, 0.08, 0, 0.5); v.tone('sine', 1500, 1500, 0.08, 0.18, 0.5); v.burst(0.6, 'lowpass', 400, 0.8, 90, 0.3); },
+  smite: (v) => { v.tone('sine', 2400, 600, 0.2, 0, 0.6); v.burst(0.06, 'highpass', 4000, 0.9); },
+  overcharge: (v) => { v.tone('sawtooth', 110, 880, 0.6, 0, 0.45); v.burst(0.3, 'bandpass', 3000, 5, 6000, 0.3); },
+  frenzy: (v) => { v.tone('sawtooth', 160, 90, 0.35, 0, 0.6); v.burst(0.25, 'bandpass', 700, 3, 300); },
+  pounce: (v) => { v.burst(0.12, 'bandpass', 1200, 2, 400); v.tone('triangle', 260, 120, 0.2, 0, 0.5); },
+  burrow: (v) => { v.burst(0.45, 'lowpass', 500, 0.8, 150); v.tone('sine', 90, 50, 0.4, 0, 0.6); },
+  acidcloud: (v) => { v.burst(0.6, 'bandpass', 1400, 2, 500); v.tone('triangle', 200, 140, 0.4, 0.05, 0.3); },
+  regenerate: (v) => [220, 277.2, 329.6].forEach((f, i) => v.tone('sine', f, f * 1.02, 0.5, i * 0.12, 0.4)),
+  scream: (v) => { v.tone('sawtooth', 900, 300, 0.6, 0, 0.5); v.tone('square', 1350, 450, 0.6, 0.02, 0.25); },
+  spawnbrood: (v) => { v.burst(0.35, 'bandpass', 800, 3, 300); v.tone('triangle', 180, 260, 0.3, 0.1, 0.4); },
+};
 
 export const AudioSystem = new AudioEngine();

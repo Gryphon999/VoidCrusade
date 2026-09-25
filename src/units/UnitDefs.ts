@@ -93,8 +93,8 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
   rifleman: {
     abilities: ['frag'],
     id: 'rifleman', name: 'Void Riflemen', faction: 'ironvoid', category: 'infantry', tier: 1, requires: [], supply: 2,
-    damageType: 'bullet', armor: 'light', sight: 300, canCapture: true, squadSize: 6, hp: 80, damage: 12, range: 200,
-    speed: 90, cost: { scrip: 80, flux: 0 }, cooldown: 1.0, trainTime: 8, size: 7, projectile: 'bullet',
+    damageType: 'bullet', armor: 'light', sight: 300, canCapture: true, squadSize: 6, hp: 90, damage: 12, range: 200,
+    speed: 100, cost: { scrip: 80, flux: 0 }, cooldown: 1.0, trainTime: 8, size: 7, projectile: 'bullet',
     description: 'Line infantry. Cheap, reliable, expendable.',
   },
   ranger: {
@@ -107,9 +107,9 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
   },
   breacher: {
     abilities: ['smoke'],
-    id: 'breacher', name: 'Breacher Squad', faction: 'ironvoid', category: 'infantry', tier: 1, requires: ['power'], supply: 3,
-    damageType: 'flame', armor: 'heavy', sight: 260, canCapture: true, squadSize: 5, hp: 100, damage: 9, range: 95,
-    speed: 84, cost: { scrip: 120, flux: 30 }, cooldown: 0.5, trainTime: 11, size: 8, projectile: 'flame',
+    id: 'breacher', name: 'Breacher Squad', faction: 'ironvoid', category: 'infantry', tier: 1, requires: ['power'], supply: 2,
+    damageType: 'flame', armor: 'heavy', sight: 260, canCapture: true, squadSize: 5, hp: 115, damage: 9, range: 120,
+    speed: 92, cost: { scrip: 120, flux: 30 }, cooldown: 0.5, trainTime: 11, size: 8, projectile: 'flame',
     ignoresCover: true,
     description: 'Close-assault troops with flamers. Burn infantry out of cover and scorch structures.',
   },
@@ -131,7 +131,7 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
   },
   heavy: {
     id: 'heavy', name: 'Iron Guard', faction: 'ironvoid', category: 'infantry', tier: 2, requires: [], supply: 3,
-    damageType: 'explosive', armor: 'heavy', sight: 280, canCapture: true, squadSize: 4, hp: 150, damage: 30, range: 150,
+    damageType: 'explosive', armor: 'heavy', sight: 280, canCapture: true, squadSize: 4, hp: 150, damage: 30, range: 180,
     speed: 60, cost: { scrip: 120, flux: 40 }, cooldown: 1.6, trainTime: 12, size: 9, projectile: 'shell',
     description: 'Armoured heavy weapons team. Strong against vehicles and heavy infantry.',
   },
@@ -144,14 +144,14 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
   },
   buggy: {
     id: 'buggy', name: 'Scout Buggy', faction: 'ironvoid', category: 'vehicle', tier: 2, requires: [], supply: 3,
-    damageType: 'bullet', armor: 'vehicle', sight: 480, canCapture: false, squadSize: 1, hp: 320, damage: 13, range: 240,
+    damageType: 'bullet', armor: 'vehicle', sight: 480, canCapture: false, squadSize: 1, hp: 340, damage: 16, range: 240,
     speed: 190, cost: { scrip: 140, flux: 40 }, cooldown: 0.35, trainTime: 12, size: 16, projectile: 'bullet',
     detector: 260,
     description: 'Fast raider with twin autoguns. Scouts the map and hunts infantry in the open.',
   },
   apc: {
     id: 'apc', name: 'Rhino APC', faction: 'ironvoid', category: 'vehicle', tier: 2, requires: [], supply: 3,
-    damageType: 'bullet', armor: 'vehicle', sight: 320, canCapture: false, squadSize: 1, hp: 750, damage: 10, range: 220,
+    damageType: 'bullet', armor: 'vehicle', sight: 320, canCapture: false, squadSize: 1, hp: 850, damage: 14, range: 220,
     speed: 125, cost: { scrip: 180, flux: 60 }, cooldown: 0.5, trainTime: 16, size: 20, projectile: 'bullet',
     transport: 1,
     description: 'Armoured transport. Carries one infantry squad safely and patches up its wounded.',
@@ -159,7 +159,7 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
   tank: {
     id: 'tank', name: 'Iron Tyrant Tank', faction: 'ironvoid', category: 'vehicle', tier: 3, requires: [], supply: 5,
     damageType: 'explosive', armor: 'vehicle', sight: 340, canCapture: false, squadSize: 1, hp: 1250, damage: 95, range: 300,
-    speed: 70, cost: { scrip: 300, flux: 150 }, cooldown: 3.0, trainTime: 24, size: 24, projectile: 'cannon',
+    speed: 70, cost: { scrip: 300, flux: 150 }, cooldown: 2.6, trainTime: 24, size: 24, projectile: 'cannon',
     turret: true, crush: 45, splash: 40,
     description: 'Main battle tank. Heavy cannon on a rotating turret; crushes infantry under its treads.',
   },
@@ -174,15 +174,15 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
   crawler: {
     abilities: ['frenzy'],
     id: 'crawler', name: 'Void Crawler', faction: 'nullhorde', category: 'infantry', tier: 1, requires: [], supply: 2,
-    damageType: 'acid', armor: 'light', sight: 280, canCapture: true, squadSize: 8, hp: 60, damage: 10, range: 120,
-    speed: 120, cost: { scrip: 70, flux: 0 }, cooldown: 0.9, trainTime: 7, size: 6, projectile: 'spit',
+    damageType: 'acid', armor: 'light', sight: 280, canCapture: true, squadSize: 8, hp: 60, damage: 7, range: 120,
+    speed: 120, cost: { scrip: 75, flux: 0 }, cooldown: 0.9, trainTime: 7, size: 6, projectile: 'spit',
     description: 'Fast chitinous swarm-beasts.',
   },
   spitter: {
     abilities: ['acidcloud'],
     id: 'spitter', name: 'Acid Spitters', faction: 'nullhorde', category: 'infantry', tier: 1, requires: [], supply: 2,
-    damageType: 'acid', armor: 'light', sight: 300, canCapture: true, squadSize: 5, hp: 55, damage: 15, range: 240,
-    speed: 95, cost: { scrip: 85, flux: 20 }, cooldown: 1.4, trainTime: 8, size: 7, projectile: 'spit',
+    damageType: 'acid', armor: 'light', sight: 300, canCapture: true, squadSize: 5, hp: 55, damage: 12, range: 230,
+    speed: 95, cost: { scrip: 90, flux: 20 }, cooldown: 1.4, trainTime: 8, size: 7, projectile: 'spit',
     description: 'Bloated ranged beasts that lob corrosive bile. Melt vehicles; fragile.',
   },
   leaper: {

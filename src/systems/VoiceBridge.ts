@@ -18,7 +18,7 @@ const SPEAKERS: Partial<Record<UnitId, Speaker>> = {
 };
 
 /** Abilities whose use gets a battle cry. */
-const SHOUTS = ['frag', 'smoke', 'rally', 'barrage', 'sprint', 'smite', 'overcharge'];
+export const SHOUTS = ['frag', 'smoke', 'rally', 'barrage', 'sprint', 'smite', 'overcharge'];
 
 export function speakerFor(s: Squad): Speaker {
   return SPEAKERS[s.def.id] ?? 'rifleman';

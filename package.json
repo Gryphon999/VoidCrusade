@@ -11,7 +11,9 @@
     "preview-maps": "tsx scripts/preview-maps.ts",
     "check:i18n": "tsx scripts/check-i18n.ts",
     "screenshots": "tsx scripts/screenshots.ts",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "check:assets": "tsx scripts/check-assets.ts",
+    "simulate": "tsx scripts/simulate.ts"
   },
   "dependencies": {
     "phaser": "3.90.0"

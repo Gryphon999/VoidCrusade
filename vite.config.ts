@@ -15,5 +15,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // The balance simulator runs long matches in the dev build; source edits must not reload them.
+    ...((globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.VC_STATIC ? { hmr: false, watch: { ignored: ['**/*'] } } : {}),
   },
 });
