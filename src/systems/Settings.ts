@@ -13,11 +13,15 @@ export interface GameSettings {
   tilt: number;
   graphics: GraphicsQuality;
   screenShake: boolean;
+  voiceVolume: number;
+  voiceEnabled: boolean;
+  /** Subtitles for voice lines; undefined = automatic (on when no voice is installed). */
+  subtitles?: boolean;
   /** UI language; undefined until chosen (then auto-detected). */
   language?: Lang;
 }
 
-const DEFAULTS: GameSettings = { musicVolume: 0.5, sfxVolume: 0.7, difficulty: 'normal', tilt: PROJECTION.defaultTilt, graphics: 'medium', screenShake: true };
+const DEFAULTS: GameSettings = { musicVolume: 0.5, sfxVolume: 0.7, difficulty: 'normal', tilt: PROJECTION.defaultTilt, graphics: 'medium', screenShake: true, voiceVolume: 0.85, voiceEnabled: true };
 
 let current: GameSettings | null = null;
 const listeners: ((s: GameSettings) => void)[] = [];

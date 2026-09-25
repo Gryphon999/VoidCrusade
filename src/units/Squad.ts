@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { UNITS } from '../config';
+import { EV } from '../events';
 import { Owner } from '../types';
 import { UnitDef } from './UnitDefs';
 import { Unit } from './Unit';
@@ -270,6 +271,7 @@ export class Squad {
     if (this.reinforceTimer > 0) return;
     this.reinforceTimer = UNITS.reinforceInterval;
     this.pendingReinforce--;
+    if (this.pendingReinforce === 0 && this.owner === 'player') this.battle.events.emit(EV.message, 'note.reinforced');
     const u = this.addUnit(this.x, this.y);
     u.sprite.setAlpha(0);
     this.battle.tweens.add({ targets: u.sprite, alpha: 1, duration: 400 });

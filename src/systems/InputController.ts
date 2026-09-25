@@ -3,6 +3,7 @@ import { DEPTH } from '../config';
 import { Squad, Target, targetPos } from '../units/Squad';
 import type { BattleScene } from '../scenes/BattleScene';
 import { AudioSystem } from './AudioSystem';
+import { VoiceBridge } from './VoiceBridge';
 
 const DRAG_THRESHOLD = 8;
 export type CommandMode = 'none' | 'move' | 'attackMove';
@@ -67,12 +68,20 @@ export class InputController {
     b.hud?.setCursor(kind);
   }
 
-  /** Low synth grunt as a voice acknowledgement; pitch by unit type. */
-  acknowledge(): void {
+  /** Voice acknowledgement from the first selected squad; a synth grunt if no line was spoken. */
+  acknowledge(kind: 'select' | 'move' | 'attack' | 'capture' = 'select'): void {
     const s = this.battle.selection.squads[0];
     if (!s) return;
+    if (VoiceBridge.acknowledge(s, kind)) return;
     const pitch = s.def.id === 'commander' ? 0.7 : s.def.id === 'heavy' ? 0.82 : 1;
     AudioSystem.grunt(pitch);
+  }
+
+  /** Which acknowledgement fits an order at this pointer position. */
+  private orderKind(p: Phaser.Input.Pointer, enemy: boolean): 'move' | 'attack' | 'capture' {
+    if (enemy) return 'attack';
+    const w = this.world(p);
+    return this.battle.capture.points.some((c) => c.contains(w.x, w.y) && c.owner !== 'player') ? 'capture' : 'move';
   }
 
   reinforceSelected(): void {
@@ -122,7 +131,7 @@ export class InputController {
       if (enemy) sel.squads.forEach((s) => s.attack(enemy));
       else this.moveSquads(sel.squads, w.x, w.y, false);
       this.battle.effects.orderMarker(w.x, w.y, !!enemy);
-      this.acknowledge();
+      this.acknowledge(this.orderKind(p, !!enemy));
     } else if (sel.building && sel.building.def.produces.length) {
       sel.building.rally = { x: w.x, y: w.y };
       this.battle.effects.orderMarker(w.x, w.y, false);
@@ -161,7 +170,7 @@ export class InputController {
       if (enemy && this.mode === 'attackMove') b.selection.squads.forEach((s) => s.attack(enemy));
       else this.moveSquads(b.selection.squads, w.x, w.y, this.mode === 'attackMove');
       b.effects.orderMarker(w.x, w.y, this.mode === 'attackMove');
-      this.acknowledge();
+      this.acknowledge(this.mode === 'attackMove' ? 'attack' : this.orderKind(p, !!enemy));
       this.setMode('none');
       return;
     }

@@ -30,6 +30,7 @@ import { Projection } from '../render/Projection';
 import { Settings } from '../systems/Settings';
 import { PropSystem } from '../render/PropSystem';
 import { Atmosphere } from '../render/Atmosphere';
+import { VoiceBridge } from '../systems/VoiceBridge';
 import type { HudScene } from './HudScene';
 
 export type { BattleData } from './BattleTypes';
@@ -128,6 +129,7 @@ export class BattleScene extends Phaser.Scene {
     this.fog = new FogOfWarSystem(this);
     this.audio = new AudioBridge(this);
     this.atmosphere = new Atmosphere(this);
+    new VoiceBridge(this);
 
     this.cameraSystem = new CameraSystem(this, this.map.worldWidth, this.map.worldHeight);
     this.cameraSystem.centerOn(hq.x + 200, hq.y - 100);

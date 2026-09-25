@@ -9,6 +9,7 @@ import { Button } from '../ui/Button';
 import { drawPanel, textStyle } from '../ui/uiStyle';
 import { BattleData, BattleResult } from './BattleTypes';
 import { Settings } from '../systems/Settings';
+import { Voice } from '../systems/VoiceSystem';
 import { headingFont, onLanguageChange, t } from '../i18n';
 import { bonusText, cardName, territoryName } from '../i18n/names';
 
@@ -129,6 +130,7 @@ export class CampaignScene extends Phaser.Scene {
     if (result && result.data.territoryId) {
       if (result.winner === 'player') {
         const cards = CampaignState.recordVictory(this.save, result.data.territoryId);
+        Voice.say('vo.territory', 'commander', 'event');
         this.refreshSummary();
         this.banner(t('camp.ours', { name: territoryName(result.data.territoryId) }), '#8fc0ff');
         this.time.delayedCall(900, () => this.pickCards(cards.map((c) => c.id)));

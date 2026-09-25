@@ -5,6 +5,7 @@ import { Slider } from '../ui/Slider';
 import { Button } from '../ui/Button';
 import { drawPanel, textStyle } from '../ui/uiStyle';
 import { Lang, dyn, getLanguage, headingFont, onLanguageChange, t } from '../i18n';
+import { Voice } from '../systems/VoiceSystem';
 
 const DIFFS: Difficulty[] = ['easy', 'normal', 'hard'];
 const GFXQ: GraphicsQuality[] = ['low', 'medium', 'high'];
@@ -77,9 +78,34 @@ export class SettingsScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, off);
   }
 
-  /** Hook for additional left-column controls (voice etc.). */
-  protected addLeftRows(_x: number): void {
-    void _x;
+  /** Voice-over controls: volume, on/off, subtitles, test, and a note when no voice exists. */
+  protected addLeftRows(x: number): void {
+    const s = Settings.get();
+    this.slider(x, t('settings.voice'), s.voiceVolume, (v) => Settings.set({ voiceVolume: v }));
+    const onOff = (v: boolean): string => (v ? t('common.on') : t('common.off'));
+    const y = this.leftY;
+    const voice = new Button(this, {
+      x: x + 140, y, w: 280, h: 34, label: t('settings.voiceOn', { v: onOff(s.voiceEnabled) }),
+      onClick: () => {
+        Settings.set({ voiceEnabled: !Settings.get().voiceEnabled });
+        voice.setLabel(t('settings.voiceOn', { v: onOff(Settings.get().voiceEnabled) }));
+      },
+    });
+    const subs = new Button(this, {
+      x: x + 140, y: y + 44, w: 280, h: 34, label: t('settings.subtitles', { v: onOff(Voice.subtitlesOn()) }),
+      onClick: () => {
+        Settings.set({ subtitles: !Voice.subtitlesOn() });
+        subs.setLabel(t('settings.subtitles', { v: onOff(Voice.subtitlesOn()) }));
+      },
+    });
+    new Button(this, { x: x + 140, y: y + 88, w: 280, h: 34, label: t('settings.voiceTest'), onClick: () => {
+      Voice.stop();
+      Voice.say('vo.test', 'commander', 'alert', true);
+    } });
+    if (!Voice.hasVoice()) {
+      this.add.text(x, y + 116, t('settings.noVoice', { lang: getLanguage() === 'ru' ? 'Русский' : 'English' }),
+        { ...textStyle(12, '#e0a060'), wordWrap: { width: 300 } });
+    }
   }
 
   protected slider(x: number, label: string, value: number, set: (v: number) => void): void {
