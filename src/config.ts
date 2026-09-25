@@ -61,3 +61,13 @@ export const RESOURCES = {
   baseScripIncome: 4,
   captureScripPerSec: 25,
 } as const;
+
+export const BUILD = {
+  /** Buildings snap to a grid of this many tiles. */
+  snap: 4,
+  /** Default distance (tiles) from a friendly building within which new ones may be placed. */
+  radius: 10,
+  /** Fraction of max HP a building starts with while under construction. */
+  startHpFraction: 0.25,
+  refundOnCancel: 0.75,
+} as const;

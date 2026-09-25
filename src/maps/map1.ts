@@ -28,7 +28,7 @@ export function buildMap1(): MapDef {
 
   b.border(CLIFF).mirror();
 
-  const playerBase = { tx: 5, ty: 39 };
+  const playerBase = { tx: 4, ty: 40 };
   const side = [
     { x: 20, y: 38 },
     { x: 10, y: 22 },
