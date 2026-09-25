@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { DEPTH } from '../config';
 import { Squad, Target, targetPos } from '../units/Squad';
 import type { BattleScene } from '../scenes/BattleScene';
+import { AudioSystem } from './AudioSystem';
 
 const DRAG_THRESHOLD = 8;
 export type CommandMode = 'none' | 'move' | 'attackMove';
@@ -44,7 +45,29 @@ export class InputController {
 
   setMode(m: CommandMode): void {
     this.mode = this.battle.selection.hasSquads ? m : 'none';
-    this.battle.hud?.setCursor(this.mode === 'attackMove' ? 'attack' : this.mode === 'move' ? 'move' : 'default');
+    this.refreshCursor();
+  }
+
+  /** Crosshair for attack orders (attack-move or hovering an enemy), green pointer for move. */
+  private refreshCursor(): void {
+    const b = this.battle;
+    const p = b.input.activePointer;
+    let kind: 'default' | 'move' | 'attack' = 'default';
+    if (this.mode === 'attackMove') kind = 'attack';
+    else if (this.mode === 'move') kind = 'move';
+    else if (b.selection.hasSquads && !b.placement.isActive && !this.overUI(p)) {
+      const w = this.world(p);
+      kind = this.enemyAt(w.x, w.y) ? 'attack' : 'move';
+    }
+    b.hud?.setCursor(kind);
+  }
+
+  /** Low synth grunt as a voice acknowledgement; pitch by unit type. */
+  acknowledge(): void {
+    const s = this.battle.selection.squads[0];
+    if (!s) return;
+    const pitch = s.def.id === 'commander' ? 0.7 : s.def.id === 'heavy' ? 0.82 : 1;
+    AudioSystem.grunt(pitch);
   }
 
   reinforceSelected(): void {
@@ -86,6 +109,7 @@ export class InputController {
       if (enemy) sel.squads.forEach((s) => s.attack(enemy));
       else this.moveSquads(sel.squads, w.x, w.y, false);
       this.battle.effects.orderMarker(w.x, w.y, !!enemy);
+      this.acknowledge();
     } else if (sel.building && sel.building.def.produces.length) {
       sel.building.rally = { x: w.x, y: w.y };
       this.battle.effects.orderMarker(w.x, w.y, false);
@@ -123,6 +147,7 @@ export class InputController {
       if (enemy && this.mode === 'attackMove') b.selection.squads.forEach((s) => s.attack(enemy));
       else this.moveSquads(b.selection.squads, w.x, w.y, this.mode === 'attackMove');
       b.effects.orderMarker(w.x, w.y, this.mode === 'attackMove');
+      this.acknowledge();
       this.setMode('none');
       return;
     }
@@ -131,12 +156,14 @@ export class InputController {
       const rect = new Phaser.Geom.Rectangle(Math.min(a.x, w.x), Math.min(a.y, w.y), Math.abs(w.x - a.x), Math.abs(w.y - a.y));
       const found = b.units.squadsInRect(rect, 'player');
       if (found.length || !shift) b.selection.selectSquads(found, shift);
+      if (found.length) this.acknowledge();
       return;
     }
     const squad = b.units.squadAt(w.x, w.y, 'player');
     if (squad) {
       if (shift) b.selection.toggleSquad(squad);
       else b.selection.selectSquads([squad]);
+      this.acknowledge();
       return;
     }
     const building = b.buildings.buildingAt(w.x, w.y);
@@ -146,6 +173,7 @@ export class InputController {
 
   /** Per-frame: draw the drag rectangle. */
   update(): void {
+    this.refreshCursor();
     const g = this.dragRect;
     if (!this.downAt || this.battle.placement.isActive) return;
     const p = this.battle.input.activePointer;

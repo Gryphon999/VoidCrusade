@@ -55,7 +55,7 @@ export const DEPTH = {
 } as const;
 
 export const RESOURCES = {
-  startScrip: 400,
+  startScrip: 500,
   startFlux: 100,
   /** Trickle income from the Stronghold so a player is never fully stalled. */
   baseScripIncome: 4,

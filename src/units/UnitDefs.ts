@@ -41,7 +41,7 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
   },
   crawler: {
     id: 'crawler', name: 'Void Crawler', faction: 'nullhorde', squadSize: 8, hp: 60, damage: 10, range: 120,
-    speed: 120, cost: { scrip: 70, flux: 0 }, cooldown: 0.8, trainTime: 7, size: 6, projectile: 'spit',
+    speed: 120, cost: { scrip: 70, flux: 0 }, cooldown: 0.9, trainTime: 7, size: 6, projectile: 'spit',
     description: 'Fast chitinous swarm-beasts.',
   },
   behemoth: {

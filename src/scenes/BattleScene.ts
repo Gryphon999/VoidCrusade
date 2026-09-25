@@ -111,6 +111,7 @@ export class BattleScene extends Phaser.Scene {
     const { playerBase, enemyBase } = this.map.def;
     const hq = this.buildings.spawn('stronghold', 'player', playerBase.tx, playerBase.ty, true);
     const hive = this.buildings.spawn('hive', 'enemy', enemyBase.tx, enemyBase.ty, true);
+    hq.rally = { x: hq.x + 230, y: hq.y - 80 };
     this.production.spawnFrom(hq, 'commander');
     this.production.spawnFrom(hq, 'rifleman');
     hive.rally = { x: hive.x - 120, y: hive.y + 160 };
@@ -136,6 +137,8 @@ export class BattleScene extends Phaser.Scene {
     this.scene.launch('HudScene', { battle: this });
     this.hud = this.scene.get('HudScene') as HudScene;
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      // Scene events survive a restart, so drop every gameplay listener registered this battle.
+      for (const e of Object.values(EV)) this.events.removeAllListeners(e);
       this.cameraSystem.destroy();
       this.inputController.destroy();
       this.scene.stop('HudScene');

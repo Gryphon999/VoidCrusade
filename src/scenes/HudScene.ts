@@ -6,6 +6,7 @@ import { SelectionPanel } from '../ui/SelectionPanel';
 import { MiniMap } from '../ui/MiniMap';
 import { showEndScreen } from '../ui/EndScreen';
 import { PauseMenu } from '../ui/PauseMenu';
+import { getCursors } from '../assets/Cursors';
 import { BattleResult } from './BattleTypes';
 import { formatTime, textStyle } from '../ui/uiStyle';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
@@ -102,8 +103,12 @@ export class HudScene extends Phaser.Scene {
     this.tooltip.setPosition(Phaser.Math.Clamp(x, half + 4, GAME_WIDTH - half - 4), y - 6);
   }
 
+  private cursor = '';
+
   setCursor(kind: 'default' | 'move' | 'attack'): void {
-    const css = kind === 'attack' ? 'crosshair' : kind === 'move' ? 'pointer' : 'default';
+    if (kind === this.cursor) return;
+    this.cursor = kind;
+    const css = kind === 'default' ? 'default' : getCursors()[kind];
     this.input.setDefaultCursor(css);
   }
 

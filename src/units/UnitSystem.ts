@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { UNITS } from '../config';
+import { DEPTH, UNITS } from '../config';
 import { EV } from '../events';
 import { Owner, opponent } from '../types';
 import { UNIT_DEFS, UnitId } from './UnitDefs';
@@ -14,8 +14,11 @@ const CELL = 64;
 export class UnitSystem {
   readonly squads: Squad[] = [];
   private grid = new Map<number, Unit[]>();
+  private bars: Phaser.GameObjects.Graphics;
 
-  constructor(private battle: BattleScene) {}
+  constructor(private battle: BattleScene) {
+    this.bars = battle.add.graphics().setDepth(DEPTH.units + 5);
+  }
 
   spawnSquad(id: UnitId, owner: Owner, x: number, y: number, size?: number): Squad {
     const def = UNIT_DEFS[id];
@@ -112,6 +115,7 @@ export class UnitSystem {
     for (const s of this.squads) {
       for (const u of s.units) this.steer(u, dt);
     }
+    this.drawBars();
     for (let i = this.squads.length - 1; i >= 0; i--) {
       const s = this.squads[i];
       if (!s.alive || s.units.length === 0) {
@@ -119,6 +123,26 @@ export class UnitSystem {
         this.squads.splice(i, 1);
         this.battle.events.emit(EV.squadDestroyed, s);
       }
+    }
+  }
+
+  /** Squad HP bars for selected squads and any visible damaged squad. */
+  private drawBars(): void {
+    const g = this.bars.clear();
+    for (const s of this.squads) {
+      if (!s.alive || s.units.length === 0) continue;
+      const frac = s.hp / s.maxHp;
+      if (!s.selected && frac >= 0.999) continue;
+      if (s.owner === 'enemy' && !s.units.some((u) => u.isShown)) continue;
+      let top = Infinity;
+      for (const u of s.units) top = Math.min(top, u.y - u.radius);
+      const c = s.center;
+      const w = 34;
+      const x = c.x - w / 2;
+      const y = top - 12;
+      const col = s.owner === 'enemy' ? 0xe03030 : frac > 0.6 ? 0x40d040 : frac > 0.3 ? 0xe0c020 : 0xe03020;
+      g.fillStyle(0x000000, 0.7).fillRect(x - 1, y - 1, w + 2, 5);
+      g.fillStyle(col, 1).fillRect(x, y, w * Math.min(1, frac), 3);
     }
   }
 
