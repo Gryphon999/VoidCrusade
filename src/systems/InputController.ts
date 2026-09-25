@@ -139,6 +139,7 @@ export class InputController {
     const shift = isShift(p);
     const w = this.world(p);
     if (b.placement.isActive) {
+      b.placement.updatePointer(w.x, w.y);
       b.placement.confirm(shift);
       return;
     }

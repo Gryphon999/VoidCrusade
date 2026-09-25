@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "zip": "npm run build && cd dist && zip -r ../voidcrusade.zip .",
+    "preview-maps": "tsx scripts/preview-maps.ts"
   },
   "dependencies": {
     "phaser": "3.90.0"
