@@ -1,6 +1,7 @@
 import { Resources } from '../systems/ResourceSystem';
 import type { BuildingRole } from '../buildings/BuildingDefs';
 import { ArmorClass, DamageType } from './Damage';
+import type { AbilityId } from './Abilities';
 
 export type UnitId =
   | 'rifleman' | 'ranger' | 'breacher' | 'marksman' | 'engineer' | 'heavy' | 'commander'
@@ -80,6 +81,8 @@ export interface UnitDef {
   regen?: number;
   /** Maximum number alive at once (Titans). */
   limit?: number;
+  /** Active abilities on the Q / W / E slots. */
+  abilities?: AbilityId[];
   description: string;
 }
 
@@ -88,12 +91,14 @@ const Z = { scrip: 0, flux: 0 };
 export const UNIT_DEFS: Record<UnitId, UnitDef> = {
   // ---------------------------------------------------------------- Iron Void
   rifleman: {
+    abilities: ['frag'],
     id: 'rifleman', name: 'Void Riflemen', faction: 'ironvoid', category: 'infantry', tier: 1, requires: [], supply: 2,
     damageType: 'bullet', armor: 'light', sight: 300, canCapture: true, squadSize: 6, hp: 80, damage: 12, range: 200,
     speed: 90, cost: { scrip: 80, flux: 0 }, cooldown: 1.0, trainTime: 8, size: 7, projectile: 'bullet',
     description: 'Line infantry. Cheap, reliable, expendable.',
   },
   ranger: {
+    abilities: ['sprint'],
     id: 'ranger', name: 'Void Rangers', faction: 'ironvoid', category: 'infantry', tier: 1, requires: [], supply: 2,
     damageType: 'bullet', armor: 'light', sight: 440, canCapture: true, squadSize: 4, hp: 60, damage: 11, range: 260,
     speed: 122, cost: { scrip: 90, flux: 10 }, cooldown: 1.1, trainTime: 9, size: 7, projectile: 'bullet',
@@ -101,6 +106,7 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
     description: 'Fast scouts with long rifles. See far, capture points twice as fast and spot burrowed foes.',
   },
   breacher: {
+    abilities: ['smoke'],
     id: 'breacher', name: 'Breacher Squad', faction: 'ironvoid', category: 'infantry', tier: 1, requires: ['power'], supply: 3,
     damageType: 'flame', armor: 'heavy', sight: 260, canCapture: true, squadSize: 5, hp: 100, damage: 9, range: 95,
     speed: 84, cost: { scrip: 120, flux: 30 }, cooldown: 0.5, trainTime: 11, size: 8, projectile: 'flame',
@@ -108,6 +114,7 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
     description: 'Close-assault troops with flamers. Burn infantry out of cover and scorch structures.',
   },
   marksman: {
+    abilities: ['smite'],
     id: 'marksman', name: 'Void Marksmen', faction: 'ironvoid', category: 'infantry', tier: 2, requires: [], supply: 2,
     damageType: 'bullet', armor: 'light', sight: 460, canCapture: true, squadSize: 3, hp: 60, damage: 48, range: 400,
     speed: 80, cost: { scrip: 110, flux: 40 }, cooldown: 3.0, trainTime: 12, size: 7, projectile: 'sniper',
@@ -115,6 +122,7 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
     description: 'Snipers. Pick off the weakest soldier or the enemy hero from extreme range; poor up close.',
   },
   engineer: {
+    abilities: ['overcharge'],
     id: 'engineer', name: 'Field Engineers', faction: 'ironvoid', category: 'infantry', tier: 1, requires: [], supply: 1,
     damageType: 'bullet', armor: 'light', sight: 280, canCapture: true, squadSize: 3, hp: 70, damage: 6, range: 150,
     speed: 90, cost: { scrip: 70, flux: 0 }, cooldown: 1.2, trainTime: 8, size: 7, projectile: 'bullet',
@@ -128,6 +136,7 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
     description: 'Armoured heavy weapons team. Strong against vehicles and heavy infantry.',
   },
   commander: {
+    abilities: ['rally', 'barrage'],
     id: 'commander', name: 'Void Commander', faction: 'ironvoid', category: 'hero', tier: 1, requires: [], supply: 0,
     damageType: 'explosive', armor: 'heavy', sight: 340, canCapture: true, squadSize: 1, hp: 400, damage: 50, range: 180,
     speed: 80, cost: Z, cooldown: 1.2, trainTime: 30, size: 12, projectile: 'shell',
@@ -163,18 +172,21 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
   },
   // ---------------------------------------------------------------- Null Horde
   crawler: {
+    abilities: ['frenzy'],
     id: 'crawler', name: 'Void Crawler', faction: 'nullhorde', category: 'infantry', tier: 1, requires: [], supply: 2,
     damageType: 'acid', armor: 'light', sight: 280, canCapture: true, squadSize: 8, hp: 60, damage: 10, range: 120,
     speed: 120, cost: { scrip: 70, flux: 0 }, cooldown: 0.9, trainTime: 7, size: 6, projectile: 'spit',
     description: 'Fast chitinous swarm-beasts.',
   },
   spitter: {
+    abilities: ['acidcloud'],
     id: 'spitter', name: 'Acid Spitters', faction: 'nullhorde', category: 'infantry', tier: 1, requires: [], supply: 2,
     damageType: 'acid', armor: 'light', sight: 300, canCapture: true, squadSize: 5, hp: 55, damage: 15, range: 240,
     speed: 95, cost: { scrip: 85, flux: 20 }, cooldown: 1.4, trainTime: 8, size: 7, projectile: 'spit',
     description: 'Bloated ranged beasts that lob corrosive bile. Melt vehicles; fragile.',
   },
   leaper: {
+    abilities: ['pounce'],
     id: 'leaper', name: 'Void Leapers', faction: 'nullhorde', category: 'infantry', tier: 2, requires: [], supply: 2,
     damageType: 'melee', armor: 'light', sight: 300, canCapture: true, squadSize: 4, hp: 90, damage: 20, range: 40,
     speed: 130, cost: { scrip: 100, flux: 30 }, cooldown: 1.0, trainTime: 9, size: 8, projectile: 'melee',
@@ -182,6 +194,7 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
     description: 'Bounding killers that leap onto their prey. Devastating first strike; weak if left unsupported.',
   },
   burrower: {
+    abilities: ['burrow'],
     id: 'burrower', name: 'Burrowers', faction: 'nullhorde', category: 'infantry', tier: 2, requires: [], supply: 3,
     damageType: 'melee', armor: 'heavy', sight: 260, canCapture: true, squadSize: 3, hp: 140, damage: 26, range: 44,
     speed: 72, cost: { scrip: 130, flux: 50 }, cooldown: 1.3, trainTime: 12, size: 9, projectile: 'melee',
@@ -189,6 +202,7 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
     description: 'Tunnel under the battlefield unseen and erupt among the enemy. Revealed by detectors.',
   },
   shaman: {
+    abilities: ['regenerate'],
     id: 'shaman', name: 'Brood-shamans', faction: 'nullhorde', category: 'infantry', tier: 2, requires: [], supply: 2,
     damageType: 'acid', armor: 'light', sight: 300, canCapture: true, squadSize: 2, hp: 90, damage: 8, range: 180,
     speed: 88, cost: { scrip: 100, flux: 50 }, cooldown: 1.5, trainTime: 10, size: 8, projectile: 'psy',
@@ -230,6 +244,7 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
     description: 'The swarm\'s living siege engine. Tramples everything; only one can walk the field.',
   },
   overlord: {
+    abilities: ['scream', 'spawnbrood'],
     id: 'overlord', name: 'Null Overlord', faction: 'nullhorde', category: 'hero', tier: 1, requires: [], supply: 0,
     damageType: 'acid', armor: 'monster', sight: 340, canCapture: true, squadSize: 1, hp: 450, damage: 44, range: 160,
     speed: 78, cost: Z, cooldown: 1.2, trainTime: 30, size: 13, projectile: 'psy',

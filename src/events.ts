@@ -18,5 +18,10 @@ export const EV = {
   wreckChanged: 'wreck-changed',
   transportChanged: 'transport-changed',
   shieldRaised: 'shield-raised',
+  abilityUsed: 'ability-used',
+  squadRankUp: 'squad-rank-up',
+  squadBroken: 'squad-broken',
+  dropIncoming: 'drop-incoming',
+  mapEvent: 'map-event',
   message: 'hud-message',
 } as const;

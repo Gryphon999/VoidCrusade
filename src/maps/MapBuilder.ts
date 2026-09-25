@@ -1,5 +1,8 @@
 import { MAP_H, MAP_W, TILE, TileType } from '../config';
 
+/** Strategic (Scrip), Relic (Flux + hero XP), Forward base (build radius). */
+export type PointKind = 'strategic' | 'relic' | 'forward';
+
 export interface TilePoint {
   tx: number;
   ty: number;
@@ -12,7 +15,8 @@ export interface MapDef {
   playerBase: TilePoint; // top-left tile of the stronghold footprint
   enemyBase: TilePoint;
   /** Capture point centers in tile units (may be fractional). */
-  capturePoints: { x: number; y: number }[];
+  /** Capture point centres in tiles; `kind` overrides the default layout (centre = relic, next two = forward bases). */
+  capturePoints: { x: number; y: number; kind?: PointKind }[];
 }
 
 /**

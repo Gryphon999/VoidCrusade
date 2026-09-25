@@ -24,6 +24,12 @@ import { SupportSystem } from '../units/SupportSystem';
 import { VehicleSystem } from '../units/VehicleSystem';
 import { WreckSystem } from '../units/WreckSystem';
 import { StructureSystem } from '../buildings/StructureSystem';
+import { AbilitySystem } from '../units/AbilitySystem';
+import { MoraleSystem } from '../units/MoraleSystem';
+import { WorldSystem } from '../systems/WorldSystem';
+import { DropSystem } from '../systems/DropSystem';
+import { VictorySystem } from '../systems/VictorySystem';
+import { applyWargear, defaultPick, randomPick } from '../campaign/Wargear';
 import { Unit } from '../units/Unit';
 import { Squad } from '../units/Squad';
 import { RESOURCES, SUPPLY } from '../config';
@@ -71,6 +77,13 @@ export class BattleScene extends Phaser.Scene {
   vehicles!: VehicleSystem;
   wrecks!: WreckSystem;
   structures!: StructureSystem;
+  abilities!: AbilitySystem;
+  morale!: MoraleSystem;
+  world!: WorldSystem;
+  drops!: DropSystem;
+  victory!: VictorySystem;
+  /** Sides driven by the AI (abilities autocast, etc.). */
+  aiOwners: Owner[] = ['enemy'];
   production!: ProductionSystem;
   research!: ResearchSystem;
   tech!: TechSystem;
@@ -107,6 +120,9 @@ export class BattleScene extends Phaser.Scene {
         squadSizeBonus: bonus.squadSizeBonus, supplyBonus: bonus.maxSquadsBonus * SUPPLY.perSquadSlot, buildSpeedMult: bonus.buildSpeedMult,
       });
     }
+    // Hero wargear: the player's pick, a random loadout for the AI hero.
+    applyWargear(data.wargear ?? defaultPick(this.factions.player), this.modifiers.player);
+    applyWargear(randomPick(this.factions.enemy), this.modifiers.enemy);
     Projection.setTilt(Settings.get().tilt);
     this.map = new MapSystem(getMap(data.mapIndex ?? 0));
     this.cameras.main.setBackgroundColor(0x07060a);
@@ -131,22 +147,32 @@ export class BattleScene extends Phaser.Scene {
     this.buildings.tierOf = (o) => this.tech.tierOf(o);
     this.capture = new CapturePointSystem(this);
     new PropSystem(this, this.map.def.id.length * 7919 + (data.mapIndex ?? 0));
+    this.world = new WorldSystem(this, this.map.def.id.length * 131 + (data.mapIndex ?? 0), !!data.ashStorms);
     this.selection = new SelectionSystem(this);
     this.effects = new EffectsSystem(this);
     this.wrecks = new WreckSystem(this);
     this.structures = new StructureSystem(this);
+    this.abilities = new AbilitySystem(this);
+    this.morale = new MoraleSystem(this);
+    this.drops = new DropSystem(this);
     this.buildings.pointAt = (x, y) => this.capture.points.find((p) => p.contains(x, y)) ?? null;
+    this.buildings.forwardBases = (o) => this.capture.points.filter((p) => p.kind === 'forward' && p.owner === o);
     this.placement = new BuildingPlacementUI(this, this.buildings, (x, y) => this.cameraSystem.screenToWorld(x, y));
 
     const { playerBase, enemyBase } = this.map.def;
     const hq = this.buildings.spawn('stronghold', 'player', playerBase.tx, playerBase.ty, true);
-    const hive = this.buildings.spawn('hive', 'enemy', enemyBase.tx, enemyBase.ty, true);
+    this.victory = new VictorySystem(this, data.winMode);
+    const survival = this.victory.mode === 'survival';
     hq.rally = { x: hq.x + 230, y: hq.y - 80 };
     this.production.spawnFrom(hq, 'commander');
     this.production.spawnFrom(hq, 'rifleman');
-    hive.rally = { x: hive.x - 120, y: hive.y + 160 };
-    this.production.spawnFrom(hive, 'overlord');
-    this.production.spawnFrom(hive, 'crawler');
+    // Survival has no Horde base: waves come from its corner instead.
+    if (!survival) {
+      const hive = this.buildings.spawn('hive', 'enemy', enemyBase.tx, enemyBase.ty, true);
+      hive.rally = { x: hive.x - 120, y: hive.y + 160 };
+      this.production.spawnFrom(hive, 'overlord');
+      this.production.spawnFrom(hive, 'crawler');
+    }
     this.ai = new AIController(this, data.difficulty ?? 'normal');
     this.fog = new FogOfWarSystem(this);
     this.audio = new AudioBridge(this);
@@ -177,6 +203,16 @@ export class BattleScene extends Phaser.Scene {
       this.inputController.destroy();
       this.scene.stop('HudScene');
     });
+  }
+
+  /** Can `owner` see a logical point? The player uses the fog; the AI sees only what its own units and buildings see. */
+  fogVisibleFor(owner: Owner, x: number, y: number): boolean {
+    if (owner === 'player') return this.fog ? this.fog.isVisibleWorld(x, y) : true;
+    const mult = this.world?.visionMult ?? 1;
+    return this.units.squads.some((s) => s.owner === owner && s.alive
+      && Math.hypot(s.center.x - x, s.center.y - y) <= s.def.sight * mult)
+      || this.buildings.buildings.some((b) => b.owner === owner && b.alive
+        && Math.hypot(b.x - x, b.y - y) <= (b.def.vision ?? 200) + b.radius);
   }
 
   get ended(): boolean {
@@ -210,6 +246,10 @@ export class BattleScene extends Phaser.Scene {
     this.vehicles.update(dt);
     this.wrecks.update();
     this.structures.update(dt);
+    this.abilities.update(dt);
+    this.morale.update(dt);
+    this.world.update(dt);
+    this.victory.update(dt);
     this.cover?.update(dt);
     this.capture.update(dt);
     this.ai.update(dt);

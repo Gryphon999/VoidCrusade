@@ -264,10 +264,133 @@ const GLYPHS: Record<string, Glyph> = {
     c.fillStyle = '#1a140c';
     poly(c, [[C, C - 8], [C + 6, C - 3], [C + 4, C + 5], [C, C + 8], [C - 4, C + 5], [C - 6, C - 3]]);
   },
+  relic: (c) => {
+    // Chalice relic.
+    poly(c, [[C - 11, C - 12], [C + 11, C - 12], [C + 6, C + 1], [C + 2, C + 3], [C + 2, C + 9], [C + 8, C + 13], [C - 8, C + 13], [C - 2, C + 9], [C - 2, C + 3], [C - 6, C + 1]]);
+    c.fillStyle = '#1a140c';
+    c.fillRect(C - 1.5, C - 16, 3, 4);
+  },
+  forward: (c) => {
+    // Flag over a little bastion.
+    c.fillRect(C - 12, C + 4, 24, 10);
+    for (let i = 0; i < 3; i++) c.fillRect(C - 12 + i * 9, C, 6, 4);
+    c.fillRect(C - 1.5, C - 16, 3, 20);
+    poly(c, [[C + 1.5, C - 16], [C + 13, C - 12], [C + 1.5, C - 8]]);
+  },
+  frag: (c) => {
+    c.beginPath();
+    c.arc(C, C + 3, 10, 0, Math.PI * 2);
+    c.fill();
+    c.fillRect(C - 3, C - 12, 6, 6);
+    line(c, [[C + 3, C - 10], [C + 10, C - 14]], 2);
+    c.fillStyle = '#1a140c';
+    c.fillRect(C - 10, C + 1, 20, 2);
+    c.fillRect(C - 1, C - 7, 2, 20);
+  },
+  sprint: (c) => {
+    for (let i = 0; i < 3; i++) poly(c, [[C - 14 + i * 9, C - 12], [C - 4 + i * 9, C], [C - 14 + i * 9, C + 12], [C - 10 + i * 9, C]]);
+  },
+  smoke: (c) => {
+    for (const [x, y, r] of [[C - 7, C + 4, 8], [C + 5, C + 2, 9], [C - 1, C - 6, 8], [C + 9, C - 8, 5]]) {
+      c.beginPath();
+      c.arc(x, y, r, 0, Math.PI * 2);
+      c.fill();
+    }
+  },
+  smite: (c) => {
+    c.lineWidth = 2;
+    c.beginPath();
+    c.arc(C, C, 12, 0, Math.PI * 2);
+    c.stroke();
+    line(c, [[C - 16, C], [C - 5, C]], 2);
+    line(c, [[C + 5, C], [C + 16, C]], 2);
+    line(c, [[C, C - 16], [C, C - 5]], 2);
+    line(c, [[C, C + 5], [C, C + 16]], 2);
+    c.beginPath();
+    c.arc(C, C, 2.5, 0, Math.PI * 2);
+    c.fill();
+  },
+  barrage: (c) => {
+    for (const x of [-8, 0, 8]) {
+      line(c, [[C + x + 6, C - 14], [C + x, C + 4]], 2.5);
+      poly(c, [[C + x - 3, C + 2], [C + x + 3, C + 2], [C + x, C + 8]]);
+    }
+    c.fillRect(C - 14, C + 11, 28, 3);
+  },
+  frenzy: (c) => {
+    poly(c, [[C, C - 15], [C + 5, C - 4], [C + 14, C - 6], [C + 7, C + 3], [C + 10, C + 14], [C, C + 7], [C - 10, C + 14], [C - 7, C + 3], [C - 14, C - 6], [C - 5, C - 4]]);
+  },
+  pounce: (c) => {
+    c.lineWidth = 3;
+    c.beginPath();
+    c.moveTo(C - 14, C + 12);
+    c.quadraticCurveTo(C - 4, C - 18, C + 10, C + 2);
+    c.stroke();
+    poly(c, [[C + 6, C - 2], [C + 15, C + 4], [C + 7, C + 8]]);
+  },
+  burrow: (c) => {
+    c.fillRect(C - 15, C + 4, 30, 3);
+    c.beginPath();
+    c.arc(C, C + 4, 9, Math.PI, 0);
+    c.fill();
+    line(c, [[C - 6, C - 12], [C, C - 6], [C + 6, C - 12]], 2.5);
+  },
+  acidcloud: (c) => {
+    for (const [x, y, r] of [[C - 6, C + 2, 8], [C + 6, C, 9], [C, C - 7, 7]]) {
+      c.beginPath();
+      c.arc(x, y, r, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.fillStyle = '#1a140c';
+    for (const [x, y] of [[C - 5, C + 1], [C + 5, C - 1], [C, C - 7]]) {
+      c.beginPath();
+      c.arc(x, y, 2, 0, Math.PI * 2);
+      c.fill();
+    }
+  },
+  regenerate: (c) => {
+    c.fillRect(C - 3, C - 14, 6, 28);
+    c.fillRect(C - 14, C - 3, 28, 6);
+    c.lineWidth = 2;
+    c.beginPath();
+    c.arc(C, C, 14, -0.4, 1.2);
+    c.stroke();
+  },
+  scream: (c) => {
+    c.beginPath();
+    c.arc(C - 6, C, 6, 0, Math.PI * 2);
+    c.fill();
+    c.lineWidth = 2.5;
+    for (const r of [8, 13, 18]) {
+      c.beginPath();
+      c.arc(C - 6, C, r, -0.7, 0.7);
+      c.stroke();
+    }
+  },
+  spawnbrood: (c) => {
+    for (const [x, y] of [[C - 8, C + 4], [C + 8, C + 4], [C, C - 6]]) {
+      c.beginPath();
+      c.ellipse(x, y, 6, 8, 0, 0, Math.PI * 2);
+      c.fill();
+    }
+  },
+  tree: (c) => {
+    c.fillRect(C - 3, C - 14, 6, 6);
+    c.fillRect(C - 14, C + 8, 6, 6);
+    c.fillRect(C + 8, C + 8, 6, 6);
+    line(c, [[C, C - 8], [C, C], [C - 11, C], [C - 11, C + 8]], 2);
+    line(c, [[C, C], [C + 11, C], [C + 11, C + 8]], 2);
+  },
   back: (c) => {
     poly(c, [[C - 14, C], [C - 2, C - 12], [C - 2, C - 5], [C + 13, C - 5], [C + 13, C + 5], [C - 2, C + 5], [C - 2, C + 12]]);
   },
 };
+
+// Research that reuses a related emblem.
+GLYPHS.auspex = GLYPHS.tech;
+GLYPHS.drill = GLYPHS.military;
+GLYPHS.masterwork = GLYPHS.attack;
+GLYPHS.tankarmour = GLYPHS.carapace;
 
 /** Gold glyph on a dark bronze roundel, 44x44. */
 export function createGlyphIcons(scene: Phaser.Scene): void {
@@ -304,6 +427,7 @@ export const GLYPH = {
   defend: 'glyph_defend', aggressive: 'glyph_aggressive', retreat: 'glyph_retreat', repeat: 'glyph_repeat',
   tierUp: 'glyph_tierUp', economy: 'glyph_economy', military: 'glyph_military', defense: 'glyph_defense',
   tech: 'glyph_tech', back: 'glyph_back', deploy: 'glyph_deploy', unload: 'glyph_unload', shield: 'glyph_shield',
+  overcharge: 'glyph_overcharge', tree: 'glyph_tree',
 } as const;
 
 export function researchGlyph(id: string): string {

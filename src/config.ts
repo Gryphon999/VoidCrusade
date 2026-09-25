@@ -74,6 +74,10 @@ export const RESOURCES = {
   /** Trickle income from the Stronghold so a player is never fully stalled. */
   baseScripIncome: 4,
   captureScripPerSec: 25,
+  /** Extra Flux from holding the relic. */
+  relicFluxPerSec: 5,
+  /** Build radius (tiles) around a held forward-base point. */
+  forwardBuildRadius: 8,
 } as const;
 
 export const BUILD = {
@@ -128,7 +132,8 @@ export const CAPTURE = {
   reserveTiles: 2,
 } as const;
 
-export type Difficulty = 'easy' | 'normal' | 'hard';
+export type Difficulty = 'easy' | 'normal' | 'hard' | 'brutal';
+export const DIFFICULTIES: Difficulty[] = ['easy', 'normal', 'hard', 'brutal'];
 
 export interface DifficultyProfile {
   incomeMult: number;
@@ -141,6 +146,7 @@ export const AI_DIFFICULTY: Record<Difficulty, DifficultyProfile> = {
   easy: { incomeMult: 0.5, raidInterval: 60, rush: false, smartTargeting: false },
   normal: { incomeMult: 1.0, raidInterval: 30, rush: true, smartTargeting: false },
   hard: { incomeMult: 1.5, raidInterval: 20, rush: true, smartTargeting: true },
+  brutal: { incomeMult: 1.0, raidInterval: 15, rush: true, smartTargeting: true },
 };
 
 export const AI = {

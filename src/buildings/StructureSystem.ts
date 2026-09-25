@@ -60,6 +60,10 @@ export class StructureSystem {
     this.timer = TICK;
     for (const b of this.battle.buildings.buildings.slice()) {
       if (!b.alive || !b.isReady) continue;
+      if (b.overchargeIncome && b.overchargeUntil <= this.battle.elapsed) {
+        b.overchargeIncome = false;
+        this.battle.resources.removeIncome(b.owner, 'flux', b.def.fluxGen);
+      }
       if (b.def.mine) this.checkMine(b);
       if (b.def.heal) this.heal(b);
       if (b.def.onPoint) this.outpost(b);
@@ -87,8 +91,8 @@ export class StructureSystem {
   hiddenFrom(b: Building, viewer: Owner): boolean {
     if (!b.def.stealth || viewer === b.owner) return false;
     const squads = this.battle.units.squads;
-    const seen = squads.some((d) => d.alive && d.owner === viewer && !!d.def.detector
-      && Phaser.Math.Distance.Between(d.center.x, d.center.y, b.x, b.y) <= (d.def.detector ?? 0))
+    const seen = squads.some((d) => d.alive && d.owner === viewer && d.detector > 0
+      && Phaser.Math.Distance.Between(d.center.x, d.center.y, b.x, b.y) <= d.detector)
       || this.battle.buildings.buildings.some((s) => s.alive && s.owner === viewer && s.isReady && !!s.def.detector
         && Phaser.Math.Distance.Between(s.x, s.y, b.x, b.y) <= (s.def.detector ?? 0));
     return !seen;
@@ -139,6 +143,29 @@ export class StructureSystem {
   fortified(px: number, py: number, owner: Owner): boolean {
     return this.battle.buildings.buildings.some((b) => b.alive && b.isReady && b.owner === owner && !!b.def.onPoint
       && Phaser.Math.Distance.Between(b.x, b.y, px, py) < 3 * 64);
+  }
+
+  // ---- Overcharge -----------------------------------------------------------------
+
+  canOvercharge(b: Building): boolean {
+    return b.isReady && (b.def.fluxGen > 0 || !!b.def.attack) && this.battle.elapsed >= b.overchargeReady;
+  }
+
+  /** Flux Conduit: double output for 20 s; turrets: double fire rate. Then a 60 s cooldown. */
+  overcharge(b: Building): boolean {
+    if (!this.canOvercharge(b)) {
+      if (b.owner === 'player') this.battle.events.emit(EV.message, 'err.cooldown');
+      return false;
+    }
+    b.overchargeUntil = this.battle.elapsed + 20;
+    b.overchargeReady = this.battle.elapsed + 60;
+    if (b.def.fluxGen) {
+      b.overchargeIncome = true;
+      this.battle.resources.addIncome(b.owner, 'flux', b.def.fluxGen);
+    }
+    this.battle.effects.sparks(b.x, Projection.vy(b.y) - b.def.height * 0.5);
+    this.battle.effects.lights.flash(b.x, Projection.vy(b.y) - b.def.height * 0.5, 120, 0x80e0ff, 600, 1);
+    return true;
   }
 
   // ---- Shields -------------------------------------------------------------------

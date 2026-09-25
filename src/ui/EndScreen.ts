@@ -5,6 +5,7 @@ import { BattleResult } from '../scenes/BattleTypes';
 import type { BattleScene } from '../scenes/BattleScene';
 import { Button } from './Button';
 import { formatTime, textStyle } from './uiStyle';
+import { SURVIVAL_WAVES } from '../systems/VictorySystem';
 
 /** Animated Victory/Defeat overlay with battle stats. */
 export function showEndScreen(scene: Phaser.Scene, battle: BattleScene, result: BattleResult): Phaser.GameObjects.Container {
@@ -28,6 +29,8 @@ export function showEndScreen(scene: Phaser.Scene, battle: BattleScene, result: 
     t('end.kills', { k: s.kills, l: s.losses }),
     t('end.structures', { d: s.buildingsDestroyed, l: s.buildingsLost }),
   ];
+  if (battle.victory?.mode === 'survival') lines.unshift(t('end.survival', { w: Math.min(battle.victory.wave, SURVIVAL_WAVES), score: battle.victory.score }));
+  if (battle.victory?.mode === 'control' && win) lines.unshift(t('end.control'));
   const stats = scene.add.text(cx, cy + 40, lines.join('\n'), { ...textStyle(18, '#aab'), align: 'center', lineSpacing: 8 });
   stats.setOrigin(0.5).setAlpha(0);
   scene.tweens.add({ targets: [subtitle, stats], alpha: 1, duration: 600, delay: 900 });

@@ -6,7 +6,7 @@ import { UnitDef } from './UnitDefs';
 import { Unit } from './Unit';
 import { Building } from '../buildings/Building';
 import type { BattleScene } from '../scenes/BattleScene';
-import type { Wreck } from './WreckSystem';
+import type { Ruin, Wreck } from './WreckSystem';
 
 export type SquadOrder = 'idle' | 'move' | 'attackMove' | 'attack' | 'hold' | 'retreat';
 /** Hold = never move; Defend = fight nearby then return to the guard point; Aggressive = chase anything. */
@@ -88,8 +88,27 @@ export class Squad {
   /** Bunker this squad shelters in, or is walking to. */
   garrisonIn: Building | null = null;
   garrisonTarget: Building | null = null;
+  /** Timed effects: battle-second at which each one ends. */
+  buffs: Partial<Record<'sprint' | 'frenzy' | 'rally' | 'stun' | 'regen' | 'synapse', number>> = {};
+  /** Ability cooldowns: battle-second at which each is ready again. */
+  readonly cooldowns = new Map<string, number>();
+  /** Ability waiting until the squad walks into range. */
+  pendingCast: { id: string; x: number; y: number; target: Squad | Building | null } | null = null;
+  // ---- Morale & veterancy (MoraleSystem) ----
+  /** 0..100; above 50 suppressed, above 85 pinned. */
+  suppression = 0;
+  lastSuppressedAt = -99;
+  /** 0..100; below 20 the squad breaks and falls back. */
+  morale = 100;
+  broken = false;
+  /** Where a broken squad returns to once it has recovered. */
+  rallyPoint: Pt | null = null;
+  xp = 0;
+  rank = 0;
   /** Wreck the engineers were ordered to salvage. */
-  salvageTarget: Wreck | null = null;
+  salvageTarget: Wreck | Ruin | null = null;
+  /** Dig into cover (hold) when the current move ends — occupying ruins. */
+  holdOnArrival = false;
   private offsets: Pt[];
   private repathTimer = 0;
   private retargetTimer = 0;
@@ -141,7 +160,8 @@ export class Squad {
   heading = 0;
 
   addUnit(x: number, y: number): Unit {
-    const u = new Unit(this.battle, this, x, y, this.battle.modifiers[this.owner].hpMult);
+    const m = this.battle.modifiers[this.owner];
+    const u = new Unit(this.battle, this, x, y, m.hpMult * (this.def.isHero ? m.heroHpMult : 1) * (this.def.category === 'vehicle' ? m.vehicleHpMult : 1));
     u.setSelected(this.selected);
     this.units.push(u);
     this.reslot();
@@ -187,6 +207,7 @@ export class Squad {
     this.repairTarget = null;
     this.boardTarget = null;
     this.garrisonTarget = null;
+    this.holdOnArrival = false;
     this.salvageTarget = null;
     if (this.deployState !== 'mobile') {
       // Artillery must pack up first; the move resumes when it is mobile again.
@@ -267,6 +288,37 @@ export class Squad {
     if (this.burrowed && this.def.burrow) m *= this.def.burrow.speedMult;
     if (this.auraUntil > this.battle.elapsed) m *= 1 + this.auraSpeed;
     if (this.def.category === 'infantry') m *= this.battle.modifiers[this.owner].infantrySpeedMult;
+    if (this.def.isHero) m *= this.battle.modifiers[this.owner].heroSpeedMult;
+    const now = this.battle.elapsed;
+    if ((this.buffs.sprint ?? 0) > now) m *= 1.6;
+    if ((this.buffs.frenzy ?? 0) > now) m *= 1.4;
+    if ((this.buffs.stun ?? 0) > now) m = 0;
+    if (this.suppression >= 85) m = 0;
+    else if (this.suppression >= 50) m *= 0.6;
+    return m;
+  }
+
+  buffActive(k: keyof Squad['buffs']): boolean {
+    return (this.buffs[k] ?? 0) > this.battle.elapsed;
+  }
+
+  /** Outgoing damage multiplier from buffs, rank, suppression and morale. */
+  get damageMult(): number {
+    let m = 1 + this.rank * 0.08;
+    if (this.def.isHero) m *= this.battle.modifiers[this.owner].heroDamageMult;
+    if (this.buffActive('frenzy')) m *= 1.3;
+    if (this.buffActive('rally')) m *= 1.25;
+    if (this.suppression >= 85) m *= 0.5;
+    else if (this.suppression >= 50) m *= 0.7;
+    if (this.broken) m *= 0.5;
+    return m;
+  }
+
+  /** Incoming damage multiplier (rank, broken Horde synapse). */
+  get damageTakenMult(): number {
+    let m = 1 - this.rank * 0.06;
+    if (this.def.isHero) m *= this.battle.modifiers[this.owner].heroArmorMult;
+    if (this.buffActive('synapse')) m *= 1.25;
     return m;
   }
 
@@ -286,7 +338,8 @@ export class Squad {
 
   /** Weapon reach, including the deployed-artillery bonus. */
   get range(): number {
-    return this.def.range + (this.deployState === 'deployed' ? this.def.deploy?.rangeBonus ?? 0 : 0) + (this.garrisonIn ? 40 : 0);
+    return this.def.range + (this.deployState === 'deployed' ? this.def.deploy?.rangeBonus ?? 0 : 0) + (this.garrisonIn ? 40 : 0)
+      + (this.def.isHero ? this.battle.modifiers[this.owner].heroRangeBonus : 0);
   }
 
   /** Walk to a friendly bunker and shelter inside. */
@@ -295,6 +348,11 @@ export class Squad {
     this.garrisonTarget = b;
     this.setPath(b.x, b.y + b.radius + 20);
     this.order = 'move';
+  }
+
+  /** Detector radius (unit trait or hero auspex). */
+  get detector(): number {
+    return (this.def.detector ?? 0) + (this.def.isHero ? this.battle.modifiers[this.owner].heroDetector : 0);
   }
 
   /** Walk to a friendly transport and climb in. */
@@ -430,6 +488,10 @@ export class Squad {
       if (this.order === 'move' || this.order === 'retreat' || (this.order === 'attackMove' && !this.engaged)) {
         this.order = 'idle';
         this.guard = { x: this.x, y: this.y };
+        if (this.holdOnArrival) {
+          this.holdOnArrival = false;
+          this.hold();
+        }
       }
       return;
     }

@@ -71,7 +71,6 @@ export class EffectsSystem {
       this.explosions.explode(b.x, b.y, b.radius, b.def.height * 0.5);
       this.lights.flash(b.x, Projection.vy(b.y), b.radius * 4, 0xff8a30, 900, 1);
       this.blood.scorch(b.x, b.y, b.radius * 1.3);
-      this.leaveRuin(b);
     });
     ev.on(EV.buildingDamaged, (b: Building) => {
       if (Math.random() >= 0.3) return;
@@ -93,14 +92,15 @@ export class EffectsSystem {
     this.corpses.spawn(u);
   }
 
-  /** Burnt-out ruin sprite with flames and smoke where a building stood. */
-  private leaveRuin(b: Building): void {
+  /** Burnt-out ruin sprite with flames and smoke where a building stood (called by the wreck system). */
+  leaveRuin(b: Building): Phaser.GameObjects.Image {
     const bottom = b.y + b.radius;
     const key = ruinKey(this.scene, b.def.size, Projection.tilt, b.def.faction === 'nullhorde');
     const ruin = this.scene.add.image(b.x, Projection.vy(bottom) + 4, key).setOrigin(0.5, 1).setDepth(Projection.depth(bottom - 8));
     Culler.for(this.scene).add(ruin, b.x, Projection.vy(b.y));
-    this.explosions.burn(b.x, Projection.vy(b.y), b.radius, 25);
-    this.lights.fire(b.x, Projection.vy(b.y), b.radius * 2.2, 25);
+    this.explosions.burn(b.x, Projection.vy(b.y), b.radius, b.def.size >= 3 ? 25 : 10);
+    this.lights.fire(b.x, Projection.vy(b.y), b.radius * 2.2, b.def.size >= 3 ? 25 : 10);
+    return ruin;
   }
 
   update(dt: number): void {
@@ -162,6 +162,55 @@ export class EffectsSystem {
       this.scene.tweens.add({ targets: dome, alpha: 0, duration: 400, onComplete: () => dome.destroy() });
     });
     this.lights.flash(x, vy, r * 1.6, 0x60b0ff, 600, 0.8);
+  }
+
+  /** Thick grey smoke over a logical point for `seconds`. */
+  smokeCloud(x: number, y: number, r: number, seconds: number): void {
+    const vy = Projection.vy(y);
+    const k = Projection.tilt;
+    const em = this.scene.add.particles(x, vy, 'fx_soft', {
+      frequency: 60, quantity: 2, x: { min: -r * 0.8, max: r * 0.8 }, y: { min: -r * 0.8 * k, max: r * 0.8 * k },
+      speedY: { min: -14, max: -4 }, speedX: { min: -8, max: 8 }, scale: { start: r / 30, end: r / 14 },
+      alpha: { start: 0.55, end: 0 }, lifespan: { min: 2200, max: 3400 }, tint: [0x8a8680, 0x9a968e, 0x6a6660],
+    }).setDepth(DEPTH.effects + 8);
+    em.explode(24);
+    this.scene.time.delayedCall(seconds * 1000 - 1500, () => em.stop());
+    this.scene.time.delayedCall(seconds * 1000 + 3000, () => em.destroy());
+  }
+
+  /** Hissing green acid haze over a logical point for `seconds`. */
+  acidCloud(x: number, y: number, r: number, seconds: number): void {
+    const vy = Projection.vy(y);
+    const k = Projection.tilt;
+    const em = this.scene.add.particles(x, vy, 'fx_soft', {
+      frequency: 70, quantity: 2, x: { min: -r * 0.8, max: r * 0.8 }, y: { min: -r * 0.8 * k, max: r * 0.8 * k },
+      speedY: { min: -18, max: -6 }, scale: { start: r / 40, end: r / 18 }, alpha: { start: 0.45, end: 0 },
+      lifespan: { min: 1200, max: 2000 }, tint: [0x80ff40, 0x60c020, 0xb0ff70], blendMode: Phaser.BlendModes.ADD,
+    }).setDepth(DEPTH.effects + 6);
+    this.scene.time.delayedCall(seconds * 1000, () => em.stop());
+    this.scene.time.delayedCall(seconds * 1000 + 2200, () => em.destroy());
+    this.lights.flash(x, vy, r * 2, 0x80ff40, seconds * 1000, 0.5);
+  }
+
+  /** Expanding ground ring (auras, screams, rallies). */
+  pulseRing(x: number, y: number, r: number, color: number): void {
+    const k = Projection.tilt;
+    const img = this.scene.add.image(x, Projection.vy(y), 'capture_ring').setTint(color).setBlendMode(Phaser.BlendModes.ADD)
+      .setDepth(DEPTH.groundFx).setScale(0.2, 0.2 * k);
+    const s = (r * 2) / 256;
+    this.scene.tweens.add({ targets: img, scaleX: s, scaleY: s * k, alpha: 0, duration: 700, ease: 'Cubic.easeOut', onComplete: () => img.destroy() });
+    this.lights.flash(x, Projection.vy(y), r, color, 400, 0.8);
+  }
+
+  /** Red warning circle for incoming strikes and drop pods (`seconds` long). */
+  targetMarker(x: number, y: number, r: number, seconds: number, color = 0xff4030): void {
+    const k = Projection.tilt;
+    const g = this.scene.add.graphics({ x, y: Projection.vy(y) }).setDepth(DEPTH.groundFx);
+    g.lineStyle(3, color, 0.9).strokeEllipse(0, 0, r * 2, r * 2 * k);
+    g.lineStyle(1.5, color, 0.6).strokeEllipse(0, 0, r, r * k);
+    g.lineBetween(-r * 0.3, 0, r * 0.3, 0).lineBetween(0, -r * 0.3 * k, 0, r * 0.3 * k);
+    this.scene.tweens.add({ targets: g, alpha: 0.35, duration: 250, yoyo: true, repeat: Math.max(1, Math.round(seconds * 2)) });
+    this.scene.time.delayedCall(seconds * 1000 + 300, () => g.destroy());
   }
 
   /** A shot stopped by a shield: blue ripple at a view-space point. */

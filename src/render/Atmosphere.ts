@@ -49,7 +49,38 @@ export class Atmosphere {
     }
   }
 
+  private storm?: Phaser.GameObjects.Particles.ParticleEmitter;
+  private stormVeil?: Phaser.GameObjects.Rectangle;
+
+  /** Ash storm: dense wind-driven ash and a brown veil over the battlefield. */
+  setStorm(on: boolean): void {
+    const b = this.battle;
+    if (on && !this.storm) {
+      const v = b.cameras.main.worldView;
+      const zone = new Phaser.Geom.Rectangle(-200, 0, v.width + 200, v.height);
+      this.storm = b.add.particles(0, 0, 'fx_soft', {
+        frequency: 40, quantity: 2, emitZone: { type: 'random', source: zone, quantity: 1 } as Phaser.Types.GameObjects.Particles.EmitZoneData,
+        speedX: { min: 160, max: 280 }, speedY: { min: 10, max: 40 }, scale: { min: 1.2, max: 3.2 },
+        alpha: { start: 0.28, end: 0 }, lifespan: { min: 1600, max: 2600 }, tint: [0x6a5a48, 0x8a7a64, 0x4a4038],
+      }).setDepth(DEPTH.effects + 30);
+      this.stormVeil = b.add.rectangle(0, 0, 4000, 3000, 0x3a2c1c, 0).setOrigin(0).setScrollFactor(0).setDepth(DEPTH.fog - 1);
+      b.tweens.add({ targets: this.stormVeil, fillAlpha: 0.32, duration: 3000 });
+    } else if (!on && this.storm) {
+      const em = this.storm;
+      const veil = this.stormVeil;
+      this.storm = undefined;
+      this.stormVeil = undefined;
+      em.stop();
+      b.time.delayedCall(3000, () => em.destroy());
+      if (veil) b.tweens.add({ targets: veil, fillAlpha: 0, duration: 3000, onComplete: () => veil.destroy() });
+    }
+  }
+
   update(): void {
+    if (this.storm) {
+      const v = this.battle.cameras.main.worldView;
+      this.storm.setPosition(v.x, v.y);
+    }
     if (!this.ash) return;
     const v = this.battle.cameras.main.worldView;
     this.ash.setPosition(v.x, v.y);

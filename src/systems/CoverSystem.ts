@@ -76,6 +76,8 @@ export class CoverSystem implements CoverQueries {
 
   /** First cliff point along a segment, or null if the line is clear. */
   blockPoint(x0: number, y0: number, x1: number, y1: number): { x: number; y: number } | null {
+    const smoke = this.battle.abilities?.smokeBlocks(x0, y0, x1, y1);
+    if (smoke) return smoke;
     const map = this.battle.map;
     const d = Phaser.Math.Distance.Between(x0, y0, x1, y1);
     const steps = Math.ceil(d / COVER.losStep);

@@ -1,11 +1,22 @@
 import { Difficulty } from '../config';
 import { CampaignBonuses } from '../campaign/CampaignState';
 import { Owner } from '../types';
+import type { WargearPick } from '../campaign/Wargear';
+
+export type WinMode = 'annihilation' | 'control' | 'survival';
 
 export interface BattleData {
   mapIndex?: number;
   difficulty?: Difficulty;
-  mode?: 'skirmish' | 'campaign';
+  mode?: 'skirmish' | 'campaign' | 'tutorial';
+  /** Skirmish victory condition. */
+  winMode?: WinMode;
+  /** Optional ash storms map modifier. */
+  ashStorms?: boolean;
+  /** Commander wargear picked before the battle. */
+  wargear?: WargearPick;
+  /** AI personality (skirmish setup; random if omitted). */
+  personality?: string;
   territoryId?: string;
   bonuses?: CampaignBonuses;
   enemyBonusScrip?: number;

@@ -71,11 +71,12 @@ export class FogOfWarSystem implements FogQueries {
     if (!this.enabled) this.state.fill(VISIBLE);
     for (const s of this.battle.units.squads) {
       if (s.owner !== 'player' || !s.alive || s.embarked) continue;
-      for (const u of s.units) this.reveal(u.x, u.y, u.def.sight);
+      const mult = (this.battle.world?.visionMult ?? 1) * this.battle.modifiers.player.sightMult;
+      for (const u of s.units) this.reveal(u.x, u.y, u.def.sight * mult);
     }
     for (const b of this.battle.buildings.buildings) {
       if (b.owner !== 'player' || !b.alive) continue;
-      this.reveal(b.x, b.y, (b.def.role === 'hq' ? FOG.hqVision : FOG.buildingVision) + b.radius);
+      this.reveal(b.x, b.y, (b.def.vision ?? (b.def.role === 'hq' ? FOG.hqVision : FOG.buildingVision)) + b.radius);
     }
     this.applyVisibility();
     this.draw();

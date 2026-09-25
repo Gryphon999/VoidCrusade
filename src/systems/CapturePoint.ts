@@ -3,6 +3,7 @@ import { CAPTURE, COLORS, DEPTH, TILE_SIZE } from '../config';
 import { Owner } from '../types';
 import { Projection } from '../render/Projection';
 import { PYLON_ORIGIN } from '../render/CaptureArt';
+import type { PointKind } from '../maps/MapBuilder';
 
 export function ownerColor(o: Owner | null): number {
   return o === 'player' ? COLORS.player : o === 'enemy' ? COLORS.enemy : COLORS.neutral;
@@ -11,6 +12,7 @@ export function ownerColor(o: Owner | null): number {
 /** One Void-Nexus obelisk with its capture state and visuals. */
 export class CapturePoint {
   owner: Owner | null = null;
+  kind: PointKind = 'strategic';
   /** Side currently filling the bar (may differ from owner). */
   claimant: Owner | null = null;
   progress = 0;
@@ -25,7 +27,10 @@ export class CapturePoint {
 
   private scene: Phaser.Scene;
 
-  constructor(scene: Phaser.Scene, readonly index: number, readonly x: number, readonly y: number) {
+  private badge?: Phaser.GameObjects.Image;
+
+  constructor(scene: Phaser.Scene, readonly index: number, readonly x: number, readonly y: number, kind: PointKind = 'strategic') {
+    this.kind = kind;
     const vy = Projection.vy(y);
     const k = Projection.tilt;
     this.zone = scene.add.graphics().setDepth(DEPTH.capture);
@@ -43,6 +48,12 @@ export class CapturePoint {
     this.flag = scene.add.image(x + 4, vy - 112, 'pylon_flag').setOrigin(0, 0).setDepth(depth + 0.2);
     scene.tweens.add({ targets: this.flag, scaleX: 0.85, duration: 700 + Math.random() * 300, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this.scene = scene;
+    if (kind !== 'strategic') {
+      // Relics and forward bases wear a floating emblem above the obelisk.
+      this.badge = scene.add.image(x, vy - 150, kind === 'relic' ? 'glyph_relic' : 'glyph_forward').setDepth(depth + 0.3).setScale(0.75);
+      scene.tweens.add({ targets: this.badge, y: vy - 158, duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      if (kind === 'relic') this.aura.setScale(2.8, 2.8 * k);
+    }
     this.bar = scene.add.graphics().setDepth(DEPTH.overlay - 2);
     this.refresh();
   }
@@ -53,7 +64,7 @@ export class CapturePoint {
 
   refresh(): void {
     const col = ownerColor(this.owner);
-    this.aura.setTint(col);
+    this.aura.setTint(this.kind === 'relic' && !this.owner ? 0xffc850 : col);
     this.runes.setTint(col);
     this.ring.setTint(col);
     this.flag.setTint(col);

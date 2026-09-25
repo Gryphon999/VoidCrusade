@@ -5,11 +5,19 @@ import type { BattleScene } from '../scenes/BattleScene';
 import { AudioSystem } from './AudioSystem';
 import { VoiceBridge } from './VoiceBridge';
 import { EV } from '../events';
+import { ABILITIES, AbilityId } from '../units/Abilities';
+import { Building } from '../buildings/Building';
+import { UnitId } from '../units/UnitDefs';
 import { Projection } from '../render/Projection';
 
 const DRAG_THRESHOLD = 8;
 const DOUBLE_MS = 350;
 export type CommandMode = 'none' | 'move' | 'attackMove';
+
+/** A pending targeted command: an ability for the selected squads, or a drop from a beacon. */
+export type Targeting =
+  | { kind: 'ability'; id: AbilityId }
+  | { kind: 'drop'; building: Building; unit: UnitId };
 
 export function isShift(p: Phaser.Input.Pointer): boolean {
   const e = p.event as MouseEvent | undefined;
@@ -19,6 +27,8 @@ export function isShift(p: Phaser.Input.Pointer): boolean {
 /** Routes world mouse input to placement, selection and orders. */
 export class InputController {
   mode: CommandMode = 'none';
+  targeting: Targeting | null = null;
+  private aimGfx: Phaser.GameObjects.Graphics;
   private downAt: Phaser.Math.Vector2 | null = null;
   private dragRect: Phaser.GameObjects.Graphics;
   private waypointLines: Phaser.GameObjects.Graphics;
@@ -34,6 +44,7 @@ export class InputController {
     input.on('pointerup', this.onUp, this);
     this.dragRect = battle.add.graphics().setDepth(DEPTH.overlay);
     this.waypointLines = battle.add.graphics().setDepth(DEPTH.groundFx);
+    this.aimGfx = battle.add.graphics().setDepth(DEPTH.overlay - 1);
     const kb = input.keyboard;
     kb?.on('keydown-B', () => {
       const hq = battle.buildings.getHQ('player');
@@ -42,7 +53,10 @@ export class InputController {
     // Grid hotkeys (QWERTYU/ASDFGHJ) are handled by the HUD command grid; these are extra aliases.
     kb?.on('keydown-X', () => battle.selection.squads.forEach((s) => s.stop()));
     kb?.on('keydown-M', () => this.setMode('move'));
-    kb?.on('keydown-ESC', () => this.setMode('none'));
+    kb?.on('keydown-ESC', () => {
+      this.setMode('none');
+      this.targeting = null;
+    });
     kb?.on('keydown', (e: KeyboardEvent) => this.onKey(e));
     kb?.on('keydown-SPACE', () => {
       const s = battle.selection.squads[0] ?? battle.selection.building;
@@ -50,6 +64,94 @@ export class InputController {
       const pos = targetPos(s);
       battle.cameraSystem.centerOn(pos.x, pos.y);
     });
+  }
+
+  /** Starts targeting an ability (untargeted ones fire at once on every selected squad that has it). */
+  useAbility(id: AbilityId): void {
+    const b = this.battle;
+    const casters = b.selection.squads.filter((s) => s.def.abilities?.includes(id));
+    if (!casters.length) return;
+    if (ABILITIES[id].targeting === 'none') {
+      let any = false;
+      for (const s of casters) if (!b.abilities.check(s, id)) any = b.abilities.cast(s, id) || any;
+      if (!any) b.abilities.cast(casters[0], id);
+      return;
+    }
+    this.mode = 'none';
+    this.targeting = { kind: 'ability', id };
+  }
+
+  /** Beacon / portal drop: pick the landing spot next. */
+  startDrop(building: Building, unit: UnitId): void {
+    const err = this.battle.drops.check(building, unit);
+    if (err) {
+      this.battle.events.emit(EV.message, err);
+      return;
+    }
+    this.targeting = { kind: 'drop', building, unit };
+  }
+
+  /** Resolves a click while targeting; returns true if the click was consumed. */
+  private confirmTarget(p: Phaser.Input.Pointer): boolean {
+    const tg = this.targeting;
+    if (!tg) return false;
+    const b = this.battle;
+    const w = this.world(p);
+    if (!isShift(p)) this.targeting = null;
+    if (tg.kind === 'drop') {
+      b.drops.order(tg.building, tg.unit, w.x, w.y);
+      return true;
+    }
+    const d = ABILITIES[tg.id];
+    const v = this.view(p);
+    let target: Squad | Building | null = null;
+    if (d.targeting === 'enemy') {
+      const e = this.enemyAt(p);
+      target = e && 'units' in e ? e : null;
+      if (!target) {
+        b.events.emit(EV.message, 'err.needTarget');
+        return true;
+      }
+    } else if (d.targeting === 'building') {
+      const own = b.buildings.buildingAtView(v.x, v.y);
+      target = own && own.owner === 'player' ? own : null;
+      if (!target) {
+        b.events.emit(EV.message, 'err.needTarget');
+        return true;
+      }
+    }
+    // The ready caster closest to the target does it.
+    const tp = target ? ('units' in target ? target.center : { x: target.x, y: target.y }) : w;
+    const casters = b.selection.squads.filter((s) => s.def.abilities?.includes(tg.id) && !b.abilities.check(s, tg.id))
+      .sort((a, c) => Phaser.Math.Distance.Between(a.center.x, a.center.y, tp.x, tp.y) - Phaser.Math.Distance.Between(c.center.x, c.center.y, tp.x, tp.y));
+    const s = casters[0] ?? b.selection.squads.find((q) => q.def.abilities?.includes(tg.id));
+    if (s) b.abilities.cast(s, tg.id, w.x, w.y, target);
+    return true;
+  }
+
+  /** Range ring around the casters and the area of effect at the cursor. */
+  private drawAim(): void {
+    const g = this.aimGfx.clear();
+    const tg = this.targeting;
+    if (!tg) return;
+    const b = this.battle;
+    const k = Projection.tilt;
+    const w = this.world(b.input.activePointer);
+    const vy = Projection.vy(w.y);
+    if (tg.kind === 'drop') {
+      g.lineStyle(2, 0x60c0ff, 0.9).strokeEllipse(w.x, vy, 120, 120 * k);
+      return;
+    }
+    const d = ABILITIES[tg.id];
+    if (d.range > 0) {
+      for (const s of b.selection.squads) {
+        if (!s.def.abilities?.includes(tg.id)) continue;
+        g.lineStyle(1.5, 0xf0d27a, 0.5).strokeEllipse(s.center.x, Projection.vy(s.center.y), d.range * 2, d.range * 2 * k);
+      }
+    }
+    const r = d.radius ?? 24;
+    g.fillStyle(0xff6040, 0.12).fillEllipse(w.x, vy, r * 2, r * 2 * k);
+    g.lineStyle(2, 0xff8050, 0.9).strokeEllipse(w.x, vy, r * 2, r * 2 * k);
   }
 
   setMode(m: CommandMode): void {
@@ -63,6 +165,7 @@ export class InputController {
     const p = b.input.activePointer;
     let kind: 'default' | 'move' | 'attack' | 'capture' | 'build' = 'default';
     if (b.placement.isActive) kind = 'build';
+    else if (this.targeting) kind = 'attack';
     else if (this.mode === 'attackMove') kind = 'attack';
     else if (this.mode === 'move') kind = 'move';
     else if (b.selection.hasSquads && !this.overUI(p)) {
@@ -191,7 +294,8 @@ export class InputController {
     if (this.overUI(p)) return;
     const b = this.battle;
     if (p.rightButtonDown()) {
-      if (b.placement.isActive) b.placement.cancel();
+      if (this.targeting) this.targeting = null;
+      else if (b.placement.isActive) b.placement.cancel();
       else if (this.mode !== 'none') this.setMode('none');
       else this.issueRightClick(p);
       return;
@@ -239,6 +343,25 @@ export class InputController {
         if (!VoiceBridge.repair(salvagers[0])) this.acknowledge('move');
         return;
       }
+      // Ruins: engineers strip them for scrap, other infantry dig into the rubble.
+      const ruin = enemy || own ? null : this.battle.wrecks.ruinAtView(v.x, v.y);
+      if (ruin) {
+        const eng = sel.squads.filter((s) => s.def.repairRate);
+        const inf = sel.squads.filter((s) => !s.def.repairRate && s.def.category === 'infantry');
+        eng.forEach((s) => {
+          s.stop();
+          s.salvageTarget = ruin;
+        });
+        if (inf.length) {
+          this.moveSquads(inf, ruin.x, ruin.y, false);
+          inf.forEach((s) => (s.holdOnArrival = true));
+        }
+        if (eng.length || inf.length) {
+          this.battle.effects.orderMarker(ruin.x, ruin.y, false);
+          this.acknowledge('move');
+          return;
+        }
+      }
       const fixers = own && own.owner === 'player' && (own.hp < own.maxHp || !own.isReady) ? sel.squads.filter((s) => s.def.repairRate) : [];
       if (own && fixers.length) {
         fixers.forEach((s) => s.repair(own));
@@ -280,6 +403,7 @@ export class InputController {
     if (!dragged && this.overUI(p)) return;
     const shift = isShift(p);
     const w = this.world(p);
+    if (this.targeting && !dragged && this.confirmTarget(p)) return;
     if (b.placement.isActive) {
       if (dragged && b.placement.draggable) {
         const a = b.cameraSystem.screenToWorld(start.x, start.y);
@@ -352,6 +476,7 @@ export class InputController {
   update(): void {
     this.refreshCursor();
     this.drawWaypoints();
+    this.drawAim();
     const g = this.dragRect;
     if (!this.downAt || this.battle.placement.isActive) return;
     const p = this.battle.input.activePointer;

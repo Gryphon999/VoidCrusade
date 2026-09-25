@@ -9,6 +9,8 @@ import { Button } from '../ui/Button';
 import { drawPanel, textStyle } from '../ui/uiStyle';
 import { BattleData, BattleResult } from './BattleTypes';
 import { Settings } from '../systems/Settings';
+import { WargearPicker } from '../ui/WargearPicker';
+import { defaultPick } from '../campaign/Wargear';
 import { Voice } from '../systems/VoiceSystem';
 import { Ambience } from '../systems/Ambience';
 import { headingFont, onLanguageChange, t } from '../i18n';
@@ -124,7 +126,12 @@ export class CampaignScene extends Phaser.Scene {
       bonuses: CampaignState.bonuses(this.save),
       enemyBonusScrip: tr.enemyBonus,
     };
-    this.scene.start('BattleScene', data);
+    // Arm the Commander before every assault.
+    this.modal = true;
+    new WargearPicker(this, 'ironvoid', Settings.get().wargear ?? defaultPick('ironvoid'), (pick) => {
+      Settings.set({ wargear: pick });
+      this.scene.start('BattleScene', { ...data, wargear: pick });
+    });
   }
 
   private handleResult(result?: BattleResult): void {

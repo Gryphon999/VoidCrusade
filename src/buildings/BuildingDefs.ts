@@ -6,7 +6,8 @@ export type BuildingId =
   | 'stronghold' | 'generator' | 'depot' | 'barracks' | 'mechanis' | 'foundry' | 'turret' | 'relay' | 'research'
   | 'wall' | 'gate' | 'listening' | 'minefield' | 'bunker' | 'armoury' | 'hospital' | 'sensor' | 'shield' | 'missile' | 'beacon'
   | 'hive' | 'spire' | 'nest' | 'brood' | 'maw' | 'vat' | 'spine'
-  | 'thornwall' | 'sporenode' | 'sporemine' | 'evolution' | 'pool' | 'organ' | 'acidspire' | 'portal';
+  | 'thornwall' | 'sporenode' | 'sporemine' | 'evolution' | 'pool' | 'organ' | 'acidspire' | 'portal'
+  | 'derelict';
 
 /** Functional role — lets the AI and rules treat both factions uniformly. */
 export type BuildingRole =
@@ -71,6 +72,8 @@ export interface BuildingDef {
   mine?: { trigger: number; damage: number; splash: number; damageType: DamageType };
   /** Invisible to the enemy unless detected. */
   stealth?: boolean;
+  /** Map feature captured rather than built (never in a build menu). */
+  neutral?: boolean;
   /** HP regenerated per second (Null Horde structures). */
   regen?: number;
   description: string;
@@ -263,13 +266,19 @@ export const BUILDING_DEFS: Record<BuildingId, BuildingDef> = {
     fluxGen: 0, hp: 1200, buildTime: 30, size: 3, height: 100, buildRadius: 10, requires: ['power'], produces: [], regen: 4,
     description: 'A rift in the void that lets the swarm burst out anywhere. Unlocks brood drops and the Overlord\'s Spawn Brood.',
   },
+  derelict: {
+    id: 'derelict', name: 'Derelict Turret', faction: 'ironvoid', role: 'defense', category: 'defense', tier: 1, cost: Z,
+    fluxGen: 0, hp: 900, buildTime: 0, size: 2, height: 44, buildRadius: 0, requires: [], produces: [], neutral: true,
+    attack: { damage: 26, range: 300, cooldown: 1, damageType: 'bullet' },
+    description: 'An ancient automated gun. Stand beside it for 6 seconds to wake it for your side.',
+  },
 };
 
 /** Buildings the player may construct, in build-menu order. */
 export const PLAYER_BUILD_LIST: BuildingId[] = buildList('ironvoid');
 
 export function buildList(faction: Faction): BuildingId[] {
-  return (Object.values(BUILDING_DEFS) as BuildingDef[]).filter((d) => d.faction === faction && d.role !== 'hq').map((d) => d.id);
+  return (Object.values(BUILDING_DEFS) as BuildingDef[]).filter((d) => d.faction === faction && d.role !== 'hq' && !d.neutral).map((d) => d.id);
 }
 
 export function defForRole(faction: Faction, role: BuildingRole): BuildingDef | undefined {

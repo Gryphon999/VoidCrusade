@@ -475,7 +475,21 @@ const beacon: BuildingPainter = (o, S, H, _r, a) => {
   a.lights.push({ x: S / 2, y: S / 2, z: H + 22 });
 };
 
+/** Derelict Turret: a rusted, vine-choked pillbox with a heavy autocannon. */
+const derelict: BuildingPainter = (o, S, H, rnd, a) => {
+  o.groundShadow(0, 0, S, S);
+  for (let i = 0; i < 8; i++) {
+    const t = (i / 8) * Math.PI * 2;
+    o.blob(S / 2 + Math.cos(t) * 50, S / 2 + Math.sin(t) * 46, 4, 12, 8, 0x4a4238);
+  }
+  o.box(16, 16, 0, S - 32, S - 32, H - 8, 0x6a5040);
+  o.frontRect(24, S - 16, H - 24, S - 48, 5, '#0a0808');
+  for (let i = 0; i < 6; i++) o.blob(18 + rnd() * (S - 36), S - 18, 6 + rnd() * (H - 16), 4, 3, 0x3a4a2a);
+  o.cylinder(S / 2, S / 2, H - 8, 24, 8, 0x6a5a48, 0x5a4a3a);
+  a.gun = { x: S / 2, y: S / 2, z: H + 2 };
+};
+
 export const IRON_PAINTERS: Record<string, BuildingPainter> = {
   stronghold, generator, depot, barracks, mechanis, foundry, turret, relay, research,
-  wall, gate, listening, minefield, bunker, armoury, hospital, sensor, shield, missile, beacon,
+  wall, gate, listening, minefield, bunker, armoury, hospital, sensor, shield, missile, beacon, derelict,
 };

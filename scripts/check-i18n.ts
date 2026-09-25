@@ -14,6 +14,9 @@ import { RESEARCH_DEFS } from '../src/systems/ResearchSystem';
 import { TERRITORIES } from '../src/campaign/CampaignData';
 import { CARDS } from '../src/campaign/UpgradeCards';
 import { MAP_BUILDERS } from '../src/maps';
+import { ABILITIES } from '../src/units/Abilities';
+import { WARGEAR } from '../src/campaign/Wargear';
+import { PERSONALITIES } from '../src/ai/Personality';
 
 const files: string[] = [];
 const walk = (d: string): void => {
@@ -47,7 +50,12 @@ for (const r of RESEARCH_DEFS) dyn.push(`res.${r.id}`, `res.${r.id}.desc`);
 for (const tr of TERRITORIES) dyn.push(`terr.${tr.id}`, `bonus.${tr.bonus}`);
 for (const c of CARDS) dyn.push(`card.${c.id}`, `card.${c.id}.desc`);
 for (const b of MAP_BUILDERS) dyn.push(`map.${b().id}`);
-for (const d of ['easy', 'normal', 'hard']) dyn.push(`diff.${d}`, `diff.${d}.desc`);
+for (const d of ['easy', 'normal', 'hard', 'brutal']) dyn.push(`diff.${d}`, `diff.${d}.desc`);
+for (const a of Object.keys(ABILITIES)) dyn.push(`ab.${a}`, `ab.${a}.desc`);
+for (const w of WARGEAR) dyn.push(`wg.${w.id}`, `wg.${w.id}.desc`);
+for (const m of ['annihilation', 'control', 'survival']) dyn.push(`mode.${m}`, `mode.${m}.desc`);
+for (const p of ['random', ...PERSONALITIES]) dyn.push(`ai.${p}`);
+for (const s of ['weapon', 'armor', 'relic']) dyn.push(`wargear.slot.${s}`);
 for (const q of ['low', 'medium', 'high']) dyn.push(`gfx.${q}`);
 dyn.forEach((k) => used.add(k));
 

@@ -10,6 +10,9 @@ import { Notifications, NoticeKind } from '../ui/Notifications';
 import { HUD } from '../ui/HudArt';
 import { showEndScreen } from '../ui/EndScreen';
 import { PauseMenu } from '../ui/PauseMenu';
+import { ResearchTree } from '../ui/ResearchTree';
+import { CONTROL_HOLD, SURVIVAL_WAVES } from '../systems/VictorySystem';
+import { textStyle } from '../ui/uiStyle';
 import { CursorKind, getCursors } from '../assets/Cursors';
 import { GAME_HEIGHT, GAME_WIDTH, GFX } from '../config';
 import { Settings } from '../systems/Settings';
@@ -40,6 +43,9 @@ export class HudScene extends Phaser.Scene {
   private grid!: CommandGrid;
   private minimap!: MiniMap;
   private pause!: PauseMenu;
+  private tree!: ResearchTree;
+  private objective!: Phaser.GameObjects.Text;
+  private treeTick = 0;
   private tooltip!: Tooltip;
   private notes!: Notifications;
   private blockers: Blocker[] = [];
@@ -79,12 +85,16 @@ export class HudScene extends Phaser.Scene {
     this.minimap = new MiniMap(this, this.battle);
     this.notes = new Notifications(this);
     this.pause = new PauseMenu(this, this.battle);
+    this.tree = new ResearchTree(this, this.battle);
+    this.objective = this.add.text(GAME_WIDTH / 2, HUD.topH + 10, '', textStyle(15, HUD.goldHi)).setOrigin(0.5, 0).setStroke('#000', 4);
+    this.addBlocker(new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT - HUD.bottomH), () => this.tree.isOpen);
     this.addBlocker(new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT), () => this.pause.isOpen);
     this.topBar.pauseButton.on('pointerdown', () => this.pause.toggle());
     this.input.keyboard?.on('keydown-P', () => this.pause.toggle());
     this.input.keyboard?.on('keydown-F10', () => this.pause.toggle());
     this.input.keyboard?.on('keydown-ESC', () => {
-      if (this.page && !this.battle.placement.isActive) this.setPage(null);
+      if (this.tree.isOpen) this.tree.close();
+      else if (this.page && !this.battle.placement.isActive) this.setPage(null);
     });
     this.panel.refresh();
     this.wireEvents();
@@ -140,6 +150,9 @@ export class HudScene extends Phaser.Scene {
       }],
       [EV.tierUp, () => this.refreshCommands()],
       [EV.transportChanged, () => this.refreshCommands()],
+      [EV.squadRankUp, (s: Squad) => s.owner === 'player' && this.notify(t('note.rankUp', { name: unitName(s.def.id), n: s.rank }), 'good')],
+      [EV.squadBroken, (s: Squad) => s.owner === 'player' && this.notify(t('note.broken', { name: unitName(s.def.id) }), 'bad')],
+      [EV.dropIncoming, (o: Owner) => o === 'enemy' && this.notify(t('note.dropEnemy'), 'bad')],
       [EV.buildingComplete, () => this.refreshCommands()],
     ];
     for (const [e, h] of handlers) ev.on(e, h);
@@ -188,6 +201,11 @@ export class HudScene extends Phaser.Scene {
     this.refreshCommands();
   }
 
+  openTree(from?: Building): void {
+    this.tooltip.hide();
+    this.tree.open(from);
+  }
+
   private setPage(p: CommandPage): void {
     this.page = p;
     this.refreshCommands();
@@ -198,17 +216,33 @@ export class HudScene extends Phaser.Scene {
     this.grid.setCommands(commandsFor(this.battle, { page: this.page, setPage: (p) => this.setPage(p) }));
   }
 
+  /** Control-point countdown or survival wave counter under the top bar. */
+  private objectiveText(): string {
+    const v = this.battle.victory;
+    if (v.mode === 'control') {
+      const me = v.hold.player;
+      const foe = v.hold.enemy;
+      if (foe > 0) return t('obj.enemyHolding', { t: formatTime(CONTROL_HOLD - foe) });
+      if (me > 0) return t('obj.holding', { t: formatTime(CONTROL_HOLD - me) });
+      return t('obj.control', { n: v.needed, max: this.battle.capture.points.length });
+    }
+    if (v.mode === 'survival') return t('obj.wave', { n: v.wave, max: SURVIVAL_WAVES, t: formatTime(v.waveIn) });
+    return '';
+  }
+
   update(): void {
     this.grain?.setTilePosition(Math.random() * 256, Math.random() * 256);
     this.notes.update();
     if (this.ended) return;
     this.topBar.update(formatTime(this.battle.elapsed));
+    this.objective.setText(this.objectiveText());
     const u = this.battle.units;
     const cap = this.battle.capture;
     this.topBar.setArmy(this.battle.production.supplyUsed('player'), u.supplyCap('player'), cap.countOwned('player'), cap.countOwned('enemy'),
       this.battle.tech.tierOf('player'));
     this.panel.update();
     this.grid.update();
+    if (this.tree.isOpen && (this.treeTick = (this.treeTick + 1) % 20) === 0) this.tree.refresh();
     this.minimap.update();
   }
 }

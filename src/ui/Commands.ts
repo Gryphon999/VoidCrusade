@@ -5,6 +5,8 @@ import { buildingIconKey } from '../render/buildings/BuildingArt';
 import { portraitKey } from '../render/puppet/UnitAtlas';
 import { UNIT_DEFS, UnitId } from '../units/UnitDefs';
 import { researchAt } from '../systems/ResearchSystem';
+import { ABILITIES, AbilityId } from '../units/Abilities';
+import { DROP, DROPPABLE } from '../systems/DropSystem';
 import { Squad } from '../units/Squad';
 import { Command, slotOf } from './CommandGrid';
 import { GLYPH, researchGlyph } from './GlyphIcons';
@@ -86,6 +88,7 @@ function squadCommands(b: BattleScene, squads: Squad[], ui: CommandUI): Command[
       onClick: () => ic.setMode('move'), active: () => ic.mode === 'move' },
     ...vehicleCommands(b, squads),
   ];
+  cmds.push(...abilityCommands(b, squads));
   if (squads.some((s) => s.def.repairRate)) {
     cmds.push({ slot: slotOf('Y'), icon: GLYPH.build, title: t('cmd.fieldBuild'), body: () => t('cmd.fieldBuild.desc'), onClick: () => ui.setPage('field') });
   }
@@ -93,13 +96,45 @@ function squadCommands(b: BattleScene, squads: Squad[], ui: CommandUI): Command[
   return canEverReinforce ? cmds : cmds.filter((c) => c.icon !== GLYPH.reinforce);
 }
 
-/** Deploy / pack up (artillery) and unload (transports) on G. */
+/** Active abilities of the selection on Q / W / E (with cooldown sweeps). */
+function abilityCommands(b: BattleScene, squads: Squad[]): Command[] {
+  const ids: AbilityId[] = [];
+  for (const s of squads) for (const id of s.def.abilities ?? []) if (!ids.includes(id)) ids.push(id);
+  const ab = b.abilities;
+  return ids.slice(0, 3).map((id, i) => {
+    const d = ABILITIES[id];
+    const casters = (): Squad[] => squads.filter((s) => s.alive && s.def.abilities?.includes(id));
+    return {
+      slot: slotOf('Q') + i, icon: d.icon, title: t(dyn(`ab.${id}`)),
+      body: () => {
+        const lines = [t(dyn(`ab.${id}.desc`))];
+        const parts: string[] = [t('ab.cooldown', { n: d.cooldown })];
+        if (d.cost) parts.unshift(costText(d.cost));
+        if (d.range) parts.push(t('ab.range', { n: d.range }));
+        lines.push(parts.join(' · '));
+        return lines.join('\n');
+      },
+      locked: () => ab.lockReason('player', id),
+      onClick: () => b.inputController.useAbility(id),
+      enabled: () => casters().some((s) => ab.check(s, id) === null),
+      active: () => b.inputController.targeting?.kind === 'ability' && b.inputController.targeting.id === id,
+      progress: () => {
+        const c = casters();
+        if (!c.length) return null;
+        const left = Math.min(...c.map((s) => ab.cooldownLeft(s, id)));
+        return left > 0 ? 1 - left / d.cooldown : null;
+      },
+    };
+  });
+}
+
+/** Deploy / pack up (artillery, Q) and unload (transports, G). */
 function vehicleCommands(b: BattleScene, squads: Squad[]): Command[] {
   const out: Command[] = [];
   const arty = squads.filter((s) => s.def.deploy);
   if (arty.length) {
     out.push({
-      slot: slotOf('G'), icon: GLYPH.deploy, title: t('cmd.deploy'),
+      slot: slotOf('Q'), icon: GLYPH.deploy, title: t('cmd.deploy'),
       body: () => t('cmd.deploy.desc', { t: arty[0].def.deploy?.time ?? 0, r: arty[0].def.deploy?.rangeBonus ?? 0 }),
       onClick: () => arty.forEach((s) => b.vehicles.toggleDeploy(s)),
       active: () => arty.every((s) => s.deployState === 'deployed'),
@@ -213,6 +248,29 @@ function buildingCommands(b: BattleScene, bld: Building, ui: CommandUI): Command
       onClick: () => st.ejectAll(bld), enabled: () => bld.garrison.length > 0, badge: () => (bld.garrison.length ? `${bld.garrison.length}` : ''),
     });
   }
+  if (bld.def.role === 'beacon') {
+    DROPPABLE[bld.def.faction].forEach((id, i) => {
+      const d = UNIT_DEFS[id];
+      out.push({
+        slot: slotOf('Q') + i, icon: portraitKey(id), title: t('cmd.drop', { name: unitName(id) }),
+        body: () => `${costText(b.drops.cost(id))}\n${t('cmd.drop.desc', { t: DROP.warning, cd: DROP.cooldown })}\n${unitStatsText(id)}`,
+        locked: () => b.tech.lockReason('player', d.tier, d.requires),
+        onClick: () => b.inputController.startDrop(bld, id),
+        enabled: () => b.drops.check(bld, id) === null,
+        progress: () => (b.elapsed < bld.dropReady ? 1 - (bld.dropReady - b.elapsed) / DROP.cooldown : null),
+      });
+    });
+  }
+  if (bld.def.fluxGen > 0 || (bld.def.attack && !bld.def.neutral)) {
+    const st = b.structures;
+    out.push({
+      slot: slotOf('Q'), icon: GLYPH.overcharge, title: t('cmd.overcharge'),
+      body: () => t(bld.def.fluxGen ? 'cmd.overcharge.flux' : 'cmd.overcharge.gun'),
+      onClick: () => st.overcharge(bld), enabled: () => st.canOvercharge(bld),
+      active: () => bld.overchargeUntil > b.elapsed,
+      progress: () => (b.elapsed < bld.overchargeReady ? 1 - (bld.overchargeReady - b.elapsed) / 60 : null),
+    });
+  }
   const sh = bld.def.shield;
   if (sh) {
     const st = b.structures;
@@ -226,12 +284,14 @@ function buildingCommands(b: BattleScene, bld: Building, ui: CommandUI): Command
   }
   const research = researchAt(bld.def.faction, bld.def.role);
   if (research.length) {
+    out.push({ slot: slotOf('U'), icon: GLYPH.tree, title: t('cmd.tree'), body: () => t('cmd.tree.desc'), onClick: () => b.hud.openTree(bld) });
     const rs = b.research;
     research.forEach((r, i) => {
       out.push({
         slot: slotOf('A') + i, icon: researchGlyph(r.id), title: researchName(r.id),
         body: () => `${t('cost.time', { cost: costText(r.cost), t: r.time })}\n${researchDesc(r.id)}${rs.isDone('player', r.id) ? `\n${t('cmd.researched')}` : ''}`,
         onClick: () => rs.start(bld, r.id),
+        locked: () => (rs.isDone('player', r.id) ? null : rs.lockReason('player', r.id)),
         enabled: () => !rs.isDone('player', r.id) && !rs.isResearching('player', r.id) && !rs.activeAt(bld) && b.resources.canAfford('player', r.cost),
         active: () => rs.isDone('player', r.id),
         progress: () => {

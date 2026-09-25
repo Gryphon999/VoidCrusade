@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { Difficulty, GAME_HEIGHT, GAME_WIDTH, PROJECTION } from '../config';
+import { DIFFICULTIES, Difficulty, GAME_HEIGHT, GAME_WIDTH, PROJECTION } from '../config';
 import { GraphicsQuality, Settings } from '../systems/Settings';
 import { Slider } from '../ui/Slider';
 import { Button } from '../ui/Button';
@@ -7,7 +7,7 @@ import { drawPanel, textStyle } from '../ui/uiStyle';
 import { Lang, dyn, getLanguage, headingFont, onLanguageChange, t } from '../i18n';
 import { Voice } from '../systems/VoiceSystem';
 
-const DIFFS: Difficulty[] = ['easy', 'normal', 'hard'];
+const DIFFS: Difficulty[] = DIFFICULTIES;
 const GFXQ: GraphicsQuality[] = ['low', 'medium', 'high'];
 const LANGS: [Lang, string][] = [['en', 'English'], ['ru', 'Русский']];
 

@@ -39,6 +39,12 @@ export class Building {
   /** Shield dome: active until (battle s), ready again at (battle s). */
   shieldUntil = 0;
   shieldReady = 0;
+  /** Overcharge (Flux Conduit boost / turret fire rate): active until, ready again at (battle s). */
+  overchargeUntil = 0;
+  overchargeReady = 0;
+  overchargeIncome = false;
+  /** Beacon / portal drop cooldown (battle s). */
+  dropReady = 0;
 
   readonly view: BuildingView;
 

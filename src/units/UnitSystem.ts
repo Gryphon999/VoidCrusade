@@ -173,7 +173,9 @@ export class UnitSystem {
     for (const s of this.squads) {
       if (!s.alive || s.units.length === 0 || s.embarked) continue;
       const frac = s.hp / s.maxHp;
-      if (!s.selected && frac >= 0.999) continue;
+      const now = this.battle.elapsed;
+      const flagged = s.suppression >= 50 || s.broken || s.rank > 0 || Object.values(s.buffs).some((v) => (v ?? 0) > now);
+      if (!s.selected && frac >= 0.999 && !flagged) continue;
       if (s.owner === 'enemy' && !s.units.some((u) => u.isShown)) continue;
       let top = Infinity;
       let x0 = Infinity;
@@ -200,6 +202,32 @@ export class UnitSystem {
       for (let i = 0; i < s.maxSize; i++) {
         g.fillStyle(i < s.units.length ? 0xe8e0c8 : 0x3a3a3a, 1).fillRect(x + i * pip + 0.5, y + 4.5, Math.max(1, pip - 1.5), 2);
       }
+      // Morale strip (Iron Void infantry): blue, flashing white when broken.
+      if (!enemy && this.battle.morale.subject(s)) {
+        g.fillStyle(0x000000, 0.8).fillRect(x - 2, y + 8, w + 4, 4);
+        const mc = s.broken ? (Math.floor(now * 4) % 2 ? 0xffffff : 0x4060ff) : 0x4a8aff;
+        g.fillStyle(mc, 1).fillRect(x, y + 9, (w * s.morale) / 100, 2);
+      }
+      // Veterancy chevrons left of the bar.
+      for (let i = 0; i < s.rank; i++) {
+        const cx0 = x - 9;
+        const cy0 = y + 6 - i * 4;
+        g.lineStyle(2, 0xf0d060, 1).beginPath().moveTo(cx0 - 4, cy0).lineTo(cx0, cy0 - 3).lineTo(cx0 + 4, cy0).strokePath();
+      }
+      // Suppressed (amber) / pinned (red) marker above the bar.
+      if (s.suppression >= 50) {
+        const col = s.suppression >= 85 ? 0xff3020 : 0xffb020;
+        for (let i = 0; i < 3; i++) g.fillStyle(col, 1).fillTriangle(cx - 9 + i * 7, y - 11, cx - 5 + i * 7, y - 5, cx - 1 + i * 7, y - 11);
+      }
+      // Buff pips on the right.
+      const pips: number[] = [];
+      if ((s.buffs.sprint ?? 0) > now) pips.push(0x60ff70);
+      if ((s.buffs.frenzy ?? 0) > now) pips.push(0xff4040);
+      if ((s.buffs.rally ?? 0) > now) pips.push(0xffd060);
+      if ((s.buffs.stun ?? 0) > now) pips.push(0xc060ff);
+      if ((s.buffs.regen ?? 0) > now) pips.push(0x90ff60);
+      if ((s.buffs.synapse ?? 0) > now) pips.push(0x5a3a5a);
+      pips.forEach((c, i) => g.fillStyle(c, 1).fillCircle(x + w + 7 + i * 7, y + 3, 2.6));
       if (s.selected) {
         // Corner brackets around the squad.
         const bx0 = x0 - 4;

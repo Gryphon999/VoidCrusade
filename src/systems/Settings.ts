@@ -1,5 +1,6 @@
 import { Difficulty, PROJECTION } from '../config';
 import type { Lang } from '../i18n';
+import type { WargearPick } from '../campaign/Wargear';
 
 const KEY = 'voidcrusade.settings.v1';
 
@@ -20,6 +21,16 @@ export interface GameSettings {
   subtitles?: boolean;
   /** UI language; undefined until chosen (then auto-detected). */
   language?: Lang;
+  /** Last skirmish setup choices. */
+  skirmishMode?: string;
+  skirmishPersonality?: string;
+  skirmishStorms?: boolean;
+  /** Last commander wargear loadout. */
+  wargear?: WargearPick;
+  /** Contextual hint toasts (C5). */
+  hints?: boolean;
+  /** First-run tutorial prompt already shown. */
+  tutorialPrompted?: boolean;
 }
 
 const DEFAULTS: GameSettings = { masterVolume: 0.85, musicVolume: 0.5, sfxVolume: 0.7, difficulty: 'normal', tilt: PROJECTION.defaultTilt, graphics: 'medium', screenShake: true, voiceVolume: 0.85, voiceEnabled: true };
@@ -39,7 +50,7 @@ export const Settings = {
       /* storage unavailable */
     }
     current = { ...DEFAULTS, ...loaded };
-    if (!['easy', 'normal', 'hard'].includes(current.difficulty)) current.difficulty = 'normal';
+    if (!['easy', 'normal', 'hard', 'brutal'].includes(current.difficulty)) current.difficulty = 'normal';
     if (current.language !== undefined && current.language !== 'en' && current.language !== 'ru') current.language = undefined;
     if (!['low', 'medium', 'high'].includes(current.graphics)) current.graphics = 'medium';
     if (typeof current.tilt !== 'number' || !Number.isFinite(current.tilt)) current.tilt = PROJECTION.defaultTilt;

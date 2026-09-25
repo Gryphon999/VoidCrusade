@@ -91,7 +91,8 @@ export class SelectionPanel {
     const statsText = squads.every((s) => s.def.id === d.id)
       ? t('hud.stats', { dmg: t(dyn(`dmg.${d.damageType}`)), armor: t(dyn(`armor.${d.armor}`)), s: d.supply }) : '';
     const stats = this.scene.add.text(P.x + P.w - 12, P.y + 54, statsText, textStyle(12, '#a8a090')).setOrigin(1, 0);
-    this.content.add([name, state, info, stats]);
+    const vet = this.scene.add.text(P.x + P.w - 12, P.y + 74, '', { ...textStyle(12, '#c8c0a8'), align: 'right' }).setOrigin(1, 0);
+    this.content.add([name, state, info, stats, vet]);
     const cards = this.scene.add.container(0, 0);
     this.content.add(cards);
     this.upgrades(P.y + P.h - 14);
@@ -104,6 +105,19 @@ export class SelectionPanel {
       const max = alive.reduce((a, s) => a + s.maxHp, 0) || 1;
       this.bar(INFO_X, P.y + 38, 280, 9, hp / max);
       info.setText(t('hud.supply', { n: this.battle.production.supplyUsed('player'), max: units.supplyCap('player') }));
+      const one = alive.length === 1 ? alive[0] : null;
+      if (one) {
+        const bits: string[] = [];
+        if (one.rank) bits.push(t('hud.rank', { n: ['', 'I', 'II', 'III'][one.rank] }));
+        if (this.battle.morale.subject(one)) bits.push(t('hud.morale', { n: Math.round(one.morale) }));
+        if (one.broken) bits.push(t('hud.broken'));
+        else if (one.suppression >= 85) bits.push(t('hud.pinned'));
+        else if (one.suppression >= 50) bits.push(t('hud.suppressed'));
+        if (one.buffActive('synapse')) bits.push(t('hud.synapse'));
+        vet.setText(bits.join('\n'));
+      } else {
+        vet.setText('');
+      }
       const st = alive[0]?.stance;
       state.setText(alive.length === 1 ? `${orderText(alive[0])} · ${t(dyn(`stance.${st}`))}`
         : alive.every((s) => s.stance === st) ? t('hud.stance', { s: t(dyn(`stance.${st}`)) }) : '');

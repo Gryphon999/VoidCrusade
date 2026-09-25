@@ -38,6 +38,8 @@ const HIGH_ARC = new Set<ProjectileKind>(['lob', 'acidlob']);
 /** Pooled projectiles in view space: straight tracers/bolts, arcing globs and spines, with trails. */
 export class ProjectileSystem {
   private pool: Phaser.GameObjects.Image[] = [];
+  /** Global projectile speed factor (ash storms slow shots). */
+  speedMult = 1;
   private live: Shot[] = [];
   private smoke: Phaser.GameObjects.Particles.ParticleEmitter;
   private acid: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -82,7 +84,7 @@ export class ProjectileSystem {
     const dist = Phaser.Math.Distance.Between(from.x, from.y, to.x, to.y);
     this.live.push({
       img, kind, x0: from.x, y0: from.y, x1: to.x, y1: to.y, t: 0,
-      dur: Math.max(0.06, dist / (UNITS.projectileSpeed * look.speed)), arc: HIGH_ARC.has(kind) ? look.arc * Math.min(1.4, 0.5 + dist / 600) : look.arc * Math.min(1, dist / 250), trailT: 0, onArrive,
+      dur: Math.max(0.06, dist / (UNITS.projectileSpeed * look.speed * this.speedMult)), arc: HIGH_ARC.has(kind) ? look.arc * Math.min(1.4, 0.5 + dist / 600) : look.arc * Math.min(1, dist / 250), trailT: 0, onArrive,
     });
     this.place(this.live[this.live.length - 1]);
   }

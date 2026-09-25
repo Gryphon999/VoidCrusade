@@ -38,7 +38,7 @@ export class CombatSystem {
         const dist = Phaser.Math.Distance.Between(u.x, u.y, victim.x, victim.y);
         if (dist > reach || (u.def.minRange && dist < u.def.minRange)) continue;
         u.cooldown = u.def.cooldown * Phaser.Math.FloatBetween(0.85, 1.15);
-        let dmg = u.def.damage * this.battle.modifiers[u.owner].damageMult * u.strikeMult;
+        let dmg = u.def.damage * this.battle.modifiers[u.owner].damageMult * u.strikeMult * s.damageMult;
         u.strikeMult = 1;
         if (u.def.precision && dist < u.def.precision.closeRange) dmg *= 0.5;
         u.aim(victim.x, victim.y);
@@ -57,7 +57,7 @@ export class CombatSystem {
       if (b.attackCooldown > 0) continue;
       const victim = this.nearestEnemyUnit(b.owner, b.x, b.y, atk.range, atk.minRange ?? 0);
       if (!victim) continue;
-      b.attackCooldown = atk.cooldown;
+      b.attackCooldown = atk.cooldown * (b.overchargeUntil > this.battle.elapsed ? 0.5 : 1);
       b.aimAt(victim.x, victim.y);
       const dmg = atk.damage * this.battle.modifiers[b.owner].turretDamageMult;
       const look = atk.projectile ?? (b.def.faction === 'ironvoid' ? 'bullet' : 'spine');
@@ -112,7 +112,7 @@ export class CombatSystem {
     const aim = victim instanceof Building ? victim.view.aimPoint() : victim.aimPoint();
     const lobbed = opts.indirect || (!!from && (!!from.def.indirect || !!from.def.flying || !!from.garrisonIn));
     const los = lobbed || (this.battle.cover?.hasLineOfSight(x, y, victim.x, victim.y) ?? true);
-    const splash = opts.splash ?? from?.def.splash ?? 0;
+    const splash = opts.splash ?? ((from?.def.splash ?? 0) + (from?.def.isHero ? this.battle.modifiers[from.owner].heroSplash : 0));
     const gx = victim.x;
     const gy = victim.y;
     this.battle.events.emit(EV.unitFired, x, y, kind, owner);
@@ -173,10 +173,11 @@ export class CombatSystem {
         if (d <= r) this.applyDamage(u, dmg * (1 - (d / r) * 0.5), from, type);
       }
     }
-    for (const b of this.battle.buildings.buildings) {
+    for (const b of this.battle.buildings.buildings.slice()) {
       if (b === skip || !b.alive || b.owner !== foe) continue;
       if (Phaser.Math.Distance.Between(x, y, b.x, b.y) <= r + b.radius) this.applyDamage(b, dmg * 0.5, from, type);
     }
+    if (type === 'explosive' || type === 'flame') this.battle.world.explodeProps(x, y, r);
   }
 
   applyDamage(victim: Victim, dmg: number, from: Squad | null, type?: DamageType): void {
@@ -189,14 +190,15 @@ export class CombatSystem {
     }
     const cover = from?.def.ignoresCover ? 1 : this.battle.cover?.damageMultiplier(victim) ?? 1;
     const armour = victim.def.category === 'infantry' ? this.battle.modifiers[victim.owner].infantryArmorMult : 1;
-    const mult = cover * armour * (victim.squad.retreating ? 0.6 : 1);
+    const mult = cover * armour * victim.squad.damageTakenMult * (victim.squad.retreating ? 0.6 : 1);
     const killed = victim.takeDamage(dmg * mult);
     const squad = victim.squad;
     if (from && from.alive && squad.alive && !squad.engaged && squad.order !== 'move') squad.target = from;
     if (killed) {
-      this.battle.events.emit(EV.unitDied, victim.x, victim.y, victim);
+      this.battle.events.emit(EV.unitDied, victim.x, victim.y, victim, from);
       squad.removeUnit(victim);
     } else {
+      this.battle.morale.onHit(victim, dmg * mult, type);
       const dir = from ? Math.atan2(victim.y - from.center.y, victim.x - from.center.x) : Math.random() * Math.PI * 2;
       this.battle.events.emit(EV.unitHit, victim.x, victim.y, victim, dir);
     }

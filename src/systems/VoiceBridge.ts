@@ -17,6 +17,9 @@ const SPEAKERS: Partial<Record<UnitId, Speaker>> = {
   buggy: 'crew', apc: 'crew', tank: 'crew', artillery: 'crew',
 };
 
+/** Abilities whose use gets a battle cry. */
+const SHOUTS = ['frag', 'smoke', 'rally', 'barrage', 'sprint', 'smite', 'overcharge'];
+
 export function speakerFor(s: Squad): Speaker {
   return SPEAKERS[s.def.id] ?? 'rifleman';
 }
@@ -41,6 +44,13 @@ export class VoiceBridge {
       else if (key === 'note.reinforced') Voice.say('vo.reinforced', 'announcer', 'event', true);
     });
     ev.on(EV.tierUp, (o: Owner) => o === 'player' && Voice.say('vo.tierUp', 'announcer', 'event'));
+    ev.on(EV.squadBroken, (s: Squad) => s.owner === 'player' && Voice.say('vo.broken', speakerFor(s), 'event'));
+    ev.on(EV.squadRankUp, (s: Squad) => s.owner === 'player' && Voice.say('vo.rankUp', 'announcer', 'event'));
+    ev.on(EV.abilityUsed, (s: Squad, id: string) => {
+      if (s.owner === 'player' && SHOUTS.includes(id)) Voice.say(dyn(`vo.ab.${id}`), speakerFor(s), 'ack', true);
+    });
+    ev.on(EV.dropIncoming, (o: Owner) => Voice.say(o === 'player' ? 'vo.drop' : 'vo.dropEnemy', 'announcer', o === 'player' ? 'event' : 'alert'));
+    ev.on(EV.mapEvent, (kind: string, on: boolean) => kind === 'storm' && on && Voice.say('vo.storm', 'announcer', 'alert'));
     ev.on(EV.battleEnded, (r: BattleResult) => {
       Voice.stop();
       Voice.say(r.winner === 'player' ? 'vo.victory' : 'vo.defeat', 'commander', 'alert');

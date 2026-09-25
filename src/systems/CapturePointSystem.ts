@@ -2,6 +2,7 @@ import { CAPTURE, RESOURCES, TILE_SIZE } from '../config';
 import { EV } from '../events';
 import { Owner } from '../types';
 import { CapturePoint } from './CapturePoint';
+import type { PointKind } from '../maps/MapBuilder';
 import type { BattleScene } from '../scenes/BattleScene';
 
 /** Void-Nexus points: squads standing in a zone fill its bar; ownership grants Scrip income. */
@@ -9,8 +10,14 @@ export class CapturePointSystem {
   readonly points: CapturePoint[] = [];
 
   constructor(private battle: BattleScene) {
-    battle.map.def.capturePoints.forEach((c, i) => {
-      const p = new CapturePoint(battle, i, c.x * TILE_SIZE, c.y * TILE_SIZE);
+    const defs = battle.map.def.capturePoints;
+    const cx = battle.map.width / 2;
+    const cy = battle.map.height / 2;
+    // Default layout: the point nearest the centre is the relic, the next two are forward bases.
+    const order = defs.map((c, i) => ({ i, d: Math.hypot(c.x - cx, c.y - cy) })).sort((a, b) => a.d - b.d).map((o) => o.i);
+    const kindOf = (i: number): PointKind => defs[i].kind ?? (order[0] === i ? 'relic' : order[1] === i || order[2] === i ? 'forward' : 'strategic');
+    defs.forEach((c, i) => {
+      const p = new CapturePoint(battle, i, c.x * TILE_SIZE, c.y * TILE_SIZE, kindOf(i));
       this.points.push(p);
       const r = CAPTURE.zoneHalfTiles + CAPTURE.reserveTiles;
       for (let ty = Math.floor(c.y - r); ty < Math.ceil(c.y + r); ty++) {
@@ -19,6 +26,11 @@ export class CapturePointSystem {
         }
       }
     });
+  }
+
+  /** Hero XP multiplier for holding the relic. */
+  relicHeroXp(owner: Owner): number {
+    return this.points.some((p) => p.kind === 'relic' && p.owner === owner) ? 1.5 : 1;
   }
 
   countOwned(owner: Owner): number {
@@ -94,6 +106,10 @@ export class CapturePointSystem {
     const res = this.battle.resources;
     if (old) res.removeIncome(old, 'scrip', RESOURCES.captureScripPerSec);
     res.addIncome(owner, 'scrip', RESOURCES.captureScripPerSec);
+    if (p.kind === 'relic') {
+      if (old) res.removeIncome(old, 'flux', RESOURCES.relicFluxPerSec);
+      res.addIncome(owner, 'flux', RESOURCES.relicFluxPerSec);
+    }
     p.owner = owner;
     p.claimant = owner;
     p.progress = 1;

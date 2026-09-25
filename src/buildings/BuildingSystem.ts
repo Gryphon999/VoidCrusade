@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BUILD, TILE, TILE_SIZE } from '../config';
+import { BUILD, RESOURCES, TILE, TILE_SIZE } from '../config';
 import { EV } from '../events';
 import type { MessageKey } from '../i18n';
 import { roleName } from '../i18n/names';
@@ -25,6 +25,8 @@ export class BuildingSystem {
   buildSpeed: Record<Owner, number> = { player: 1, enemy: 1 };
   /** Current tech tier per owner (wired to TechSystem by the battle). */
   tierOf: (owner: Owner) => number = () => 3;
+  /** Forward-base points an owner holds (wired by the battle). */
+  forwardBases?: (owner: Owner) => { x: number; y: number }[];
   /** Capture point whose zone contains a world point (wired by the battle). */
   pointAt?: (x: number, y: number) => { x: number; y: number; owner: Owner | null } | null;
 
@@ -89,7 +91,7 @@ export class BuildingSystem {
         if (b.owner !== owner || !b.alive) return false;
         const d = Phaser.Math.Distance.Between(cx, cy, b.tx + b.def.size / 2, b.ty + b.def.size / 2);
         return d <= b.def.buildRadius;
-      });
+      }) || (this.forwardBases?.(owner) ?? []).some((p) => Phaser.Math.Distance.Between(cx, cy, p.x / TILE_SIZE, p.y / TILE_SIZE) <= RESOURCES.forwardBuildRadius);
       if (!inRange) return { ok: false, reason: 'err.outside' };
     }
     if (!this.resources.canAfford(owner, def.cost)) return { ok: false, reason: 'err.resources' };

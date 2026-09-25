@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH, GOTHIC_FONT } from '../config';
 import { onLanguageChange, t } from '../i18n';
-import { Settings } from '../systems/Settings';
 import { CampaignState } from '../campaign/CampaignState';
 import { MenuBackground } from '../ui/MenuBackground';
 import { Button } from '../ui/Button';
@@ -71,7 +70,7 @@ export class MenuScene extends Phaser.Scene {
 
   private openSkirmish(): void {
     this.busy = true;
-    new SkirmishSetup(this, (mapIndex) => this.go('BattleScene', { mode: 'skirmish', mapIndex, difficulty: Settings.get().difficulty }),
+    new SkirmishSetup(this, (data) => this.go('BattleScene', data),
       () => (this.busy = false));
   }
 

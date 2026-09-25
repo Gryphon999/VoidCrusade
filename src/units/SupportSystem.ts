@@ -51,8 +51,8 @@ export class SupportSystem {
       }
       const c = s.center;
       const foe = opponent(s.owner);
-      s.detected = squads.some((d) => d.alive && d.owner === foe && !!d.def.detector
-        && Phaser.Math.Distance.Between(d.center.x, d.center.y, c.x, c.y) <= (d.def.detector ?? 0))
+      s.detected = squads.some((d) => d.alive && d.owner === foe && d.detector > 0
+        && Phaser.Math.Distance.Between(d.center.x, d.center.y, c.x, c.y) <= d.detector)
         || this.battle.buildings.buildings.some((b) => b.alive && b.owner === foe && b.isReady && !!b.def.detector
           && Phaser.Math.Distance.Between(b.x, b.y, c.x, c.y) <= (b.def.detector ?? 0));
     }
@@ -146,7 +146,8 @@ export class SupportSystem {
     if (w.work >= SALVAGE_WORK) {
       this.battle.resources.grant(s.owner, 'scrip', w.value);
       if (s.owner === 'player') this.battle.events.emit(EV.message, 'note.salvage', { n: w.value });
-      this.battle.wrecks.remove(w);
+      if ('tiles' in w) this.battle.wrecks.remove(w);
+      else this.battle.wrecks.removeRuin(w);
       s.salvageTarget = null;
     }
     return true;
@@ -249,6 +250,35 @@ export class SupportSystem {
     s.x = t.center.x;
     s.y = t.center.y;
     s.path = [];
+  }
+
+  /** Active Pounce: leap at a chosen squad regardless of the usual distance window. */
+  leapAt(s: Squad, t: Squad): void {
+    s.leapCd = 0;
+    const cfg = s.def.leap;
+    if (!cfg) return;
+    for (const u of s.units) {
+      const v = this.battle.combat.nearestUnit(t, u.x, u.y);
+      if (!v) continue;
+      const a = Math.atan2(u.y - v.y, u.x - v.x);
+      const p = this.battle.units.findOpenSpot(v.x + Math.cos(a) * (v.radius + u.radius + 4), v.y + Math.sin(a) * (v.radius + u.radius + 4));
+      u.startLeap(p.x, p.y);
+    }
+    s.leapCd = cfg.cooldown;
+    s.x = t.center.x;
+    s.y = t.center.y;
+    s.path = [];
+  }
+
+  /** Manual Burrow / Unburrow; a manual surface keeps the squad up for a while. */
+  toggleBurrow(s: Squad): void {
+    if (!s.def.burrow) return;
+    if (s.burrowed) {
+      this.setBurrowed(s, false);
+      s.calm = -6;
+    } else {
+      this.setBurrowed(s, true);
+    }
   }
 
   /** Called by UnitSystem when a leaping unit touches down. */

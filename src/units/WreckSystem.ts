@@ -3,7 +3,19 @@ import { TILE_SIZE } from '../config';
 import { EV } from '../events';
 import { Projection } from '../render/Projection';
 import { Unit } from './Unit';
+import { Building } from '../buildings/Building';
 import type { BattleScene } from '../scenes/BattleScene';
+
+/** A destroyed building's rubble: heavy cover to occupy, scrap for engineers. */
+export interface Ruin {
+  x: number;
+  y: number;
+  radius: number;
+  img: Phaser.GameObjects.Image;
+  value: number;
+  work: number;
+  alive: boolean;
+}
 
 /** A burnt-out vehicle hull or beast carcass: blocks movement, gives cover, can be salvaged. */
 export interface Wreck {
@@ -25,8 +37,14 @@ export const SALVAGE_WORK = 6;
 
 export class WreckSystem {
   readonly wrecks: Wreck[] = [];
+  readonly ruins: Ruin[] = [];
 
   constructor(private battle: BattleScene) {
+    battle.events.on(EV.buildingDestroyed, (b: Building) => {
+      if (b.def.mine || b.def.neutral) return;
+      const img = battle.effects.leaveRuin(b);
+      this.ruins.push({ x: b.x, y: b.y, radius: b.radius, img, value: Math.round(b.def.cost.scrip * 0.2 + 15), work: 0, alive: true });
+    });
     battle.events.on(EV.unitDied, (_x: number, _y: number, u: Unit) => {
       if (u.def.category === 'vehicle') this.add(u, battle.effects.vehicleDeath(u));
     });
@@ -81,6 +99,23 @@ export class WreckSystem {
       if (Math.abs(vx - w.x) <= w.radius + 6 && vy >= gy - w.radius * 1.4 && vy <= gy + 10) return w;
     }
     return null;
+  }
+
+  ruinAtView(vx: number, vy: number): Ruin | null {
+    for (const r of this.ruins) {
+      if (!r.alive) continue;
+      const gy = Projection.vy(r.y);
+      if (Math.abs(vx - r.x) <= r.radius && Math.abs(vy - gy) <= r.radius * Projection.tilt + 20) return r;
+    }
+    return null;
+  }
+
+  /** Engineers stripped the ruin: the scrap is gone but the rubble tiles stay as cover. */
+  removeRuin(r: Ruin): void {
+    if (!r.alive) return;
+    r.alive = false;
+    const img = r.img;
+    if (img.active) this.battle.tweens.add({ targets: img, alpha: 0.35, duration: 800 });
   }
 
   isWreckTile(tx: number, ty: number): boolean {
