@@ -55,6 +55,7 @@ export class Button {
     this.hit.setInteractive({ useHandCursor: true });
     this.hit.on('pointerover', () => {
       this.setLook('hover');
+      if (this.enabled) AudioSystem.uiHover();
       if (opts.tooltip) this.onHover?.(opts.tooltip(), x, y - h / 2);
     });
     this.hit.on('pointerout', () => {

@@ -10,6 +10,7 @@ import { drawPanel, textStyle } from '../ui/uiStyle';
 import { BattleData, BattleResult } from './BattleTypes';
 import { Settings } from '../systems/Settings';
 import { Voice } from '../systems/VoiceSystem';
+import { Ambience } from '../systems/Ambience';
 import { headingFont, onLanguageChange, t } from '../i18n';
 import { bonusText, cardName, territoryName } from '../i18n/names';
 
@@ -35,6 +36,7 @@ export class CampaignScene extends Phaser.Scene {
     this.view.onHover = (id): void => this.showInfo(id);
     this.view.onClick = (id): void => this.clickTerritory(id);
     this.buildSidebar();
+    Ambience.campaign();
     this.handleResult(data.result);
     // Switching language rebuilds the map; the save is already persisted.
     const off = onLanguageChange(() => this.scene.restart({}));

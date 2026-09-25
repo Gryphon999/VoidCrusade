@@ -26,6 +26,7 @@ export class IconButton {
     this.frame.setInteractive({ useHandCursor: true });
     this.frame.on('pointerover', () => {
       this.hovered = true;
+      AudioSystem.uiHover();
       this.refreshFrame();
       this.onHover(true);
     });

@@ -39,7 +39,8 @@ export class SettingsScene extends Phaser.Scene {
     const L = x + 50;
     const R = x + w / 2 + 20;
     // Left column: audio.
-    this.leftY = y + 110;
+    this.leftY = y + 96;
+    this.slider(L, t('settings.master'), s.masterVolume, (v) => Settings.set({ masterVolume: v }));
     this.slider(L, t('settings.music'), s.musicVolume, (v) => Settings.set({ musicVolume: v }));
     this.slider(L, t('settings.sfx'), s.sfxVolume, (v) => Settings.set({ sfxVolume: v }));
     // Right column: language, difficulty, graphics, camera.
@@ -110,7 +111,7 @@ export class SettingsScene extends Phaser.Scene {
 
   protected slider(x: number, label: string, value: number, set: (v: number) => void): void {
     new Slider(this, x, this.leftY + 20, 280, label, value, set);
-    this.leftY += 70;
+    this.leftY += 62;
   }
 
   private choice(x: number, y: number, opts: { label: string; on: boolean; pick: () => void }[]): void {

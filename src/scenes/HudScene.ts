@@ -22,6 +22,7 @@ import { Squad } from '../units/Squad';
 import { Unit } from '../units/Unit';
 import { CapturePoint } from '../systems/CapturePoint';
 import { Owner } from '../types';
+import { AudioSystem } from '../systems/AudioSystem';
 import { MessageKey, onLanguageChange, t } from '../i18n';
 import { buildingName, unitName } from '../i18n/names';
 
@@ -140,6 +141,7 @@ export class HudScene extends Phaser.Scene {
     if (this.time.now - this.lastAlarm < 20000) return;
     this.lastAlarm = this.time.now;
     this.notify(t('note.underAttack'), 'bad');
+    AudioSystem.horn();
   }
 
   notify(text: string, kind: NoticeKind = 'info'): void {

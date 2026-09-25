@@ -11,6 +11,7 @@ class AudioEngine {
   sfxBus!: GainNode;
   musicBus!: GainNode;
   private master!: DynamicsCompressorNode;
+  private masterGain!: GainNode;
   private noise!: AudioBuffer;
   private lastPlayed = new Map<string, number>();
   private listeners: (() => void)[] = [];
@@ -24,7 +25,8 @@ class AudioEngine {
       this.ctx = ctx;
       this.master = ctx.createDynamicsCompressor();
       this.master.threshold.value = -12;
-      this.master.connect(ctx.destination);
+      this.masterGain = ctx.createGain();
+      this.master.connect(this.masterGain).connect(ctx.destination);
       this.sfxBus = ctx.createGain();
       this.musicBus = ctx.createGain();
       this.sfxBus.connect(this.master);
@@ -49,6 +51,7 @@ class AudioEngine {
     if (!this.ctx) return;
     const s = Settings.get();
     const t = this.ctx.currentTime;
+    this.masterGain.gain.setTargetAtTime(s.masterVolume, t, 0.05);
     this.sfxBus.gain.setTargetAtTime(s.sfxVolume, t, 0.05);
     this.musicBus.gain.setTargetAtTime(s.musicVolume * 0.6, t, 0.05);
   }
@@ -85,14 +88,14 @@ class AudioEngine {
     return src;
   }
 
-  private burst(dest: AudioNode, dur: number, filter: BiquadFilterType, freq: number, q = 1, freqEnd?: number): void {
+  private burst(dest: AudioNode, dur: number, filter: BiquadFilterType, freq: number, q = 1, freqEnd?: number, delay = 0): void {
     const ctx = this.ctx as Ctx;
     const src = this.noiseSource() as AudioBufferSourceNode;
     const f = ctx.createBiquadFilter();
     f.type = filter;
     f.frequency.value = freq;
     f.Q.value = q;
-    const t = ctx.currentTime;
+    const t = ctx.currentTime + delay;
     if (freqEnd) f.frequency.exponentialRampToValueAtTime(freqEnd, t + dur);
     const env = ctx.createGain();
     env.gain.setValueAtTime(1, t);
@@ -120,20 +123,27 @@ class AudioEngine {
 
   // ---- Sound library ------------------------------------------------------
 
+  /** Bolter-like rifle: sharp crack, mid-range bark and a low thump. */
   rifleShot(vol = 1, pan = 0): void {
     if (!this.allow('rifle', 35)) return;
     const o = this.out(0.35 * vol, pan);
     if (!o) return;
     this.burst(o, 0.02 + Math.random() * 0.02, 'bandpass', 1800 + Math.random() * 800, 0.8);
     this.burst(o, 0.05, 'highpass', 3000, 0.5);
+    this.burst(o, 0.09, 'lowpass', 700, 1, 180);
+    this.tone(o, 'sine', 120 + Math.random() * 30, 55, 0.08, 0, 0.5);
   }
 
+  /** Heavy weapon: a double 'chug' with a sub-bass kick. */
   heavyShot(vol = 1, pan = 0): void {
     if (!this.allow('heavy', 70)) return;
     const o = this.out(0.5 * vol, pan);
     if (!o) return;
-    this.burst(o, 0.12, 'lowpass', 1200, 0.7, 200);
-    this.tone(o, 'sine', 140, 50, 0.15);
+    for (const d of [0, 0.07]) {
+      this.burst(o, 0.1, 'lowpass', 1400, 0.7, 220, d);
+      this.tone(o, 'sine', 150, 45, 0.16, d);
+    }
+    this.burst(o, 0.04, 'highpass', 2500, 0.6);
   }
 
   spit(vol = 1, pan = 0): void {
@@ -151,12 +161,50 @@ class AudioEngine {
     this.tone(o, 'square', 90, 40, 0.1, 0, 0.4);
   }
 
+  /** Punchy blast with a long low rumble tail. */
   explosion(vol = 1, pan = 0): void {
     const o = this.out(0.9 * vol, pan);
     if (!o) return;
     this.burst(o, 0.5, 'lowpass', 900, 0.8, 80);
     this.burst(o, 0.25, 'bandpass', 400, 0.6);
+    this.burst(o, 1.6, 'lowpass', 160, 0.7, 40);
     this.tone(o, 'sine', 70, 28, 0.55, 0, 1);
+    this.tone(o, 'sine', 45, 22, 1.4, 0.05, 0.6);
+  }
+
+  /** Heavy footfall (Iron Guard, Commander, Behemoth). */
+  footstep(vol = 1, pan = 0, huge = false): void {
+    if (!this.allow('step', huge ? 220 : 160)) return;
+    const o = this.out((huge ? 0.5 : 0.25) * vol, pan);
+    if (!o) return;
+    this.tone(o, 'sine', huge ? 70 : 110, huge ? 30 : 50, huge ? 0.25 : 0.12, 0, 0.8);
+    this.burst(o, 0.05, 'lowpass', huge ? 400 : 900, 1);
+  }
+
+  /** Metallic construction clank. */
+  clank(vol = 1, pan = 0): void {
+    if (!this.allow('clank', 350)) return;
+    const o = this.out(0.18 * vol, pan);
+    if (!o) return;
+    const f = 600 + Math.random() * 500;
+    this.tone(o, 'square', f, f * 0.98, 0.18, 0, 0.5);
+    this.tone(o, 'triangle', f * 2.7, f * 2.6, 0.25, 0, 0.3);
+    this.burst(o, 0.03, 'highpass', 4000, 1);
+  }
+
+  /** Soft tick when hovering a button. */
+  uiHover(): void {
+    if (!this.allow('hover', 40)) return;
+    const o = this.out(0.08);
+    if (!o) return;
+    this.tone(o, 'sine', 2200, 1800, 0.025, 0, 0.6);
+  }
+
+  /** Low war-horn stab for 'under attack'. */
+  horn(): void {
+    const o = this.out(0.3);
+    if (!o) return;
+    for (const d of [0, 7]) this.tone(o, 'sawtooth', 110 * Math.pow(2, d / 12), 108 * Math.pow(2, d / 12), 0.9, 0, 0.5);
   }
 
   unitDeath(vol = 1, pan = 0): void {

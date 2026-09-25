@@ -6,6 +6,7 @@ const KEY = 'voidcrusade.settings.v1';
 export type GraphicsQuality = 'low' | 'medium' | 'high';
 
 export interface GameSettings {
+  masterVolume: number;
   musicVolume: number;
   sfxVolume: number;
   difficulty: Difficulty;
@@ -21,7 +22,7 @@ export interface GameSettings {
   language?: Lang;
 }
 
-const DEFAULTS: GameSettings = { musicVolume: 0.5, sfxVolume: 0.7, difficulty: 'normal', tilt: PROJECTION.defaultTilt, graphics: 'medium', screenShake: true, voiceVolume: 0.85, voiceEnabled: true };
+const DEFAULTS: GameSettings = { masterVolume: 0.85, musicVolume: 0.5, sfxVolume: 0.7, difficulty: 'normal', tilt: PROJECTION.defaultTilt, graphics: 'medium', screenShake: true, voiceVolume: 0.85, voiceEnabled: true };
 
 let current: GameSettings | null = null;
 const listeners: ((s: GameSettings) => void)[] = [];

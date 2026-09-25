@@ -1,57 +1,15 @@
 import { AudioSystem } from './AudioSystem';
+import { Music } from './Music';
 
 interface Voice {
   stop: () => void;
 }
 
-/** Looping ambience on the music bus: battle rumble, dark drone pad, and the capture tone. */
+/** Looping ambience: distant battle rumble and the capture tone; the score itself lives in Music. */
 class AmbienceEngine {
   private rumble: Voice | null = null;
-  private drone: Voice | null = null;
   private capture: { gain: GainNode; stop: () => void } | null = null;
   private capturing = false;
-
-  private startDrone(): void {
-    const ctx = AudioSystem.ctx;
-    if (!ctx || this.drone) return;
-    const out = ctx.createGain();
-    out.gain.value = 0;
-    out.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 3);
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 320;
-    filter.Q.value = 4;
-    const lfo = ctx.createOscillator();
-    lfo.frequency.value = 0.07;
-    const lfoGain = ctx.createGain();
-    lfoGain.gain.value = 180;
-    lfo.connect(lfoGain).connect(filter.frequency);
-    filter.connect(out).connect(AudioSystem.musicBus);
-    const oscs = [55, 55.4, 82.4, 110.2].map((f, i) => {
-      const o = ctx.createOscillator();
-      o.type = i < 2 ? 'sawtooth' : 'triangle';
-      o.frequency.value = f;
-      o.connect(filter);
-      o.start();
-      return o;
-    });
-    lfo.start();
-    const roots = [1, 0.891, 0.794, 0.944];
-    let step = 0;
-    const timer = window.setInterval(() => {
-      step = (step + 1) % roots.length;
-      const t = ctx.currentTime;
-      oscs.forEach((o, i) => o.frequency.setTargetAtTime([55, 55.4, 82.4, 110.2][i] * roots[step], t, 1.5));
-    }, 8000);
-    this.drone = {
-      stop: (): void => {
-        window.clearInterval(timer);
-        const t = ctx.currentTime;
-        out.gain.setTargetAtTime(0, t, 0.4);
-        [...oscs, lfo].forEach((o) => o.stop(t + 2));
-      },
-    };
-  }
 
   private startRumble(): void {
     const ctx = AudioSystem.ctx;
@@ -86,16 +44,20 @@ class AmbienceEngine {
     AudioSystem.onReady(() => {
       this.rumble?.stop();
       this.rumble = null;
-      this.startDrone();
     });
+    Music.play('menu');
+  }
+
+  campaign(): void {
+    this.menu();
+    Music.play('campaign');
   }
 
   battle(): void {
-    AudioSystem.onReady(() => {
-      this.startDrone();
-      this.startRumble();
-    });
+    AudioSystem.onReady(() => this.startRumble());
+    Music.play('battle');
   }
+
 
   stopBattle(): void {
     this.rumble?.stop();
