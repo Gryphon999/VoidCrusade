@@ -141,3 +141,14 @@ export const MINIMAP = {
   margin: 8,
   refreshMs: 500,
 } as const;
+
+export const FOG = {
+  /** Fog cell size in tiles. */
+  cellTiles: 2,
+  updateMs: 200,
+  unitVision: 300,
+  buildingVision: 200,
+  hqVision: 420,
+  exploredAlpha: 0.5,
+  unexploredAlpha: 0.97,
+} as const;

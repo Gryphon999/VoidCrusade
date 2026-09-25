@@ -10,6 +10,7 @@ import { ProductionSystem } from '../systems/ProductionSystem';
 import { ResearchSystem } from '../systems/ResearchSystem';
 import { CapturePointSystem } from '../systems/CapturePointSystem';
 import { AIController } from '../ai/AIController';
+import { FogOfWarSystem } from '../systems/FogOfWarSystem';
 import { ModifierTable, defaultModifiers } from '../systems/Modifiers';
 import { BuildingSystem } from '../buildings/BuildingSystem';
 import { BuildingPlacementUI } from '../buildings/BuildingPlacementUI';
@@ -57,7 +58,7 @@ export class BattleScene extends Phaser.Scene {
   ai!: AIController;
   modifiers!: ModifierTable;
   cover?: CoverQueries;
-  fog?: FogQueries;
+  fog?: FogOfWarSystem;
   effects!: EffectsSystem;
   hud!: HudScene;
   elapsed = 0;
@@ -93,6 +94,7 @@ export class BattleScene extends Phaser.Scene {
     hive.rally = { x: hive.x - 120, y: hive.y + 160 };
     this.production.spawnFrom(hive, 'crawler');
     this.ai = new AIController(this, data.difficulty ?? 'normal');
+    this.fog = new FogOfWarSystem(this);
 
     this.cameraSystem = new CameraSystem(this, this.map.worldWidth, this.map.worldHeight);
     this.cameraSystem.centerOn(hq.x + 200, hq.y - 100);
@@ -118,6 +120,7 @@ export class BattleScene extends Phaser.Scene {
     this.combat.update(dt);
     this.capture.update(dt);
     this.ai.update(dt);
+    this.fog?.update(dt);
     this.selection.prune();
     this.cameraSystem.update(dt);
     this.inputController.update();
