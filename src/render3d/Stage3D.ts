@@ -13,6 +13,8 @@ class Stage3DImpl {
   private game: Phaser.Game | null = null;
   private rect = { x: 0, y: 0, w: 0, h: 0, dpr: 0 };
   private antialias = true;
+  /** Whoever attached last owns the canvas; only the owner may hide it. */
+  private owner: object | null = null;
 
   /** True when this browser can run the 3D battlefield. */
   get supported(): boolean {
@@ -36,8 +38,9 @@ class Stage3DImpl {
   }
 
   /** Creates (or re-creates after an antialias change) the renderer under the Phaser canvas. */
-  attach(game: Phaser.Game): THREE.WebGLRenderer {
+  attach(game: Phaser.Game, owner: object | null = null): THREE.WebGLRenderer {
     this.game = game;
+    this.owner = owner;
     const aa = this.tier().antialias;
     if (this.renderer && aa !== this.antialias) this.dispose();
     if (!this.renderer) {
@@ -93,7 +96,9 @@ class Stage3DImpl {
     return this.renderer ? this.renderer.getDrawingBufferSize(new THREE.Vector2()) : new THREE.Vector2(1, 1);
   }
 
-  hide(): void {
+  /** Hides the canvas (ignored when `owner` is given and another user has attached since). */
+  hide(owner: object | null = null): void {
+    if (owner && this.owner && owner !== this.owner) return;
     if (this.renderer) this.renderer.domElement.style.display = 'none';
   }
 

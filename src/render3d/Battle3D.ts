@@ -73,7 +73,7 @@ export class Battle3D implements BattleRenderer {
   private onPost = (): void => this.render();
 
   constructor(private battle: BattleScene) {
-    this.renderer = Stage3D.attach(battle.game);
+    this.renderer = Stage3D.attach(battle.game, this);
     this.tierName = Settings.get().graphics;
     const tier = GFX3D[this.tierName];
     this.atmos = atmosFor(battle.map.def.id);
@@ -297,6 +297,6 @@ export class Battle3D implements BattleRenderer {
     this.terrain.dispose();
     this.composer.dispose();
     this.fps.destroy();
-    Stage3D.hide();
+    Stage3D.hide(this);
   }
 }

@@ -5,6 +5,8 @@ import { makeRng } from '../utils/rng';
 import { textStyle } from './uiStyle';
 import { territoryName } from '../i18n/names';
 import { addPlanet } from '../render/PlanetArt';
+import { Stage3D } from '../render3d/Stage3D';
+import { Space3D } from '../render3d/Space3D';
 
 const HEX = 72;
 const CX = 700;
@@ -86,6 +88,14 @@ export class CampaignMapView {
 
   private drawBackground(): void {
     const s = this.scene;
+    if (Stage3D.wanted()) {
+      try {
+        new Space3D(s, { planet: { x: CX + 40, y: CY + 110, r: 340 }, spin: 0.01, dim: 0.25 });
+        return;
+      } catch {
+        // Fall through to the painted backdrop.
+      }
+    }
     const bg = s.add.graphics();
     for (let i = 0; i < 24; i++) {
       const c = Phaser.Display.Color.Interpolate.ColorWithColor(

@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { addPlanet } from '../render/PlanetArt';
+import { Stage3D } from '../render3d/Stage3D';
+import { Space3D } from '../render3d/Space3D';
 
 interface Star {
   x: number;
@@ -14,8 +16,21 @@ interface Star {
 export class MenuBackground {
   private stars: Star[] = [];
   private gfx: Phaser.GameObjects.Graphics;
+  private live3D = false;
 
   constructor(private scene: Phaser.Scene) {
+    this.gfx = scene.add.graphics();
+    if (Stage3D.wanted()) {
+      try {
+        // Live 3D backdrop: the war-torn world below, a warship group gliding past.
+        new Space3D(scene, { planet: { x: GAME_WIDTH / 2, y: GAME_HEIGHT + 560, r: 720 }, fleet: true, spin: 0.012, tilt: 1.15 });
+        this.live3D = true;
+        scene.time.addEvent({ delay: 900, loop: true, callback: () => this.explosion() });
+        return;
+      } catch {
+        this.live3D = false;
+      }
+    }
     const bg = scene.add.graphics();
     bg.fillGradientStyle(0x020208, 0x020208, 0x1a0812, 0x100a20, 1).fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     for (let i = 0; i < 6; i++) {
@@ -33,7 +48,6 @@ export class MenuBackground {
         alpha: 0.3 + layer * 0.7,
       });
     }
-    this.gfx = scene.add.graphics();
     // Painted world rising from below the horizon.
     const planet = addPlanet(scene, GAME_WIDTH / 2, GAME_HEIGHT + 560, 720);
     scene.tweens.add({ targets: planet, angle: 4, duration: 90000, yoyo: true, repeat: -1 });
@@ -75,6 +89,7 @@ export class MenuBackground {
   }
 
   update(dt: number): void {
+    if (this.live3D) return;
     const g = this.gfx.clear();
     for (const s of this.stars) {
       s.x -= s.speed * dt;
