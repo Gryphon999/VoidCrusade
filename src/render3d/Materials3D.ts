@@ -193,7 +193,7 @@ export type SurfaceKind = 'metal' | 'organic' | 'stone';
  * plus contact darkening near the ground and a micro bump from the detail map.
  * `panel` is the seam spacing in px.
  */
-export function surfaceMaterial(mat: THREE.MeshStandardMaterial, kind: SurfaceKind, panel = 18): THREE.MeshStandardMaterial {
+export function surfaceMaterial(mat: THREE.MeshStandardMaterial, kind: SurfaceKind, panel = 18, strength = 1): THREE.MeshStandardMaterial {
   const detail = surfaceDetail();
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uDetail = { value: detail };
@@ -213,7 +213,7 @@ float triDetail(vec3 p, vec3 n, float s) {
 }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
   vec3 sN = normalize(vLocalNormal);
-  float sD = triDetail(vLocalPos, sN, 70.0) * 0.55 + triDetail(vLocalPos + 13.0, sN, 23.0) * 0.45;
+  float sD = mix(0.5, triDetail(vLocalPos, sN, 70.0) * 0.55 + triDetail(vLocalPos + 13.0, sN, 23.0) * 0.45, ${strength.toFixed(2)});
   // Contact shadow: the lowest part of every model sits darker in the ground.
   diffuseColor.rgb *= mix(0.55, 1.0, smoothstep(0.0, 16.0, vLocalPos.y));
   ${kind === 'metal' ? `
@@ -245,6 +245,6 @@ float triDetail(vec3 p, vec3 n, float s) {
     normal = normalize(abs(fDet) * normal - grad);
   }`);
   };
-  mat.customProgramCacheKey = () => `surface-${kind}-${panel}`;
+  mat.customProgramCacheKey = () => `surface-${kind}-${panel}-${strength}`;
   return mat;
 }

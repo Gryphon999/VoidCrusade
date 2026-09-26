@@ -211,13 +211,25 @@ export class BattleScene extends Phaser.Scene {
 
     this.cameraSystem = new CameraSystem(this, this.map.worldWidth, this.map.worldHeight);
     this.cameraSystem.centerOn(hq.x + 200, hq.y - 100);
+    // Opening shot: from high over the battlefield down to the base (not in the tutorial,
+    // whose first lesson is moving the camera).
+    if (data.mode !== 'tutorial' && Settings.get().cinematics !== false) {
+      // Start high above the base (explored ground, not black fog) and swoop down onto it.
+      this.cameras.main.setZoom(0.6);
+      this.cameraSystem.centerOn(hq.x + 60, hq.y - 260);
+      this.cameraSystem.flyTo(hq.x + 200, hq.y - 100, 1, 2600);
+    }
     this.inputController = new InputController(this);
 
     this.events.on(EV.buildingDestroyed, (b: Building) => {
       this.production.cancelAll(b);
       if (b.owner === 'player') this.stats.buildingsLost++;
       else this.stats.buildingsDestroyed++;
-      if (b.def.role === 'hq') this.endBattle(opponent(b.owner));
+      if (b.def.role === 'hq') {
+        // Final shot: push in slowly on the fallen stronghold.
+        if (!this.result && Settings.get().cinematics !== false) this.cameraSystem.flyTo(b.x, b.y, 1.35, 2200);
+        this.endBattle(opponent(b.owner));
+      }
     });
     this.events.on(EV.unitDied, (_x: number, _y: number, u: Unit) => {
       if (u.owner === 'player') this.stats.losses++;

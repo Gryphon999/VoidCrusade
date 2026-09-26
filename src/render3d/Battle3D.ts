@@ -133,6 +133,10 @@ export class Battle3D implements BattleRenderer {
     this.composer.addPass(this.finish);
     this.fps = new FpsOverlay();
     battle.game.events.on(Phaser.Core.Events.POST_RENDER, this.onPost);
+    // Compile every shader up front (in parallel where the driver allows) so the opening
+    // camera move does not hitch on first use.
+    this.syncCamera();
+    this.renderer.compileAsync(this.scene, this.camera).catch(() => undefined);
   }
 
   private cosE(): number {

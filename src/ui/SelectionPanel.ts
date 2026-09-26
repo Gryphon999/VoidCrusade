@@ -3,6 +3,7 @@ import type { BattleScene } from '../scenes/BattleScene';
 import { Squad } from '../units/Squad';
 import { Building } from '../buildings/Building';
 import { portraitKey } from '../render/puppet/UnitAtlas';
+import { ModelSnap } from '../render3d/ModelSnap';
 import { buildingIconKey } from '../render/buildings/BuildingArt';
 import { ABILITIES } from '../units/Abilities';
 import { RESEARCH_DEFS } from '../systems/ResearchSystem';
@@ -53,16 +54,34 @@ export class SelectionPanel {
     this.updater?.();
   }
 
-  private portrait(key: string, gold: boolean): void {
+  /** Portrait window; a 3D studio render with an animated strip (`fps`) when available. */
+  private portrait(key: string, gold: boolean, live: string | null = null, fps = 6): void {
     const x = P.x + 64;
     const y = P.y + P.h / 2;
     const bg = this.scene.add.graphics();
     const g = bg.fillGradientStyle(0x1a2030, 0x1a2030, 0x07080c, 0x07080c, 1);
     g.fillRect(x - 56, y - 64, 112, 128);
+    // Soft backlight behind the figure.
+    for (let i = 6; i > 0; i--) g.fillStyle(gold ? 0x806020 : 0x2a4060, 0.06).fillCircle(x, y - 6, 12 + i * 8);
     g.lineStyle(2, gold ? 0xf0d27a : 0xc9a044, 1).strokeRect(x - 56, y - 64, 112, 128);
-    const img = this.scene.add.image(x, y + 4, key);
-    img.setScale(Math.min(100 / img.width, 116 / img.height, 3));
-    this.content.add([bg, img]);
+    g.lineStyle(1, 0x000000, 0.8).strokeRect(x - 53.5, y - 61.5, 107, 123);
+    const img = this.scene.add.image(x, y + 2, live ?? key, live ? 0 : undefined);
+    img.setScale(live ? 112 / img.width : Math.min(100 / img.width, 116 / img.height, 3));
+    // Scanline glass over the portrait.
+    const glass = this.scene.add.graphics();
+    for (let yy = y - 62; yy < y + 62; yy += 3) glass.fillStyle(0x000000, 0.12).fillRect(x - 54, yy, 108, 1);
+    glass.fillGradientStyle(0xffffff, 0xffffff, 0xffffff, 0xffffff, 0.08, 0.08, 0, 0).fillRect(x - 54, y - 62, 108, 40);
+    this.content.add([bg, img, glass]);
+    if (live) {
+      const n = this.scene.textures.get(live).frameTotal - 1;
+      const ev = this.scene.time.addEvent({ delay: 1000 / fps, loop: true, callback: () => {
+        if (!img.active) {
+          ev.remove();
+          return;
+        }
+        img.setFrame(((Number(img.frame.name) || 0) + 1) % n);
+      } });
+    }
   }
 
   private bar(x: number, y: number, w: number, h: number, frac: number, color?: number): void {
@@ -83,7 +102,7 @@ export class SelectionPanel {
 
   private buildSquads(squads: Squad[]): void {
     const first = squads[0];
-    this.portrait(portraitKey(first.def.id), !!first.def.isHero);
+    this.portrait(portraitKey(first.def.id), !!first.def.isHero, ModelSnap.unitPortrait(this.scene, first.def.id));
     const title = squads.length === 1 ? unitName(first.def.id) : plural(squads.length, 'hud.squads');
     const name = this.scene.add.text(INFO_X, P.y + 10, title, textStyle(19, HUD.goldHi)).setStroke('#000', 3);
     const state = this.scene.add.text(INFO_X, P.y + 52, '', textStyle(13, '#9fe09f'));
@@ -164,7 +183,7 @@ export class SelectionPanel {
   }
 
   private buildBuilding(b: Building): void {
-    this.portrait(buildingIconKey(b.def.id), b.def.role === 'hq');
+    this.portrait(buildingIconKey(b.def.id), b.def.role === 'hq', ModelSnap.buildingTurntable(this.scene, b.def.id, 24), 5);
     const name = this.scene.add.text(INFO_X, P.y + 10, buildingName(b.def.id), textStyle(19, HUD.goldHi)).setStroke('#000', 3);
     const info = this.scene.add.text(INFO_X, P.y + 52, '', textStyle(13, '#bcb4a0'));
     const desc = this.scene.add.text(INFO_X, P.y + 74, buildingDesc(b.def.id), { ...textStyle(12, '#8a8478'), wordWrap: { width: 300 } });

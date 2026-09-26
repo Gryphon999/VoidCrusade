@@ -22,6 +22,8 @@ export interface GameSettings {
   showFps?: boolean;
   /** Lower the tier automatically when the frame rate stays low. */
   adaptiveQuality?: boolean;
+  /** Battle fly-in and final camera shots. */
+  cinematics?: boolean;
   screenShake: boolean;
   voiceVolume: number;
   voiceEnabled: boolean;

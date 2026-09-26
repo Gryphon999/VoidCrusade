@@ -10,6 +10,7 @@ import { ARMOR_CLASSES, DAMAGE_TABLE, DAMAGE_TYPES } from '../units/Damage';
 import { ANIM_FRAMES } from '../render/puppet/Models';
 import { atlasKey, frameName, turretKey } from '../render/puppet/UnitAtlas';
 import { buildingIconKey } from '../render/buildings/BuildingArt';
+import { ModelSnap } from '../render3d/ModelSnap';
 import { unitStatsText } from '../ui/Commands';
 import { Button } from '../ui/Button';
 import { drawPanel, textStyle } from '../ui/uiStyle';
@@ -43,7 +44,7 @@ export class EncyclopediaScene extends Phaser.Scene {
   private detail!: Phaser.GameObjects.Container;
   private searchText!: Phaser.GameObjects.Text;
   private tabButtons: Button[] = [];
-  private preview: { img: Phaser.GameObjects.Image; turret?: Phaser.GameObjects.Image; id: UnitId; t: number } | null = null;
+  private preview: { img: Phaser.GameObjects.Image; turret?: Phaser.GameObjects.Image; id: UnitId; t: number; strip?: number } | null = null;
 
   constructor() {
     super('EncyclopediaScene');
@@ -177,12 +178,19 @@ export class EncyclopediaScene extends Phaser.Scene {
     if (this.tab === 'units') {
       const id = key as UnitId;
       const d = UNIT_DEFS[id];
-      const img = add(this.add.image(x + 130, y + 170, atlasKey(id), frameName('idle', 0, 2)));
-      const s = Math.min(d.category === 'infantry' || d.category === 'hero' ? 2.6 : 1.6, 200 / Math.max(img.width, img.height) * 1.4);
-      img.setScale(s).setOrigin(0.5, 0.75);
-      let turret: Phaser.GameObjects.Image | undefined;
-      if (d.turret) turret = add(this.add.image(x + 130, y + 170, turretKey(id), 'turret0_2').setScale(s).setOrigin(0.5, 0.75));
-      this.preview = { img, turret, id, t: 0 };
+      const tt = ModelSnap.unitTurntable(this, id);
+      if (tt) {
+        // The real 3D model on a turntable (walking in place while it turns).
+        const img = add(this.add.image(x + 130, y + 150, tt, 0).setScale(250 / 256));
+        this.preview = { img, id, t: 0, strip: this.textures.get(tt).frameTotal - 1 };
+      } else {
+        const img = add(this.add.image(x + 130, y + 170, atlasKey(id), frameName('idle', 0, 2)));
+        const s = Math.min(d.category === 'infantry' || d.category === 'hero' ? 2.6 : 1.6, 200 / Math.max(img.width, img.height) * 1.4);
+        img.setScale(s).setOrigin(0.5, 0.75);
+        let turret: Phaser.GameObjects.Image | undefined;
+        if (d.turret) turret = add(this.add.image(x + 130, y + 170, turretKey(id), 'turret0_2').setScale(s).setOrigin(0.5, 0.75));
+        this.preview = { img, turret, id, t: 0 };
+      }
       heading(unitName(id));
       const meta = [t(dyn(`enc.faction.${d.faction}`)), t('hud.tier', { n: d.tier }), t(dyn(`enc.cat.${d.category}`))].join(' · ');
       para(meta, y + 38, '#c9a044', 13);
@@ -202,8 +210,14 @@ export class EncyclopediaScene extends Phaser.Scene {
     } else if (this.tab === 'buildings') {
       const id = key as BuildingId;
       const d = BUILDING_DEFS[id];
-      const img = add(this.add.image(x + 130, y + 120, buildingIconKey(id)));
-      img.setScale(Math.min(1, 230 / img.width, 220 / img.height));
+      const bt = ModelSnap.buildingTurntable(this, id, 32);
+      if (bt) {
+        const img = add(this.add.image(x + 130, y + 130, bt, 0).setScale(240 / 200));
+        this.preview = { img, id: id as unknown as UnitId, t: 0, strip: this.textures.get(bt).frameTotal - 1 };
+      } else {
+        const img = add(this.add.image(x + 130, y + 120, buildingIconKey(id)));
+        img.setScale(Math.min(1, 230 / img.width, 220 / img.height));
+      }
       heading(buildingName(id));
       para([t(dyn(`enc.faction.${d.faction}`)), t('hud.tier', { n: d.tier }), t(dyn(`cmd.cat.${d.category}`))].join(' · '), y + 38, '#c9a044', 13);
       const desc = para(buildingDesc(id), y + 62);
@@ -284,6 +298,10 @@ export class EncyclopediaScene extends Phaser.Scene {
     if (!p) return;
     // Walk the model around in a circle of facings, with the odd attack.
     p.t += delta / 1000;
+    if (p.strip) {
+      p.img.setFrame(Math.floor(p.t * 8) % p.strip);
+      return;
+    }
     const dir = Math.floor(p.t / 1.2) % 8;
     const cycle = p.t % 4.8;
     const anim = cycle > 3.6 ? 'attack' : 'walk';
