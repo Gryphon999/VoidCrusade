@@ -174,3 +174,77 @@ export function platingCanvas(dark: number, light: number, seed: number, size = 
   }
   return c;
 }
+
+let sharedDetail: THREE.CanvasTexture | null = null;
+/** One detail map shared by every model surface (buildings, props, units). */
+export function surfaceDetail(): THREE.CanvasTexture {
+  if (!sharedDetail) sharedDetail = detailTexture(4242, 256);
+  return sharedDetail;
+}
+
+export type SurfaceKind = 'metal' | 'organic' | 'stone';
+
+/**
+ * Patches a vertex-coloured standard material with procedural surface work in model space, so
+ * kit-bashed primitives stop reading as flat plastic:
+ * - metal: riveted panel seams, per-panel tone variation, rain streaks and grime;
+ * - organic: mottled wet skin with glossy ridges;
+ * - stone: grain and chips;
+ * plus contact darkening near the ground and a micro bump from the detail map.
+ * `panel` is the seam spacing in px.
+ */
+export function surfaceMaterial(mat: THREE.MeshStandardMaterial, kind: SurfaceKind, panel = 18): THREE.MeshStandardMaterial {
+  const detail = surfaceDetail();
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uDetail = { value: detail };
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vLocalPos;\nvarying vec3 vLocalNormal;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvLocalPos = position;\nvLocalNormal = normal;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+varying vec3 vLocalPos;
+varying vec3 vLocalNormal;
+uniform sampler2D uDetail;
+float surfHash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+float triDetail(vec3 p, vec3 n, float s) {
+  vec3 w = pow(abs(n), vec3(3.0));
+  w /= (w.x + w.y + w.z + 1e-4);
+  return texture2D(uDetail, p.zy / s).r * w.x + texture2D(uDetail, p.xz / s).r * w.y + texture2D(uDetail, p.xy / s).r * w.z;
+}`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+  vec3 sN = normalize(vLocalNormal);
+  float sD = triDetail(vLocalPos, sN, 70.0) * 0.55 + triDetail(vLocalPos + 13.0, sN, 23.0) * 0.45;
+  // Contact shadow: the lowest part of every model sits darker in the ground.
+  diffuseColor.rgb *= mix(0.55, 1.0, smoothstep(0.0, 16.0, vLocalPos.y));
+  ${kind === 'metal' ? `
+  {
+    vec3 q = fract(vLocalPos / ${panel.toFixed(1)} + 0.5);
+    vec3 e = smoothstep(0.0, 0.05, q) * smoothstep(1.0, 0.95, q);
+    e = mix(e, vec3(1.0), step(0.7, abs(sN)));
+    float seam = e.x * e.y * e.z;
+    float tone = 0.9 + surfHash(floor(vLocalPos / ${panel.toFixed(1)} + 0.5)) * 0.2;
+    // Streaks run down vertical faces.
+    float streak = texture2D(uDetail, vec2((vLocalPos.x + vLocalPos.z) / 90.0, vLocalPos.y / 900.0)).r;
+    float vert = 1.0 - abs(sN.y);
+    diffuseColor.rgb *= mix(mix(0.55, 0.8, abs(sN.y)), 1.0, seam) * tone * (0.8 + sD * 0.35) * mix(1.0, 0.75 + streak * 0.4, vert);
+  }` : kind === 'organic' ? `
+  diffuseColor.rgb *= 0.65 + sD * 0.6;
+  diffuseColor.rgb += vec3(0.05, 0.0, 0.04) * smoothstep(0.6, 0.8, sD);` : `
+  diffuseColor.rgb *= 0.7 + sD * 0.5;`}`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+  ${kind === 'organic' ? 'roughnessFactor *= 0.45 + sD * 0.8;' : kind === 'metal' ? 'roughnessFactor *= 0.8 + sD * 0.5;' : ''}`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+  {
+    vec2 dH = vec2(dFdx(sD), dFdy(sD)) * ${kind === 'organic' ? '1.6' : '0.9'};
+    vec3 vSigmaX = dFdx(-vViewPosition);
+    vec3 vSigmaY = dFdy(-vViewPosition);
+    vec3 R1 = cross(vSigmaY, normal);
+    vec3 R2 = cross(normal, vSigmaX);
+    float fDet = dot(vSigmaX, R1);
+    vec3 grad = sign(fDet) * (dH.x * R1 + dH.y * R2);
+    normal = normalize(abs(fDet) * normal - grad);
+  }`);
+  };
+  mat.customProgramCacheKey = () => `surface-${kind}-${panel}`;
+  return mat;
+}

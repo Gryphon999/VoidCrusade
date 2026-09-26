@@ -14,6 +14,7 @@ import { FpsOverlay } from './FpsOverlay';
 import { AtmosPreset, atmosFor } from './Atmos';
 import { PropInstance, Props3D } from './Props3D';
 import { Env3D } from './Env3D';
+import { Buildings3D } from './Buildings3D';
 import { biomeForMap } from '../render/Biomes';
 import { PROPS_CHANGED } from '../render/PropSystem';
 import type { BattleScene } from '../scenes/BattleScene';
@@ -43,6 +44,7 @@ export class Battle3D implements BattleRenderer {
   private units: Units3D;
   private props: Props3D;
   private env: Env3D;
+  private buildings: Buildings3D;
   private refreshProps: () => void = () => undefined;
   private barrelCount = -1;
   private fps: FpsOverlay;
@@ -75,6 +77,8 @@ export class Battle3D implements BattleRenderer {
     this.env = new Env3D(this.scene, (x, y) => this.terrain.heightAt(x, y), biome.cliffTop[1], battle.map.def.id.length * 131, tier.shadows);
     this.units = new Units3D(this.scene, tier.modelDetail, tier.shadows);
     this.props = new Props3D(this.scene, tier.shadows);
+    this.buildings = new Buildings3D(this.scene, tier.shadows);
+    this.renderer.localClippingEnabled = true;
     const refreshProps = (): void => {
       const barrels = battle.world.barrelSpots().map((p, i) => ({ kind: 'barrels' as PropInstance['kind'], variant: i, x: p.x, y: p.y, rot: i * 1.7, scale: 1 }));
       this.props.set([...battle.props.list(), ...barrels], (x, y) => this.terrain.heightAt(x, y));
@@ -189,7 +193,9 @@ export class Battle3D implements BattleRenderer {
       this.refreshProps();
     }
     const all = this.battle.units.squads.flatMap((s) => s.units);
-    this.units.update(all, (x, y) => this.terrain.heightAt(x, y));
+    const hAt = (x: number, y: number): number => this.terrain.heightAt(x, y);
+    this.units.update(all, hAt);
+    this.buildings.update(this.battle.buildings.buildings, this.battle.wrecks.ruins, hAt, dt);
     this.composer.render();
     this.fps.update(this.battle.game.loop.actualFps, `3D · ${this.tierName}`);
     this.adapt(dt);
@@ -199,6 +205,7 @@ export class Battle3D implements BattleRenderer {
     this.battle.game.events.off(Phaser.Core.Events.POST_RENDER, this.onPost);
     this.units.dispose();
     this.props.dispose();
+    this.buildings.dispose();
     this.env.dispose();
     this.terrain.dispose();
     this.composer.dispose();

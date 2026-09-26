@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { hide2D } from '../render3d/hide2D';
 import { spawnOrderMarker } from './OrderMarker';
 import { BloodEffect } from './BloodEffect';
 import { ExplosionEffect } from './ExplosionEffect';
@@ -98,6 +99,7 @@ export class EffectsSystem {
     const key = ruinKey(this.scene, b.def.size, Projection.tilt, b.def.faction === 'nullhorde');
     const ruin = this.scene.add.image(b.x, Projection.vy(bottom) + 4, key).setOrigin(0.5, 1).setDepth(Projection.depth(bottom - 8));
     Culler.for(this.scene).add(ruin, b.x, Projection.vy(b.y));
+    hide2D(this.scene, ruin);
     this.explosions.burn(b.x, Projection.vy(b.y), b.radius, b.def.size >= 3 ? 25 : 10);
     this.lights.fire(b.x, Projection.vy(b.y), b.radius * 2.2, b.def.size >= 3 ? 25 : 10);
     return ruin;

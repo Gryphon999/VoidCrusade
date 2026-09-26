@@ -96,3 +96,47 @@ every object, real light falloff, and specular on armour.
   then it is dim.
 - **Mixed rendering:** buildings are still 2D sprites and look pasted onto the 3D ground. That
   is the most visible inconsistency now, so A4 comes next, together with A3 units.
+
+## A4 — Buildings
+
+**Done.**
+- **Models** (`BuildingModels`): all 36 structures, kit-bashed from primitives.
+  - Iron Void (gothic-industrial ferrocrete, dark steel, gold trim, blue team banners, lit
+    slit windows): corner-towered keep, flux conduit with glowing coil rings, pitched-roof
+    barracks, crane workshop, chimneyed foundry, turrets and more.
+  - Null Horde (chitin plates, bone spikes, wet flesh, violet veins, acid orifices): mounds,
+    brood pods, maws ringed with teeth, spore stalks, pools.
+- **Surface shader** (`surfaceMaterial`, shared with props and ruins): model-space panel seams
+  with per-panel tone variation, rain streaks on vertical faces, grime, wet mottled skin with
+  glossy ridges for the Horde, a micro bump, and contact darkening at the base.
+- **Construction:**
+  - Iron Void buildings rise inside a steel scaffolding cage (poles, rails, walk boards,
+    braces); a clipping plane sweeps up with a flickering welding seam, and the cut shell
+    renders double-sided.
+  - Horde buildings swell out of the ground from a small pulsing bud.
+- **Damage:** below 60 % health the structure darkens towards scorched. Below 30 % its lights
+  flicker. The 2D smoke and fire effects stay on top.
+- **Turrets:** guns track their target in 3D; the view records the aim yaw.
+- **Gates:** blast-gate leaves slide up like a shutter when friendly troops come near.
+- **Destruction:** the building tilts, slumps and sinks for about 1.2 s. Rubble then takes its
+  place as a 3D heap: slabs, bent beams and charred rocks, or burst chitin and bones. Stripped
+  ruins flatten.
+- Health bars, the selection ring, picking and fog are unchanged and stay 2D. Building heights
+  match the 2D sprites, so every overlay stays aligned.
+- Screens: `a4-iv-close.jpg`, `a4-iv-construction.jpg`, `a4-horde.jpg`.
+
+**Self-critique.**
+- **Silhouettes:** too primitive. From the high camera, roofs dominate and many roofs are
+  flat boxes. The keep reads well, but mid-size Iron Void buildings (depot, workshop,
+  research) look like cardboard blocks with details. They need layered roofs, buttresses,
+  pipes, vents and antenna clutter.
+- **Horde:** the structures read as blobby spheres. They need tendrils, ribbing and biomass
+  creep under them; the creep is still the 2D overlay.
+- **Pools:** acid and void pools are flat emissive discs. They need a liquid shader with
+  ripples and a fresnel rim (A5/A6).
+- **Seams:** the panel seam grid is uniform and CG-looking on large walls. It should vary
+  its scale per part.
+- **No interior light spill:** windows glow, but nothing lights the ground in front of them.
+  Point lights come in A5.
+- **Leftover 2D effects:** smoke, sparks and ruin fires are still the 2D particle effects.
+  They float slightly off the 3D volumes (A6).

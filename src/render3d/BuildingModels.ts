@@ -32,6 +32,8 @@ const BONE = 0xd8ccb0;
 const VEIN = 0xb040ff;
 const ACID = 0x9aff4a;
 
+/** Darkens a self-lit colour: large glowing surfaces must stay under the bloom budget. */
+const dim = (c: number, f: number): number => new THREE.Color(c).multiplyScalar(f).getHex();
 const glowBox = (w: number, h: number, d: number): THREE.BufferGeometry => new THREE.BoxGeometry(w, h, d);
 const glowBall = (r: number): THREE.BufferGeometry => new THREE.SphereGeometry(r, 10, 8);
 const glowCyl = (r: number, h: number): THREE.BufferGeometry => new THREE.CylinderGeometry(r, r, h, 14);
@@ -84,7 +86,9 @@ export function buildingModel(id: BuildingId, S: number, H: number, team: number
     case 'stronghold': {
       k.box(S * 0.92, 10, S * 0.92, FERRO_DARK, [0, 5, 0]);
       k.box(S * 0.56, H * 0.7, S * 0.5, FERRO, [0, H * 0.35 + 8, 0]);
-      k.box(S * 0.6, 6, S * 0.54, GOLD, [0, H * 0.7 + 8, 0]);
+      k.box(S * 0.6, 6, S * 0.54, STEEL_DARK, [0, H * 0.7 + 8, 0]);
+      k.box(S * 0.62, 2.5, 2.5, GOLD, [0, H * 0.7 + 9.5, S * 0.27]);
+      k.box(S * 0.62, 2.5, 2.5, GOLD, [0, H * 0.7 + 9.5, -S * 0.27]);
       for (let i = 0; i < 7; i++) k.box(8, 9, 8, FERRO, [-S * 0.27 + i * S * 0.09, H * 0.7 + 15, S * 0.25]);
       k.box(S * 0.3, H * 0.45, S * 0.3, FERRO_DARK, [0, H * 0.7 + H * 0.22 + 8, -8]);
       k.cone(S * 0.2, H * 0.45, STEEL_DARK, [0, H * 1.15 + 16, -8], undefined, 4);
@@ -101,13 +105,13 @@ export function buildingModel(id: BuildingId, S: number, H: number, team: number
       k.cyl(h * 0.45, h * 0.55, H * 0.8, STEEL, [0, H * 0.4 + 8, 0], undefined, 14);
       for (let i = 0; i < 4; i++) {
         k.torus(h * 0.5, 2.2, GOLD, [0, 18 + i * H * 0.18, 0], [Math.PI / 2, 0, 0]);
-        k.glow(glowCyl(h * 0.47, 3), CYAN, [0, 24 + i * H * 0.18, 0]);
+        k.glow(glowCyl(h * 0.47, 3), dim(CYAN, 0.5), [0, 24 + i * H * 0.18, 0]);
       }
       for (let i = 0; i < 6; i++) {
         const a = (i / 6) * Math.PI * 2;
         k.box(3, H * 0.55, h * 0.3, STEEL_DARK, [Math.cos(a) * h * 0.62, H * 0.3, Math.sin(a) * h * 0.62], [0, -a, 0]);
       }
-      k.glow(glowBall(h * 0.22), CYAN, [0, H * 0.85 + 8, 0]);
+      k.glow(glowBall(h * 0.22), dim(CYAN, 0.6), [0, H * 0.85 + 8, 0]);
       k.cyl(3, 3, h * 0.9, STEEL_DARK, [h * 0.7, 12, 0], [0, 0, Math.PI / 2]);
       break;
     }
@@ -181,7 +185,7 @@ export function buildingModel(id: BuildingId, S: number, H: number, team: number
     case 'research': {
       k.box(S * 0.76, H * 0.45, S * 0.66, FERRO, [0, H * 0.22, 0]);
       k.sphere(S * 0.3, STEEL, [0, H * 0.45, 0], [1, 0.75, 1], 16);
-      k.glow(glowCyl(S * 0.302, 3), CYAN, [0, H * 0.5, 0]);
+      k.glow(glowCyl(S * 0.302, 3), dim(CYAN, 0.35), [0, H * 0.5, 0]);
       k.cyl(2, 4, H * 0.6, GOLD, [0, H * 0.95, 0], undefined, 6);
       k.glow(glowBall(4), CYAN, [0, H * 1.27, 0]);
       windows(k, -S * 0.3, S * 0.3, H * 0.2, S * 0.33 + 0.3, 5, 10);
@@ -263,7 +267,7 @@ export function buildingModel(id: BuildingId, S: number, H: number, team: number
         const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
         k.box(6, H * 0.8, 6, STEEL, [Math.cos(a) * S * 0.22, H * 0.4 + 8, Math.sin(a) * S * 0.22], [Math.sin(a) * 0.15, 0, -Math.cos(a) * 0.15]);
       }
-      k.glow(glowBall(S * 0.14), 0x7ad0ff, [0, H * 0.9, 0]);
+      k.glow(glowBall(S * 0.14), dim(0x7ad0ff, 0.6), [0, H * 0.9, 0]);
       k.torus(S * 0.2, 2, GOLD, [0, H * 0.9, 0], [Math.PI / 2, 0, 0]);
       break;
     }
@@ -317,7 +321,7 @@ export function buildingModel(id: BuildingId, S: number, H: number, team: number
     case 'brood': {
       k.torus(h * 0.65, h * 0.2, CHITIN, [0, 6, 0], [Math.PI / 2, 0, 0]);
       k.cyl(h * 0.55, h * 0.4, 6, 0x1a0a14, [0, 2, 0], undefined, 16);
-      k.glow(glowCyl(h * 0.45, 1), 0x7a30c0, [0, 4, 0]);
+      k.glow(glowCyl(h * 0.45, 1), dim(0x7a30c0, 0.4), [0, 4, 0]);
       for (let i = 0; i < 8; i++) {
         const a = (i / 8) * Math.PI * 2;
         k.cone(h * 0.08, H * 1.2, BONE, [Math.cos(a) * h * 0.78, H * 0.5, Math.sin(a) * h * 0.78], [Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5], 5);
@@ -337,7 +341,7 @@ export function buildingModel(id: BuildingId, S: number, H: number, team: number
     case 'vat': {
       k.cyl(S * 0.4, S * 0.44, H * 0.35, CHITIN, [0, H * 0.17, 0], undefined, 16);
       k.sphere(S * 0.34, 0x4a7a3a, [0, H * 0.5, 0], [1, 0.8, 1], 16);
-      k.glow(glowBall(S * 0.2), ACID, [0, H * 0.55, 0]);
+      k.glow(glowBall(S * 0.2), dim(ACID, 0.45), [0, H * 0.55, 0]);
       for (let i = 0; i < 6; i++) {
         const a = (i / 6) * Math.PI * 2;
         k.cone(S * 0.04, H * 0.9, BONE, [Math.cos(a) * S * 0.4, H * 0.55, Math.sin(a) * S * 0.4], [Math.sin(a) * 0.35, 0, -Math.cos(a) * 0.35], 5);
@@ -377,7 +381,7 @@ export function buildingModel(id: BuildingId, S: number, H: number, team: number
     }
     case 'evolution': {
       k.torus(h * 0.62, h * 0.22, CHITIN, [0, 8, 0], [Math.PI / 2, 0, 0]);
-      k.glow(glowCyl(h * 0.52, 2), 0x6a3aff, [0, 6, 0]);
+      k.glow(glowCyl(h * 0.52, 2), dim(0x6a3aff, 0.35), [0, 6, 0]);
       for (let i = 0; i < 4; i++) {
         const a = (i / 4) * Math.PI * 2 + 0.4;
         k.cyl(h * 0.06, h * 0.12, H * 0.9, CHITIN_LIGHT, [Math.cos(a) * h * 0.72, H * 0.45, Math.sin(a) * h * 0.72], [Math.sin(a) * 0.3, 0, -Math.cos(a) * 0.3], 6);
@@ -387,7 +391,7 @@ export function buildingModel(id: BuildingId, S: number, H: number, team: number
     }
     case 'pool': {
       k.torus(h * 0.66, h * 0.18, CHITIN_LIGHT, [0, 6, 0], [Math.PI / 2, 0, 0]);
-      k.glow(glowCyl(h * 0.58, 2), 0x6aff9a, [0, 5, 0]);
+      k.glow(glowCyl(h * 0.58, 2), dim(0x6aff9a, 0.3), [0, 5, 0]);
       for (let i = 0; i < 5; i++) {
         const a = (i / 5) * Math.PI * 2;
         k.sphere(h * 0.14, FLESH, [Math.cos(a) * h * 0.72, 12, Math.sin(a) * h * 0.72], [1, 1.3, 1], 8);
@@ -405,7 +409,7 @@ export function buildingModel(id: BuildingId, S: number, H: number, team: number
       k.sphere(h * 0.55, CHITIN, [0, 8, 0], [1, 0.6, 1], 10);
       k.cyl(h * 0.15, h * 0.35, H * 0.8, CHITIN_LIGHT, [0, H * 0.4 + 6, 0], undefined, 8);
       k.sphere(h * 0.32, 0x4a7a3a, [0, H * 0.85, 0], [1, 1.3, 1], 12);
-      k.glow(glowBall(h * 0.2), ACID, [0, H * 0.88, 0]);
+      k.glow(glowBall(h * 0.2), dim(ACID, 0.6), [0, H * 0.88, 0]);
       break;
     }
     case 'portal': {
@@ -414,7 +418,7 @@ export function buildingModel(id: BuildingId, S: number, H: number, team: number
         k.cone(h * 0.1, H * 1.1, BONE, [Math.cos(a) * h * 0.72, H * 0.5, Math.sin(a) * h * 0.72], [Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5], 6);
       }
       k.torus(h * 0.62, h * 0.1, CHITIN, [0, 6, 0], [Math.PI / 2, 0, 0]);
-      k.glow(glowCyl(h * 0.52, 1.5), 0xd060ff, [0, 5, 0]);
+      k.glow(glowCyl(h * 0.52, 1.5), dim(0xd060ff, 0.35), [0, 5, 0]);
       k.glow(glowBall(h * 0.12), 0xd060ff, [0, H * 0.75, 0]);
       break;
     }

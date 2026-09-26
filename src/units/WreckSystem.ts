@@ -15,6 +15,8 @@ export interface Ruin {
   value: number;
   work: number;
   alive: boolean;
+  /** Rubble style (3D renderer). */
+  horde: boolean;
 }
 
 /** A burnt-out vehicle hull or beast carcass: blocks movement, gives cover, can be salvaged. */
@@ -43,7 +45,7 @@ export class WreckSystem {
     battle.events.on(EV.buildingDestroyed, (b: Building) => {
       if (b.def.mine || b.def.neutral) return;
       const img = battle.effects.leaveRuin(b);
-      this.ruins.push({ x: b.x, y: b.y, radius: b.radius, img, value: Math.round(b.def.cost.scrip * 0.2 + 15), work: 0, alive: true });
+      this.ruins.push({ x: b.x, y: b.y, radius: b.radius, img, value: Math.round(b.def.cost.scrip * 0.2 + 15), work: 0, alive: true, horde: b.def.faction === 'nullhorde' });
     });
     battle.events.on(EV.unitDied, (_x: number, _y: number, u: Unit) => {
       if (u.def.category === 'vehicle') this.add(u, battle.effects.vehicleDeath(u));
