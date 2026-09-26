@@ -28,8 +28,9 @@ npm run simulate -- --diff=easy --pdiff=hard     # difficulty spread
 | 4 | AI counter-picks weigh cost; at most one support-aura squad | 1 | 3 | 5 | 1.38 / 2.89 |
 | 5 | Spitter range 220; Leaper cost 100→110; AI keeps one transport | 1 | 3 | 5 | 1.54 / 2.78 |
 | 6 | Turtler opening builds an army before towers | 1 | 2 | 6 | 1.60 / 2.79 |
+| 7 | Crawler speed 120→110, Spitter speed 95→90 (map-control quick win) | 1 | 2 | 6 | 1.78 / 2.64 |
 
-## Final run (run 6)
+## Run 6 in detail (run 7 moved only the points held)
 
 - Iron Void 1 win, Null Horde 2 wins, 6 draws; decided games last 4½ minutes on average.
 - Horde personality vs balanced Iron Void: 0/3 Horde wins; vs rusher 1/3; vs turtler 1/3.
@@ -84,6 +85,21 @@ carrier             9    2070      676       5        33
   never retreats or counter-picks; Brutal thinks every 0.6 s, keeps four-deep queues, scouts,
   harasses and drops. Even Easy Horde still holds more points than Hard Iron Void, which is the
   same map-control gap described above.
+
+## Remaining gap (not a quick win)
+
+Run 7 tried the cheapest lever, Horde mobility: the points gap shrank from 1.19 to 0.86 but the
+win/loss column did not move, and two in three Hard-vs-Hard games still end in a 15-minute stalemate.
+The Horde's lasting edge comes from several systems at once (more bodies per supply, regenerating
+structures, spore nodes, the healing aura that the damage metric does not see), so it needs a
+proper pass rather than another single-number tweak. Next candidates, in order:
+
+1. Horde structure regeneration only out of combat (it currently also ticks under fire).
+2. Supply cost of Crawlers 2 → 3 with squad size 8 → 10 (fewer, bigger squads; fewer capture bodies).
+3. Iron Void Listening Post: +50% HP so held points survive raids.
+4. A late-game tiebreaker so AI games do not stall: a stronger siege trigger or escalating capture income.
+
+Each should be measured with `npm run simulate -- --matches=18` (twice the sample) before it ships.
 
 ## Tests
 

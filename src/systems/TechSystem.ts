@@ -55,6 +55,9 @@ export class TechSystem {
       const d = defForRole(this.factions[owner], r);
       return d ? buildingName(d.id) : roleName(r);
     });
+    // A required building that exists but is still going up: say so, with its progress.
+    const site = this.battle.buildings.buildings.find((b) => b.owner === owner && b.alive && !b.isReady && missing.includes(b.def.role));
+    if (site && missing.length === 1) return t('lock.building', { what: names[0], p: Math.floor(site.progress * 100) });
     return t('lock.requires', { what: names.join(', ') });
   }
 

@@ -175,14 +175,14 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
     abilities: ['frenzy'],
     id: 'crawler', name: 'Void Crawler', faction: 'nullhorde', category: 'infantry', tier: 1, requires: [], supply: 2,
     damageType: 'acid', armor: 'light', sight: 280, canCapture: true, squadSize: 8, hp: 60, damage: 7, range: 120,
-    speed: 120, cost: { scrip: 75, flux: 0 }, cooldown: 0.9, trainTime: 7, size: 6, projectile: 'spit',
+    speed: 110, cost: { scrip: 75, flux: 0 }, cooldown: 0.9, trainTime: 7, size: 6, projectile: 'spit',
     description: 'Fast chitinous swarm-beasts.',
   },
   spitter: {
     abilities: ['acidcloud'],
     id: 'spitter', name: 'Acid Spitters', faction: 'nullhorde', category: 'infantry', tier: 1, requires: [], supply: 2,
     damageType: 'acid', armor: 'light', sight: 300, canCapture: true, squadSize: 5, hp: 55, damage: 12, range: 220,
-    speed: 95, cost: { scrip: 90, flux: 20 }, cooldown: 1.4, trainTime: 8, size: 7, projectile: 'spit',
+    speed: 90, cost: { scrip: 90, flux: 20 }, cooldown: 1.4, trainTime: 8, size: 7, projectile: 'spit',
     description: 'Bloated ranged beasts that lob corrosive bile. Melt vehicles; fragile.',
   },
   leaper: {

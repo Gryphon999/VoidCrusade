@@ -16,6 +16,8 @@ export class IconButton {
   private enabled = true;
   private active = false;
   onClick: () => void = () => undefined;
+  /** Called instead of onClick when the button is disabled or locked. */
+  onDenied: () => void = () => undefined;
   onHover: (over: boolean) => void = () => undefined;
 
   constructor(scene: Phaser.Scene, x: number, y: number, readonly size = 58) {
@@ -50,6 +52,7 @@ export class IconButton {
       AudioSystem.uiClick();
       this.container.setScale(0.94);
       if (this.enabled) this.onClick();
+      else this.onDenied();
     });
     this.frame.on('pointerup', () => this.container.setScale(1));
   }

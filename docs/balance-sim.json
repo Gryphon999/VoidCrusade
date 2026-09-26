@@ -8,117 +8,117 @@
     "time": 900,
     "units": {
       "overlord": {
-        "trained": 3,
+        "trained": 0,
         "spent": 0,
-        "damage": 7325.710592799984,
-        "kills": 29
+        "damage": 8049.786719999992,
+        "kills": 24
       },
       "commander": {
         "trained": 1,
         "spent": 0,
-        "damage": 1642.1433589826916,
-        "kills": 10
+        "damage": 1821.5891072585202,
+        "kills": 17
       },
       "crawler": {
-        "trained": 16,
-        "spent": 1200,
-        "damage": 46546.32658032,
-        "kills": 142
-      },
-      "breacher": {
-        "trained": 22,
-        "spent": 3300,
-        "damage": 24010.910593978988,
-        "kills": 210
+        "trained": 25,
+        "spent": 1875,
+        "damage": 53504.19280741573,
+        "kills": 150
       },
       "rifleman": {
-        "trained": 11,
-        "spent": 880,
-        "damage": 16608.037117453787,
-        "kills": 116
+        "trained": 13,
+        "spent": 1040,
+        "damage": 15602.859292858595,
+        "kills": 122
+      },
+      "ranger": {
+        "trained": 7,
+        "spent": 700,
+        "damage": 1819.1341689608455,
+        "kills": 20
       },
       "spitter": {
         "trained": 13,
         "spent": 1430,
-        "damage": 41280.31847920025,
-        "kills": 133
+        "damage": 27198.10937935948,
+        "kills": 84
       },
-      "shaman": {
+      "breacher": {
         "trained": 14,
         "spent": 2100,
-        "damage": 3313.445175999988,
-        "kills": 8
+        "damage": 15672.84399993088,
+        "kills": 167
       },
       "leaper": {
-        "trained": 21,
-        "spent": 2730,
-        "damage": 10824.386979703664,
-        "kills": 58
-      },
-      "behemoth": {
-        "trained": 4,
-        "spent": 880,
-        "damage": 2379.70776,
-        "kills": 11
+        "trained": 5,
+        "spent": 700,
+        "damage": 4110.962816503357,
+        "kills": 23
       },
       "heavy": {
-        "trained": 6,
-        "spent": 960,
-        "damage": 5049.679270745215,
-        "kills": 36
-      },
-      "marksman": {
-        "trained": 5,
-        "spent": 750,
-        "damage": 10280.2357711981,
-        "kills": 107
-      },
-      "ranger": {
-        "trained": 12,
-        "spent": 1200,
-        "damage": 3834.866335587507,
-        "kills": 27
-      },
-      "carrier": {
         "trained": 3,
-        "spent": 690,
-        "damage": 31.9,
-        "kills": 0
+        "spent": 480,
+        "damage": 1817.546772254222,
+        "kills": 21
       },
       "skimmer": {
-        "trained": 8,
-        "spent": 1360,
-        "damage": 14521.356809600089,
-        "kills": 52
+        "trained": 15,
+        "spent": 2550,
+        "damage": 31082.969475782786,
+        "kills": 65
+      },
+      "burrower": {
+        "trained": 3,
+        "spent": 540,
+        "damage": 9828.197229413257,
+        "kills": 42
+      },
+      "behemoth": {
+        "trained": 3,
+        "spent": 660,
+        "damage": 2074.4303999999993,
+        "kills": 8
+      },
+      "marksman": {
+        "trained": 4,
+        "spent": 600,
+        "damage": 4554.61350491867,
+        "kills": 66
       },
       "engineer": {
         "trained": 1,
         "spent": 70,
-        "damage": 26.238599999999995,
+        "damage": 51.15600000000001,
+        "kills": 0
+      },
+      "buggy": {
+        "trained": 13,
+        "spent": 2340,
+        "damage": 3618.9282604281384,
+        "kills": 35
+      },
+      "carrier": {
+        "trained": 1,
+        "spent": 230,
+        "damage": 0,
         "kills": 0
       },
       "apc": {
-        "trained": 5,
-        "spent": 1200,
-        "damage": 2077.360837056148,
-        "kills": 10
-      },
-      "buggy": {
         "trained": 3,
-        "spent": 540,
-        "damage": 531.2673479129845,
-        "kills": 6
+        "spent": 720,
+        "damage": 584.4472146972585,
+        "kills": 3
       },
-      "burrower": {
-        "trained": 2,
-        "spent": 360,
-        "damage": 2671.4033215999984,
-        "kills": 16
+      "shaman": {
+        "trained": 4,
+        "spent": 600,
+        "damage": 2591.3078319999904,
+        "kills": 7
       }
     },
     "points": {
-      "player": 1.5,
-      "enemy": 2.39
+      "player": 1.11,
+      "enemy": 2.78
     }
   },
   {
@@ -132,115 +132,121 @@
       "commander": {
         "trained": 1,
         "spent": 0,
-        "damage": 1393.890733730218,
+        "damage": 2680.871695025086,
         "kills": 17
       },
       "crawler": {
-        "trained": 19,
-        "spent": 1425,
-        "damage": 35247.37894345881,
-        "kills": 89
-      },
-      "rifleman": {
-        "trained": 11,
-        "spent": 880,
-        "damage": 11473.79117887298,
-        "kills": 91
+        "trained": 24,
+        "spent": 1800,
+        "damage": 35272.71727916873,
+        "kills": 237
       },
       "overlord": {
         "trained": 1,
         "spent": 0,
-        "damage": 14837.04925347427,
-        "kills": 52
+        "damage": 3659.6542335931467,
+        "kills": 12
       },
-      "breacher": {
-        "trained": 17,
-        "spent": 2550,
-        "damage": 16511.96592147479,
-        "kills": 135
-      },
-      "spitter": {
-        "trained": 18,
-        "spent": 1980,
-        "damage": 46425.21908106335,
-        "kills": 172
+      "rifleman": {
+        "trained": 12,
+        "spent": 960,
+        "damage": 15852.10854730028,
+        "kills": 121
       },
       "ranger": {
-        "trained": 16,
-        "spent": 1600,
-        "damage": 2612.0490712783912,
-        "kills": 29
-      },
-      "shaman": {
-        "trained": 14,
+        "trained": 21,
         "spent": 2100,
-        "damage": 6076.3852287234295,
-        "kills": 9
+        "damage": 2586.743353777053,
+        "kills": 34
       },
-      "leaper": {
-        "trained": 25,
-        "spent": 3250,
-        "damage": 19302.7548258311,
-        "kills": 61
+      "spitter": {
+        "trained": 43,
+        "spent": 4730,
+        "damage": 22965.978585182016,
+        "kills": 113
+      },
+      "breacher": {
+        "trained": 27,
+        "spent": 4050,
+        "damage": 35127.952196721155,
+        "kills": 360
       },
       "heavy": {
         "trained": 7,
         "spent": 1120,
-        "damage": 3006.562999999999,
-        "kills": 26
+        "damage": 17901.707704430355,
+        "kills": 97
       },
-      "behemoth": {
-        "trained": 4,
-        "spent": 880,
-        "damage": 15299.539472761753,
-        "kills": 55
-      },
-      "skimmer": {
-        "trained": 8,
-        "spent": 1360,
-        "damage": 15763.695425987984,
-        "kills": 38
-      },
-      "marksman": {
+      "leaper": {
         "trained": 7,
-        "spent": 1050,
-        "damage": 12336.72718349277,
-        "kills": 148
+        "spent": 980,
+        "damage": 4823.802069454228,
+        "kills": 31
       },
-      "buggy": {
-        "trained": 7,
-        "spent": 1260,
-        "damage": 2138.79876522911,
-        "kills": 17
-      },
-      "apc": {
-        "trained": 8,
-        "spent": 1920,
-        "damage": 2530.5377200000057,
-        "kills": 9
+      "burrower": {
+        "trained": 3,
+        "spent": 540,
+        "damage": 1920.1945600000004,
+        "kills": 7
       },
       "carrier": {
         "trained": 2,
         "spent": 460,
+        "damage": 29.039999999999992,
+        "kills": 0
+      },
+      "skimmer": {
+        "trained": 22,
+        "spent": 3740,
+        "damage": 14253.818187614857,
+        "kills": 94
+      },
+      "behemoth": {
+        "trained": 1,
+        "spent": 220,
+        "damage": 360,
+        "kills": 0
+      },
+      "marksman": {
+        "trained": 11,
+        "spent": 1650,
+        "damage": 5580.796927486523,
+        "kills": 51
+      },
+      "shaman": {
+        "trained": 13,
+        "spent": 1950,
+        "damage": 970.1477834475656,
+        "kills": 4
+      },
+      "engineer": {
+        "trained": 1,
+        "spent": 70,
         "damage": 0,
         "kills": 0
       },
-      "engineer": {
+      "apc": {
         "trained": 2,
-        "spent": 140,
-        "damage": 140.31360000000004,
-        "kills": 0
+        "spent": 480,
+        "damage": 543.3434250807209,
+        "kills": 4
       },
-      "burrower": {
+      "buggy": {
+        "trained": 11,
+        "spent": 1980,
+        "damage": 3780.465134840515,
+        "kills": 22
+      },
+      "artillery": {
         "trained": 2,
-        "spent": 360,
-        "damage": 965.6109223999999,
-        "kills": 7
+        "spent": 920,
+        "damage": 5758.316200235924,
+        "kills": 66
       }
     },
     "points": {
-      "player": 0.98,
-      "enemy": 3.7
+      "player": 2.11,
+      "enemy": 2.68
     }
   },
   {
@@ -252,93 +258,93 @@
     "time": 900,
     "units": {
       "rifleman": {
-        "trained": 5,
-        "spent": 400,
-        "damage": 21330.452125208125,
-        "kills": 144
+        "trained": 9,
+        "spent": 720,
+        "damage": 27639.146043492685,
+        "kills": 228
       },
       "crawler": {
-        "trained": 27,
-        "spent": 2025,
-        "damage": 21584.699753496876,
-        "kills": 180
+        "trained": 31,
+        "spent": 2325,
+        "damage": 25972.24743691238,
+        "kills": 147
       },
       "overlord": {
-        "trained": 5,
-        "spent": 0,
-        "damage": 8272.534325751914,
-        "kills": 50
-      },
-      "commander": {
         "trained": 2,
         "spent": 0,
-        "damage": 2781.017227869795,
-        "kills": 16
+        "damage": 2652.4781542745623,
+        "kills": 15
       },
-      "breacher": {
-        "trained": 20,
-        "spent": 3000,
-        "damage": 51871.530166098055,
-        "kills": 488
-      },
-      "spitter": {
-        "trained": 46,
-        "spent": 5060,
-        "damage": 30053.462152103486,
-        "kills": 130
-      },
-      "shaman": {
-        "trained": 20,
-        "spent": 3000,
-        "damage": 702.2882087951261,
-        "kills": 9
-      },
-      "behemoth": {
-        "trained": 25,
-        "spent": 5500,
-        "damage": 12176.234957210077,
-        "kills": 118
-      },
-      "heavy": {
-        "trained": 21,
-        "spent": 3360,
-        "damage": 19236.200628836752,
-        "kills": 183
-      },
-      "leaper": {
-        "trained": 22,
-        "spent": 2860,
-        "damage": 10784.686763620408,
-        "kills": 79
-      },
-      "marksman": {
-        "trained": 8,
-        "spent": 1200,
-        "damage": 5479.248881309886,
-        "kills": 80
-      },
-      "ranger": {
-        "trained": 9,
-        "spent": 900,
-        "damage": 4274.4037699999835,
-        "kills": 10
-      },
-      "engineer": {
-        "trained": 5,
-        "spent": 350,
-        "damage": 778.5653825781478,
+      "commander": {
+        "trained": 0,
+        "spent": 0,
+        "damage": 634.8996,
         "kills": 6
       },
-      "burrower": {
+      "breacher": {
+        "trained": 12,
+        "spent": 1800,
+        "damage": 45622.065734225784,
+        "kills": 436
+      },
+      "spitter": {
+        "trained": 38,
+        "spent": 4180,
+        "damage": 26157.742515261158,
+        "kills": 152
+      },
+      "leaper": {
+        "trained": 25,
+        "spent": 3500,
+        "damage": 10334.694923375902,
+        "kills": 81
+      },
+      "heavy": {
         "trained": 9,
-        "spent": 1620,
-        "damage": 4675.269070526516,
-        "kills": 40
+        "spent": 1440,
+        "damage": 8362.512059609951,
+        "kills": 81
+      },
+      "ranger": {
+        "trained": 20,
+        "spent": 2000,
+        "damage": 8647.033645972298,
+        "kills": 58
+      },
+      "shaman": {
+        "trained": 9,
+        "spent": 1350,
+        "damage": 174.14534635387042,
+        "kills": 3
+      },
+      "engineer": {
+        "trained": 8,
+        "spent": 560,
+        "damage": 758.4195778362352,
+        "kills": 6
+      },
+      "marksman": {
+        "trained": 12,
+        "spent": 1800,
+        "damage": 6546.07243073848,
+        "kills": 69
+      },
+      "behemoth": {
+        "trained": 24,
+        "spent": 5280,
+        "damage": 10513.984092455923,
+        "kills": 125
+      },
+      "burrower": {
+        "trained": 11,
+        "spent": 1980,
+        "damage": 11490.462657338549,
+        "kills": 81
       }
     },
     "points": {
-      "player": 0.96,
-      "enemy": 3.79
+      "player": 2.93,
+      "enemy": 1.08
     }
   },
   {
@@ -349,89 +355,95 @@
     "winner": "draw",
     "time": 900,
     "units": {
-      "rifleman": {
-        "trained": 6,
-        "spent": 480,
-        "damage": 15208.697069465565,
-        "kills": 61
-      },
-      "crawler": {
-        "trained": 17,
-        "spent": 1275,
-        "damage": 19995.945050560025,
-        "kills": 106
-      },
       "commander": {
         "trained": 1,
         "spent": 0,
-        "damage": 3212.457653015106,
-        "kills": 9
+        "damage": 2233.4493829970966,
+        "kills": 18
+      },
+      "crawler": {
+        "trained": 21,
+        "spent": 1575,
+        "damage": 24505.02549728044,
+        "kills": 152
       },
       "overlord": {
-        "trained": 5,
+        "trained": 1,
         "spent": 0,
-        "damage": 5436.302781760002,
-        "kills": 24
-      },
-      "breacher": {
-        "trained": 15,
-        "spent": 2250,
-        "damage": 37093.58257753679,
-        "kills": 235
-      },
-      "spitter": {
-        "trained": 7,
-        "spent": 770,
-        "damage": 272.53199999999975,
-        "kills": 2
-      },
-      "leaper": {
-        "trained": 11,
-        "spent": 1430,
-        "damage": 4517.428857599999,
-        "kills": 32
-      },
-      "shaman": {
-        "trained": 17,
-        "spent": 2550,
-        "damage": 1182.0408566399994,
-        "kills": 6
+        "damage": 4471.4103987200015,
+        "kills": 21
       },
       "ranger": {
+        "trained": 8,
+        "spent": 800,
+        "damage": 1001.7369403199979,
+        "kills": 6
+      },
+      "rifleman": {
+        "trained": 8,
+        "spent": 640,
+        "damage": 12557.563063664573,
+        "kills": 86
+      },
+      "spitter": {
+        "trained": 9,
+        "spent": 990,
+        "damage": 3728.4393808,
+        "kills": 26
+      },
+      "breacher": {
+        "trained": 10,
+        "spent": 1500,
+        "damage": 24829.899264162905,
+        "kills": 239
+      },
+      "leaper": {
+        "trained": 6,
+        "spent": 840,
+        "damage": 1580.5303430400002,
+        "kills": 15
+      },
+      "behemoth": {
+        "trained": 1,
+        "spent": 220,
+        "damage": 1002.503848,
+        "kills": 10
+      },
+      "heavy": {
         "trained": 3,
+        "spent": 480,
+        "damage": 4246.555910029508,
+        "kills": 39
+      },
+      "shaman": {
+        "trained": 10,
+        "spent": 1500,
+        "damage": 685.834687999999,
+        "kills": 3
+      },
+      "marksman": {
+        "trained": 2,
         "spent": 300,
         "damage": 0,
         "kills": 0
       },
-      "heavy": {
-        "trained": 1,
-        "spent": 160,
-        "damage": 246.77228300939623,
-        "kills": 4
-      },
-      "marksman": {
-        "trained": 5,
-        "spent": 750,
-        "damage": 2843.524076350195,
-        "kills": 24
+      "skimmer": {
+        "trained": 9,
+        "spent": 1530,
+        "damage": 5258.911403200013,
+        "kills": 16
       },
       "buggy": {
-        "trained": 3,
-        "spent": 540,
-        "damage": 2713.642859320875,
-        "kills": 15
-      },
-      "skimmer": {
-        "trained": 18,
-        "spent": 3060,
-        "damage": 7064.187034240005,
-        "kills": 36
+        "trained": 7,
+        "spent": 1260,
+        "damage": 2754.4339791922534,
+        "kills": 11
       },
       "carrier": {
-        "trained": 2,
-        "spent": 460,
-        "damage": 400.83211199999977,
-        "kills": 3
+        "trained": 1,
+        "spent": 230,
+        "damage": 0,
+        "kills": 0
       },
       "engineer": {
         "trained": 1,
@@ -440,15 +452,15 @@
         "kills": 0
       },
       "apc": {
-        "trained": 6,
-        "spent": 1440,
-        "damage": 3699.6397269929694,
-        "kills": 18
+        "trained": 3,
+        "spent": 720,
+        "damage": 576.3543214719142,
+        "kills": 9
       }
     },
     "points": {
-      "player": 2.59,
-      "enemy": 2.14
+      "player": 2.55,
+      "enemy": 2.09
     }
   },
   {
@@ -457,66 +469,90 @@
     "personality": "rusher",
     "playerPersonality": "turtler",
     "winner": "enemy",
-    "time": 185,
+    "time": 228,
     "units": {
       "commander": {
-        "trained": 0,
+        "trained": 1,
         "spent": 0,
-        "damage": 293.25,
+        "damage": 146.25,
         "kills": 2
       },
       "crawler": {
-        "trained": 5,
-        "spent": 375,
-        "damage": 5295.1347199999545,
-        "kills": 25
+        "trained": 10,
+        "spent": 750,
+        "damage": 10979.4502479999,
+        "kills": 47
       },
       "overlord": {
         "trained": 0,
         "spent": 0,
-        "damage": 1831.9100000000012,
-        "kills": 5
+        "damage": 1662.7914000000003,
+        "kills": 9
       },
       "rifleman": {
-        "trained": 2,
-        "spent": 160,
-        "damage": 1602.957164991863,
-        "kills": 6
+        "trained": 3,
+        "spent": 240,
+        "damage": 3890.055378587011,
+        "kills": 30
+      },
+      "ranger": {
+        "trained": 3,
+        "spent": 300,
+        "damage": 267.25099999999975,
+        "kills": 3
       },
       "spitter": {
-        "trained": 7,
-        "spent": 770,
-        "damage": 8993.395280000033,
-        "kills": 33
+        "trained": 10,
+        "spent": 1100,
+        "damage": 7309.209904000012,
+        "kills": 35
       },
       "breacher": {
-        "trained": 7,
-        "spent": 1050,
-        "damage": 2036.9783746238231,
-        "kills": 18
-      },
-      "shaman": {
-        "trained": 3,
-        "spent": 450,
-        "damage": 122.99999999999972,
-        "kills": 1
+        "trained": 6,
+        "spent": 900,
+        "damage": 2636.9613389435867,
+        "kills": 48
       },
       "leaper": {
         "trained": 7,
-        "spent": 910,
-        "damage": 2743.3599999999997,
-        "kills": 11
+        "spent": 980,
+        "damage": 3774.5956000000015,
+        "kills": 21
+      },
+      "behemoth": {
+        "trained": 1,
+        "spent": 220,
+        "damage": 2498.262880000001,
+        "kills": 12
       },
       "heavy": {
+        "trained": 5,
+        "spent": 800,
+        "damage": 765.8194089792568,
+        "kills": 10
+      },
+      "marksman": {
         "trained": 1,
-        "spent": 160,
-        "damage": 275.65,
+        "spent": 150,
+        "damage": 267.3799653424628,
+        "kills": 8
+      },
+      "buggy": {
+        "trained": 1,
+        "spent": 180,
+        "damage": 123.11747082380286,
         "kills": 3
+      },
+      "shaman": {
+        "trained": 1,
+        "spent": 150,
+        "damage": 230.39999999999947,
+        "kills": 0
       }
     },
     "points": {
-      "player": 0.37,
-      "enemy": 3.26
+      "player": 0.65,
+      "enemy": 3.46
     }
   },
   {
@@ -524,85 +560,79 @@
     "map": 2,
     "personality": "rusher",
     "playerPersonality": "balanced",
-    "winner": "draw",
-    "time": 900,
+    "winner": "enemy",
+    "time": 856,
     "units": {
-      "spitter": {
-        "trained": 69,
-        "spent": 7590,
-        "damage": 39397.34061039846,
-        "kills": 241
+      "crawler": {
+        "trained": 47,
+        "spent": 3525,
+        "damage": 35552.36304239914,
+        "kills": 217
       },
       "rifleman": {
-        "trained": 6,
-        "spent": 480,
-        "damage": 17167.4179212716,
-        "kills": 159
-      },
-      "crawler": {
-        "trained": 50,
-        "spent": 3750,
-        "damage": 29467.507648800125,
-        "kills": 265
+        "trained": 7,
+        "spent": 560,
+        "damage": 25941.35606683252,
+        "kills": 293
       },
       "overlord": {
-        "trained": 8,
+        "trained": 5,
         "spent": 0,
-        "damage": 2329.855063999999,
-        "kills": 24
+        "damage": 2133.7750336000004,
+        "kills": 17
+      },
+      "spitter": {
+        "trained": 50,
+        "spent": 5500,
+        "damage": 30757.51619279926,
+        "kills": 198
       },
       "commander": {
-        "trained": 6,
+        "trained": 1,
         "spent": 0,
-        "damage": 4159.998179762645,
-        "kills": 54
+        "damage": 2013.059538787181,
+        "kills": 20
       },
       "breacher": {
-        "trained": 28,
-        "spent": 4200,
-        "damage": 72768.04371952552,
-        "kills": 999
-      },
-      "shaman": {
-        "trained": 28,
-        "spent": 4200,
-        "damage": 677.0698999999996,
-        "kills": 5
-      },
-      "leaper": {
-        "trained": 57,
-        "spent": 7410,
-        "damage": 20986.804284799946,
-        "kills": 183
-      },
-      "heavy": {
-        "trained": 23,
-        "spent": 3680,
-        "damage": 13988.23450780692,
-        "kills": 154
-      },
-      "marksman": {
-        "trained": 20,
-        "spent": 3000,
-        "damage": 5266.075674449761,
-        "kills": 89
+        "trained": 22,
+        "spent": 3300,
+        "damage": 55825.05693401407,
+        "kills": 700
       },
       "ranger": {
         "trained": 16,
         "spent": 1600,
-        "damage": 543.4808236146087,
-        "kills": 9
+        "damage": 3317.808437819872,
+        "kills": 40
+      },
+      "leaper": {
+        "trained": 35,
+        "spent": 4900,
+        "damage": 16426.125923199983,
+        "kills": 116
+      },
+      "heavy": {
+        "trained": 5,
+        "spent": 800,
+        "damage": 4394.266040754711,
+        "kills": 65
+      },
+      "shaman": {
+        "trained": 12,
+        "spent": 1800,
+        "damage": 298.20711999999975,
+        "kills": 3
       },
       "engineer": {
-        "trained": 10,
-        "spent": 700,
-        "damage": 771.537818778928,
-        "kills": 9
+        "trained": 9,
+        "spent": 630,
+        "damage": 913.1138851222069,
+        "kills": 8
       }
     },
     "points": {
-      "player": 2.7,
-      "enemy": 1.91
+      "player": 0.4,
+      "enemy": 4.11
     }
   },
   {
@@ -610,109 +640,121 @@
     "map": 0,
     "personality": "turtler",
     "playerPersonality": "rusher",
-    "winner": "player",
-    "time": 271,
+    "winner": "draw",
+    "time": 900,
     "units": {
       "rifleman": {
-        "trained": 1,
-        "spent": 80,
-        "damage": 6174.047909535638,
-        "kills": 31
+        "trained": 15,
+        "spent": 1200,
+        "damage": 21358.836741535593,
+        "kills": 162
       },
       "overlord": {
-        "trained": 4,
+        "trained": 3,
         "spent": 0,
-        "damage": 1172.7260000000006,
-        "kills": 6
+        "damage": 2203.9899072,
+        "kills": 19
       },
       "crawler": {
-        "trained": 8,
-        "spent": 600,
-        "damage": 3182.4369999999903,
-        "kills": 14
+        "trained": 46,
+        "spent": 3450,
+        "damage": 37461.504139531884,
+        "kills": 257
       },
       "commander": {
-        "trained": 0,
+        "trained": 4,
         "spent": 0,
-        "damage": 3127.2191787489082,
-        "kills": 20
+        "damage": 8447.610156520783,
+        "kills": 44
       },
       "spitter": {
-        "trained": 9,
-        "spent": 990,
-        "damage": 4182.331120000013,
-        "kills": 25
-      },
-      "breacher": {
-        "trained": 13,
-        "spent": 1950,
-        "damage": 20746.3638816172,
-        "kills": 149
+        "trained": 39,
+        "spent": 4290,
+        "damage": 17006.31394854616,
+        "kills": 78
       },
       "ranger": {
-        "trained": 4,
-        "spent": 400,
-        "damage": 682.1870000000005,
-        "kills": 6
+        "trained": 13,
+        "spent": 1300,
+        "damage": 3741.808034106161,
+        "kills": 21
       },
-      "shaman": {
-        "trained": 8,
-        "spent": 1200,
-        "damage": 140.27199999999996,
-        "kills": 1
-      },
-      "leaper": {
-        "trained": 6,
-        "spent": 780,
-        "damage": 1832.4883199999995,
-        "kills": 20
-      },
-      "heavy": {
-        "trained": 2,
-        "spent": 320,
-        "damage": 4401.045660000023,
-        "kills": 16
+      "breacher": {
+        "trained": 36,
+        "spent": 5400,
+        "damage": 59674.74225523855,
+        "kills": 566
       },
       "behemoth": {
-        "trained": 5,
-        "spent": 1100,
-        "damage": 890.8464,
-        "kills": 7
+        "trained": 6,
+        "spent": 1320,
+        "damage": 3758.791659119549,
+        "kills": 35
       },
-      "marksman": {
-        "trained": 4,
-        "spent": 600,
-        "damage": 1324.106480000001,
-        "kills": 14
+      "leaper": {
+        "trained": 10,
+        "spent": 1400,
+        "damage": 6587.82538706666,
+        "kills": 37
+      },
+      "heavy": {
+        "trained": 12,
+        "spent": 1920,
+        "damage": 13946.906804807983,
+        "kills": 92
       },
       "carrier": {
-        "trained": 1,
-        "spent": 230,
-        "damage": 243.57479999999995,
-        "kills": 2
-      },
-      "skimmer": {
         "trained": 2,
-        "spent": 340,
-        "damage": 609.4439999999996,
-        "kills": 5
-      },
-      "burrower": {
-        "trained": 2,
-        "spent": 360,
-        "damage": 185.69400000000005,
+        "spent": 460,
+        "damage": 319.1387999999999,
         "kills": 1
       },
+      "marksman": {
+        "trained": 7,
+        "spent": 1050,
+        "damage": 4466.462440454242,
+        "kills": 65
+      },
+      "skimmer": {
+        "trained": 53,
+        "spent": 9010,
+        "damage": 15261.67791126842,
+        "kills": 122
+      },
+      "shaman": {
+        "trained": 7,
+        "spent": 1050,
+        "damage": 265.390136,
+        "kills": 3
+      },
       "engineer": {
-        "trained": 1,
-        "spent": 70,
-        "damage": 0,
-        "kills": 0
+        "trained": 13,
+        "spent": 910,
+        "damage": 763.7352061773597,
+        "kills": 5
+      },
+      "buggy": {
+        "trained": 5,
+        "spent": 900,
+        "damage": 1400.4862316736253,
+        "kills": 10
+      },
+      "apc": {
+        "trained": 2,
+        "spent": 480,
+        "damage": 344.51143999999994,
+        "kills": 1
+      },
+      "artillery": {
+        "trained": 3,
+        "spent": 1380,
+        "damage": 6120.925516331957,
+        "kills": 48
       }
     },
     "points": {
-      "player": 3.28,
-      "enemy": 0.9
+      "player": 2.68,
+      "enemy": 1.99
     }
   },
   {
@@ -720,109 +762,121 @@
     "map": 1,
     "personality": "turtler",
     "playerPersonality": "turtler",
-    "winner": "enemy",
-    "time": 337,
+    "winner": "draw",
+    "time": 900,
     "units": {
       "rifleman": {
-        "trained": 4,
-        "spent": 320,
-        "damage": 3437.405345613601,
-        "kills": 17
+        "trained": 5,
+        "spent": 400,
+        "damage": 14578.596477081159,
+        "kills": 114
       },
       "overlord": {
-        "trained": 1,
+        "trained": 2,
         "spent": 0,
-        "damage": 3598.5737999999983,
-        "kills": 11
+        "damage": 1808.01098016,
+        "kills": 17
       },
       "crawler": {
-        "trained": 8,
-        "spent": 600,
-        "damage": 6839.4791399999685,
-        "kills": 25
+        "trained": 21,
+        "spent": 1575,
+        "damage": 27748.389887784204,
+        "kills": 159
       },
       "commander": {
         "trained": 1,
         "spent": 0,
-        "damage": 480.08851355985126,
-        "kills": 6
-      },
-      "spitter": {
-        "trained": 10,
-        "spent": 1100,
-        "damage": 17320.766309999733,
-        "kills": 69
-      },
-      "breacher": {
-        "trained": 10,
-        "spent": 1500,
-        "damage": 4016.3247131918297,
-        "kills": 48
+        "damage": 2193.2865834987497,
+        "kills": 9
       },
       "ranger": {
-        "trained": 3,
-        "spent": 300,
-        "damage": 563.9676700000002,
-        "kills": 5
+        "trained": 7,
+        "spent": 700,
+        "damage": 1599.3227013999992,
+        "kills": 8
       },
-      "shaman": {
-        "trained": 5,
-        "spent": 750,
-        "damage": 860.5599999999979,
-        "kills": 3
+      "breacher": {
+        "trained": 12,
+        "spent": 1800,
+        "damage": 37992.43762887701,
+        "kills": 352
       },
-      "heavy": {
-        "trained": 11,
-        "spent": 1760,
-        "damage": 8583.281541513768,
-        "kills": 55
-      },
-      "behemoth": {
-        "trained": 3,
-        "spent": 660,
-        "damage": 3021.614726000001,
-        "kills": 16
+      "spitter": {
+        "trained": 42,
+        "spent": 4620,
+        "damage": 22841.203887039774,
+        "kills": 93
       },
       "leaper": {
-        "trained": 9,
-        "spent": 1170,
-        "damage": 5860.016223999991,
-        "kills": 47
+        "trained": 12,
+        "spent": 1680,
+        "damage": 4834.409884883679,
+        "kills": 33
       },
-      "marksman": {
-        "trained": 3,
-        "spent": 450,
-        "damage": 877.2906597690175,
-        "kills": 16
+      "behemoth": {
+        "trained": 4,
+        "spent": 880,
+        "damage": 1018.3992,
+        "kills": 11
       },
-      "buggy": {
-        "trained": 1,
-        "spent": 180,
-        "damage": 731.9500000000003,
-        "kills": 2
-      },
-      "engineer": {
-        "trained": 2,
-        "spent": 140,
-        "damage": 65.17364999999998,
-        "kills": 0
+      "heavy": {
+        "trained": 12,
+        "spent": 1920,
+        "damage": 11766.564005070617,
+        "kills": 76
       },
       "skimmer": {
-        "trained": 2,
-        "spent": 340,
-        "damage": 1752.0088000000019,
-        "kills": 12
+        "trained": 19,
+        "spent": 3230,
+        "damage": 7891.777638445453,
+        "kills": 42
+      },
+      "marksman": {
+        "trained": 1,
+        "spent": 150,
+        "damage": 1715.1866671242055,
+        "kills": 29
+      },
+      "apc": {
+        "trained": 1,
+        "spent": 240,
+        "damage": 430.2330043971005,
+        "kills": 5
       },
       "carrier": {
         "trained": 1,
         "spent": 230,
+        "damage": 1673.5396079999991,
+        "kills": 8
+      },
+      "buggy": {
+        "trained": 12,
+        "spent": 2160,
+        "damage": 8226.51416752532,
+        "kills": 39
+      },
+      "engineer": {
+        "trained": 1,
+        "spent": 70,
         "damage": 0,
         "kills": 0
+      },
+      "siegebeast": {
+        "trained": 1,
+        "spent": 420,
+        "damage": 31.79599999999985,
+        "kills": 1
+      },
+      "shaman": {
+        "trained": 13,
+        "spent": 1950,
+        "damage": 663.40749024,
+        "kills": 4
       }
     },
     "points": {
-      "player": 0.67,
-      "enemy": 3.71
+      "player": 1.1,
+      "enemy": 3.6
     }
   },
   {
@@ -830,85 +884,85 @@
     "map": 2,
     "personality": "turtler",
     "playerPersonality": "balanced",
-    "winner": "draw",
-    "time": 900,
+    "winner": "player",
+    "time": 496,
     "units": {
+      "spitter": {
+        "trained": 25,
+        "spent": 2750,
+        "damage": 12197.156823999961,
+        "kills": 65
+      },
       "rifleman": {
-        "trained": 1,
-        "spent": 80,
-        "damage": 26064.125062653035,
-        "kills": 178
+        "trained": 4,
+        "spent": 320,
+        "damage": 14009.093326966922,
+        "kills": 151
       },
       "crawler": {
-        "trained": 33,
-        "spent": 2475,
-        "damage": 22681.9439136002,
-        "kills": 143
+        "trained": 17,
+        "spent": 1275,
+        "damage": 10492.704304000014,
+        "kills": 78
       },
       "overlord": {
-        "trained": 8,
-        "spent": 0,
-        "damage": 2902.4852880000003,
-        "kills": 26
-      },
-      "commander": {
         "trained": 5,
         "spent": 0,
-        "damage": 14121.845865966205,
-        "kills": 99
+        "damage": 1594.3049199999991,
+        "kills": 13
       },
-      "breacher": {
-        "trained": 21,
-        "spent": 3150,
-        "damage": 55703.734443663845,
-        "kills": 663
-      },
-      "spitter": {
-        "trained": 34,
-        "spent": 3740,
-        "damage": 18511.689967199854,
-        "kills": 112
-      },
-      "shaman": {
-        "trained": 25,
-        "spent": 3750,
-        "damage": 1258.303679999997,
-        "kills": 6
+      "commander": {
+        "trained": 1,
+        "spent": 0,
+        "damage": 2077.943297232277,
+        "kills": 20
       },
       "ranger": {
-        "trained": 8,
-        "spent": 800,
-        "damage": 164.1750000000001,
-        "kills": 0
+        "trained": 10,
+        "spent": 1000,
+        "damage": 4562.587219037625,
+        "kills": 34
       },
-      "heavy": {
-        "trained": 7,
-        "spent": 1120,
-        "damage": 1080.7059999999997,
-        "kills": 17
-      },
-      "marksman": {
-        "trained": 4,
-        "spent": 600,
-        "damage": 1346.5098074674613,
-        "kills": 31
+      "breacher": {
+        "trained": 9,
+        "spent": 1350,
+        "damage": 28157.38717270774,
+        "kills": 252
       },
       "leaper": {
-        "trained": 34,
-        "spent": 4420,
-        "damage": 16062.197633600008,
-        "kills": 107
+        "trained": 16,
+        "spent": 2240,
+        "damage": 7829.141304000007,
+        "kills": 57
+      },
+      "heavy": {
+        "trained": 6,
+        "spent": 960,
+        "damage": 5378.52309711022,
+        "kills": 70
+      },
+      "shaman": {
+        "trained": 9,
+        "spent": 1350,
+        "damage": 167.37739200000004,
+        "kills": 2
       },
       "engineer": {
-        "trained": 11,
-        "spent": 770,
-        "damage": 1066.8658617257008,
-        "kills": 7
+        "trained": 3,
+        "spent": 210,
+        "damage": 412.7098599999998,
+        "kills": 3
+      },
+      "marksman": {
+        "trained": 3,
+        "spent": 450,
+        "damage": 2146.535686812429,
+        "kills": 33
       }
     },
     "points": {
-      "player": 1.37,
-      "enemy": 3.29
+      "player": 2.47,
+      "enemy": 2
     }
   }
 ]
