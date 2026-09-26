@@ -92,6 +92,7 @@ export class BattleScene extends Phaser.Scene {
   /** True when the battlefield is drawn by the 3D renderer (see src/render3d). */
   render3d = false;
   r3d: Battle3D | null = null;
+  props!: PropSystem;
   production!: ProductionSystem;
   research!: ResearchSystem;
   tech!: TechSystem;
@@ -165,7 +166,7 @@ export class BattleScene extends Phaser.Scene {
     this.tech = new TechSystem(this, this.factions);
     this.buildings.tierOf = (o) => this.tech.tierOf(o);
     this.capture = new CapturePointSystem(this);
-    new PropSystem(this, this.map.def.id.length * 7919 + (data.mapIndex ?? 0));
+    this.props = new PropSystem(this, this.map.def.id.length * 7919 + (data.mapIndex ?? 0));
     this.world = new WorldSystem(this, this.map.def.id.length * 131 + (data.mapIndex ?? 0), !!data.ashStorms);
     this.selection = new SelectionSystem(this);
     this.effects = new EffectsSystem(this);

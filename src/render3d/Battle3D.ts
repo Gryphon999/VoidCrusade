@@ -11,6 +11,11 @@ import { Stage3D } from './Stage3D';
 import { Terrain3D } from './Terrain3D';
 import { HEIGHT_SCALE, Units3D } from './Units3D';
 import { FpsOverlay } from './FpsOverlay';
+import { AtmosPreset, atmosFor } from './Atmos';
+import { PropInstance, Props3D } from './Props3D';
+import { Env3D } from './Env3D';
+import { biomeForMap } from '../render/Biomes';
+import { PROPS_CHANGED } from '../render/PropSystem';
 import type { BattleScene } from '../scenes/BattleScene';
 import type { BattleRenderer } from './Renderer';
 
@@ -32,8 +37,14 @@ export class Battle3D implements BattleRenderer {
   private composer: EffectComposer;
   private bloom: UnrealBloomPass;
   private sun: THREE.DirectionalLight;
+  private sunDir: THREE.Vector3;
+  private atmos: AtmosPreset;
   private terrain: Terrain3D;
   private units: Units3D;
+  private props: Props3D;
+  private env: Env3D;
+  private refreshProps: () => void = () => undefined;
+  private barrelCount = -1;
   private fps: FpsOverlay;
   private tierName: GraphicsQuality;
   private lowFor = 0;
@@ -43,12 +54,15 @@ export class Battle3D implements BattleRenderer {
     this.renderer = Stage3D.attach(battle.game);
     this.tierName = Settings.get().graphics;
     const tier = GFX3D[this.tierName];
-    this.renderer.toneMappingExposure = 1.35;
-    this.scene.background = new THREE.Color(0x07060a);
+    this.atmos = atmosFor(battle.map.def.id);
+    const at = this.atmos;
+    this.renderer.toneMappingExposure = at.exposure;
+    this.scene.background = new THREE.Color(at.haze);
     this.scene.fog = null;
-    // Lights: warm key sun from the north-west, cool sky / warm bounce fill.
-    this.scene.add(new THREE.HemisphereLight(0xaab6d6, 0x4a3b2c, 1.0));
-    this.sun = new THREE.DirectionalLight(0xffe0bc, 2.4);
+    // Lights: the map's key sun plus a sky/ground hemisphere fill.
+    this.scene.add(new THREE.HemisphereLight(at.skyColor, at.groundColor, at.ambient));
+    this.sun = new THREE.DirectionalLight(at.sunColor, at.sunIntensity);
+    this.sunDir = new THREE.Vector3(...at.sunDir).normalize();
     this.sun.castShadow = tier.shadows;
     this.sun.shadow.mapSize.set(tier.shadowMap, tier.shadowMap);
     this.sun.shadow.bias = -0.0004;
@@ -57,12 +71,22 @@ export class Battle3D implements BattleRenderer {
     this.renderer.shadowMap.enabled = tier.shadows;
     this.terrain = new Terrain3D(battle.map, this.renderer.capabilities.getMaxAnisotropy());
     this.scene.add(this.terrain.mesh);
+    const biome = biomeForMap(battle.map.def.id);
+    this.env = new Env3D(this.scene, (x, y) => this.terrain.heightAt(x, y), biome.cliffTop[1], battle.map.def.id.length * 131, tier.shadows);
     this.units = new Units3D(this.scene, tier.modelDetail, tier.shadows);
+    this.props = new Props3D(this.scene, tier.shadows);
+    const refreshProps = (): void => {
+      const barrels = battle.world.barrelSpots().map((p, i) => ({ kind: 'barrels' as PropInstance['kind'], variant: i, x: p.x, y: p.y, rot: i * 1.7, scale: 1 }));
+      this.props.set([...battle.props.list(), ...barrels], (x, y) => this.terrain.heightAt(x, y));
+    };
+    this.refreshProps = refreshProps;
+    refreshProps();
+    battle.events.on(PROPS_CHANGED, refreshProps);
     HEIGHT_SCALE.value = 1 / this.cosE();
     const size = Stage3D.bufferSize();
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), 0.55, 0.45, 0.9);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), at.bloom, 0.45, 0.9);
     this.bloom.enabled = tier.bloom;
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
@@ -103,14 +127,14 @@ export class Battle3D implements BattleRenderer {
     const cy = Projection.groundY(v.centerY);
     const span = Math.max(v.width, v.height / sinE) * 0.62 + 200;
     this.sun.target.position.set(cx, 0, cy);
-    this.sun.position.set(cx - 900, 1500, cy - 700);
+    this.sun.position.set(cx + this.sunDir.x * 1800, this.sunDir.y * 1800, cy + this.sunDir.z * 1800);
     const sc = this.sun.shadow.camera;
     sc.left = -span;
     sc.right = span;
     sc.top = span;
     sc.bottom = -span;
-    sc.near = 200;
-    sc.far = 4000;
+    sc.near = 100;
+    sc.far = 4200;
     sc.updateProjectionMatrix();
   }
 
@@ -158,6 +182,12 @@ export class Battle3D implements BattleRenderer {
     }
     HEIGHT_SCALE.value = 1 / this.cosE();
     this.syncCamera();
+    // Barrels blow up during play: rebuild props when their count changes.
+    const bc = this.battle.world.barrelSpots().length;
+    if (bc !== this.barrelCount) {
+      this.barrelCount = bc;
+      this.refreshProps();
+    }
     const all = this.battle.units.squads.flatMap((s) => s.units);
     this.units.update(all, (x, y) => this.terrain.heightAt(x, y));
     this.composer.render();
@@ -168,6 +198,8 @@ export class Battle3D implements BattleRenderer {
   dispose(): void {
     this.battle.game.events.off(Phaser.Core.Events.POST_RENDER, this.onPost);
     this.units.dispose();
+    this.props.dispose();
+    this.env.dispose();
     this.terrain.dispose();
     this.composer.dispose();
     this.fps.destroy();

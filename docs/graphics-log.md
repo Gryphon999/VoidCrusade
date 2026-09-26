@@ -55,3 +55,44 @@ every object, real light falloff, and specular on armour.
 - **Lighting.** Exposure and the sun are not tuned, and there is no colour grading yet.
 - **Performance** can only be judged relatively here: under the software GPU the tutorial had
   to run on Low to keep input responsive.
+
+## A2: terrain and environment
+
+- **Terrain shader** (`Terrain3D`, standard PBR + `onBeforeCompile`):
+  - world-space detail grain at two scales and a derivative-based bump, so the ground holds up
+    close;
+  - triplanar layered rock on steep faces and on plateaus, instead of a top texture stretched
+    down the walls;
+  - a macro tint so wide views vary.
+- **Shapes:** cliffs are 105 px rock blocks with noise-displaced, organic outlines (within about
+  0.2 tile of the gameplay boundary), rough tops and lower shelves. The ground rolls, roads are
+  flat, and 26 shell craters (dents with raised lips and scorched floors) sit on open ground.
+- **Outlands:** an 8-tile ring of mountains around every map, so the view never shows a void.
+- **Materials** (`Materials3D`): a tileable detail map, layered rock with strata and fractures,
+  and road plating as staggered plates with seams, bolt heads, rust streaks and scratches.
+  Roads and rubble get ragged, eroded edges.
+- **Props in 3D** (`Kit`, `Props3D`): the 2D prop scatter (same positions) is now kit-bashed
+  models, instanced with shadows. Dead gnarled trees, skull totems, tattered standards, burnt tank
+  wrecks, rock clusters, ruined gothic walls with pointed arches and buttresses, broken columns,
+  crate stacks, and fuel-barrel clusters that disappear when they explode.
+- `Env3D`: boulders and scree at the foot of cliffs.
+- **Atmosphere per map** (`Atmos`): Ashfall is a smoky dusk with a low orange sun and long
+  shadows; Veyra a hazy desert noon with short shadows; Khorvan a cold moonlit night; the tutorial
+  a softer dusk.
+- **Fix:** the 2D culler was re-enabling sprites the 3D renderer had hidden (cliff occluders
+  showed as floating grey slabs).
+- Screens: `a2-map0-wide.jpg`, `a2-map1-wide.jpg`, `a2-map2-wide.jpg`, `a2-map0-close.jpg`.
+
+**Self-critique.**
+- **Materials:** the ground still looks like one printed texture, because the albedo is baked
+  per map. The rubble layer's pebbles read as 2D dots, not 3D stones.
+- **Rock:** cliff rock is convincing from above but monotone brown; it needs colour variation,
+  darker cracks and lighter weathered rims.
+- **Props:** plain and a bit small: flat single colours with no wear, no emissive details, no
+  banners moving. Trees are thin sticks.
+- **Environment gaps:** still missing are ground fog, ash drift, embers, dust (A5/A6), lava or
+  acid pools in the outlands (A5/A6), and Horde biomass growth around their buildings (A4).
+- **Night map:** Khorvan relies on fires and energy lights that do not exist yet (A5). Until
+  then it is dim.
+- **Mixed rendering:** buildings are still 2D sprites and look pasted onto the 3D ground. That
+  is the most visible inconsistency now, so A4 comes next, together with A3 units.

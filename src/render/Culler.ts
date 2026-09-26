@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import type { HiddenIn3D } from '../render3d/hide2D';
 
 const CELL = 512;
 
@@ -39,6 +40,8 @@ export class Culler {
 
   /** Registers a static object anchored near view point (x, y); it may extend up to one cell away. */
   add(obj: Phaser.GameObjects.GameObject, x: number, y: number): void {
+    // Replaced by the 3D renderer: stays hidden, nothing to cull.
+    if ((obj as HiddenIn3D).hiddenIn3D) return;
     const cell = Math.floor(Math.max(0, y) / CELL) * this.cols + Math.floor(Math.max(0, x) / CELL);
     this.remove(obj);
     const e: Entry = { obj: obj as Entry['obj'], cell };

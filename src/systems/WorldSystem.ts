@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { hide2D } from '../render3d/hide2D';
 import { DEPTH, TILE, TILE_SIZE } from '../config';
 import { EV } from '../events';
 import { Owner } from '../types';
@@ -127,10 +128,16 @@ export class WorldSystem {
     }
   }
 
+  /** Positions of intact fuel barrels (read by the 3D renderer). */
+  barrelSpots(): { x: number; y: number }[] {
+    return this.barrels.filter((b) => b.alive).map((b) => ({ x: b.x, y: b.y }));
+  }
+
   private addBarrel(tx: number, ty: number): void {
     const x = (tx + 0.5) * TILE_SIZE;
     const y = (ty + 0.5) * TILE_SIZE;
     const img = this.battle.add.image(x, Projection.vy(y) + 8, 'prop_barrels').setOrigin(0.5, 1).setDepth(Projection.depth(y));
+    hide2D(this.battle, img);
     Culler.for(this.battle).add(img, x, Projection.vy(y));
     this.battle.map.setBlocked(tx, ty, true);
     this.barrels.push({ x, y, tx, ty, hp: 30, img, alive: true });
