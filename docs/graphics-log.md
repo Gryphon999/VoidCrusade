@@ -140,3 +140,33 @@ every object, real light falloff, and specular on armour.
   Point lights come in A5.
 - **Leftover 2D effects:** smoke, sparks and ruin fires are still the 2D particle effects.
   They float slightly off the 3D volumes (A6).
+
+## A3 — Units, bodies and map fixtures
+
+**Done.**
+- **Units** are instanced 3D figures built from the procedural puppet models: one batch per
+  (type, animation, frame), so the 3D animation matches the 2D atlases frame for frame.
+  - Materials split by faction: Iron Void ceramite and steel with fine plate seams, the Horde
+    wet chitin with glossy mottling.
+  - Self-lit parts (visors, lenses, bio-lamps) now glow at about half the A1 strength. Squads
+    no longer drown in their own halo.
+- **Bodies:** the death animation plays in 3D. Settled bodies turn into dusty husks and sink
+  into the ground as they fade. Vehicle wrecks are the vehicle's own model, burnt, and stay
+  until salvaged or expired.
+- **Capture points** are 3D Void-Nexus obelisks: stepped plinth, gold bands, buttresses and
+  rune strips in the holder's colour. Each has a standard that sways; relics and forward bases
+  get a spinning emblem.
+- **Derelict turrets** are rusted 3D hulks with a toppled barrel until engineers claim them.
+- Screens: `a3-units-close.jpg`, `a3-units-mid.jpg`.
+
+**Self-critique.**
+- **Silhouettes:** still the weak point. The puppet models were designed for 64-px sprites:
+  helmets are balls and limbs are capsules. At the default zoom they read fine, but close up
+  they look like toys, not AAA miniatures. Real sculpted pauldrons, backpacks, weapon detail
+  and Horde carapace ridges are the next big step for units.
+- **Animation:** discrete 6–8 frame cycles, identical in 3D and 2D, with no blending. Walk
+  cycles step visibly when zoomed in.
+- **2D combat effects dominate:** at close zoom the 2D combat particles (blood mist, spit,
+  sparks) are the busiest thing on screen and are not depth-aware. A6 replaces them.
+- **Team colour:** it is only on helmets and shoulders, which is too little at a distance.
+- The obelisk is thin for its height.

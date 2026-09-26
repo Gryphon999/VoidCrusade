@@ -133,6 +133,11 @@ export class WorldSystem {
     return this.barrels.filter((b) => b.alive).map((b) => ({ x: b.x, y: b.y }));
   }
 
+  /** Unclaimed derelict hulks (read by the 3D renderer). */
+  derelictSpots(): { x: number; y: number; visible: boolean }[] {
+    return this.derelicts.map((d) => ({ x: d.x, y: d.y, visible: d.img.visible && d.img.alpha > 0.05 }));
+  }
+
   private addBarrel(tx: number, ty: number): void {
     const x = (tx + 0.5) * TILE_SIZE;
     const y = (ty + 0.5) * TILE_SIZE;
@@ -150,6 +155,7 @@ export class WorldSystem {
     const ring = this.battle.add.image(x, Projection.vy(y), 'capture_ring').setDepth(DEPTH.capture).setAlpha(0.35)
       .setTint(0x9a9a9a).setScale(180 / 256, (180 / 256) * k);
     const img = this.battle.add.image(x, Projection.vy(y + TILE_SIZE), 'bldicon_derelict').setOrigin(0.5, 0.86).setDepth(Projection.depth(y + TILE_SIZE));
+    hide2D(this.battle, img);
     const bar = this.battle.add.graphics().setDepth(DEPTH.overlay - 2);
     this.battle.map.setBlocked(tx, ty, true);
     this.battle.map.setBlocked(tx + 1, ty, true);
