@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { makeCanvas } from '../render/CanvasUtil';
 import { makeRng } from '../utils/rng';
+import { ValueNoise } from '../render/Noise';
 
 /** Procedural gothic HUD art: metal frames with gold trim, rivets, crest, button frames. */
 
@@ -15,28 +16,86 @@ export const HUD = {
   text: '#e8e0c8',
 } as const;
 
+/**
+ * Lit steel plate: a height field (edge bevel, plate seams, scratches, hammered mottling) is
+ * shaded per pixel with a key light from the upper left and a tight specular, so the frame
+ * reads as machined metal rather than a flat gradient.
+ */
 function metal(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, seed: number, light = 0x3a3c42): void {
-  const g = ctx.createLinearGradient(0, y, 0, y + h);
-  const r = (light >> 16) & 255;
-  const gg = (light >> 8) & 255;
-  const b = light & 255;
-  g.addColorStop(0, `rgb(${r + 22},${gg + 22},${b + 24})`);
-  g.addColorStop(0.5, `rgb(${r},${gg},${b})`);
-  g.addColorStop(1, `rgb(${r - 22},${gg - 22},${b - 20})`);
-  ctx.fillStyle = g;
-  ctx.fillRect(x, y, w, h);
-  // Brushed/grimy texture.
+  const W = Math.round(w);
+  const H = Math.round(h);
+  const hf = new Float32Array(W * H);
+  const n = new ValueNoise(seed);
   const rnd = makeRng(seed);
-  for (let i = 0; i < (w * h) / 60; i++) {
-    ctx.fillStyle = rnd() < 0.5 ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.035)';
-    ctx.fillRect(x + rnd() * w, y + rnd() * h, 1 + rnd() * 6, 1);
+  const seamX = new Set<number>();
+  for (let sx = 150 + Math.floor(rnd() * 60); sx < W - 40; sx += 180 + Math.floor(rnd() * 80)) seamX.add(sx);
+  for (let py = 0; py < H; py++) {
+    for (let px = 0; px < W; px++) {
+      const e = Math.min(px, py, W - 1 - px, H - 1 - py);
+      let v = Math.min(1, e / 5) * 1.2;
+      v += n.fbm(px / 40, py / 40, 4) * 0.35 + n.noise(px / 3.1, py / 3.1) * 0.05;
+      for (const sx of seamX) {
+        const d = Math.abs(px - sx);
+        if (d < 3) v -= (1 - d / 3) * 0.9;
+      }
+      hf[py * W + px] = v;
+    }
   }
+  // Scratches: short bright-edged gouges.
+  for (let i = 0; i < (W * H) / 900; i++) {
+    let sx = rnd() * W;
+    let sy = rnd() * H;
+    const a = rnd() * Math.PI;
+    const len = 6 + rnd() * 30;
+    for (let k = 0; k < len; k++) {
+      sx += Math.cos(a);
+      sy += Math.sin(a) * 0.3;
+      const ix = Math.round(sx);
+      const iy = Math.round(sy);
+      if (ix > 0 && iy > 0 && ix < W && iy < H) hf[iy * W + ix] -= 0.25;
+    }
+  }
+  const img = ctx.createImageData(W, H);
+  const br = (light >> 16) & 255;
+  const bg = (light >> 8) & 255;
+  const bb = light & 255;
+  const L = { x: -0.45, y: -0.7, z: 0.55 };
+  const ll = Math.hypot(L.x, L.y, L.z);
+  L.x /= ll;
+  L.y /= ll;
+  L.z /= ll;
+  const Hh = { x: L.x, y: L.y, z: L.z + 1 };
+  const hl = Math.hypot(Hh.x, Hh.y, Hh.z);
+  for (let py = 0; py < H; py++) {
+    for (let px = 0; px < W; px++) {
+      const i = py * W + px;
+      const gx = (hf[py * W + Math.min(W - 1, px + 1)] - hf[py * W + Math.max(0, px - 1)]) * 1.6;
+      const gy = (hf[Math.min(H - 1, py + 1) * W + px] - hf[Math.max(0, py - 1) * W + px]) * 1.6;
+      const nl = Math.hypot(gx, gy, 1);
+      const nx = -gx / nl;
+      const ny = -gy / nl;
+      const nz = 1 / nl;
+      const diff = Math.max(0, nx * L.x + ny * L.y + nz * L.z);
+      const spec = Math.pow(Math.max(0, (nx * Hh.x + ny * Hh.y + nz * Hh.z) / hl), 28);
+      // Vertical falloff: the plate is lit from above.
+      const fall = 1.12 - (py / H) * 0.35;
+      const grime = 0.82 + n.fbm(px / 90 + 7, py / 60 + 3, 3) * 0.3;
+      const k = (0.42 + 0.78 * diff) * fall * grime;
+      const p = i * 4;
+      img.data[p] = Math.min(255, br * k + spec * 95);
+      img.data[p + 1] = Math.min(255, bg * k + spec * 92);
+      img.data[p + 2] = Math.min(255, bb * k + spec * 90);
+      img.data[p + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, x, y);
+  // Rust and soot blooms.
   for (let i = 0; i < 6; i++) {
     const cx = x + rnd() * w;
     const cy = y + rnd() * h;
     const rr = 10 + rnd() * 30;
     const s = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr);
-    s.addColorStop(0, 'rgba(60,30,10,0.18)');
+    s.addColorStop(0, 'rgba(60,30,10,0.16)');
     s.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = s;
     ctx.fillRect(cx - rr, cy - rr, rr * 2, rr * 2);
@@ -59,10 +118,45 @@ export function well(ctx: CanvasRenderingContext2D, x: number, y: number, w: num
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
   ctx.fillRect(x - 3, y - 3, w + 6, h + 6);
   const g = ctx.createLinearGradient(0, y, 0, y + h);
-  g.addColorStop(0, '#0a0a0e');
-  g.addColorStop(1, '#16151a');
+  g.addColorStop(0, '#07080c');
+  g.addColorStop(0.5, '#0d0f15');
+  g.addColorStop(1, '#14151b');
   ctx.fillStyle = g;
   ctx.fillRect(x, y, w, h);
+  // Recessed glass: inner shadow at the top, faint hex lattice, a cold glint.
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  const inner = ctx.createLinearGradient(0, y, 0, y + 14);
+  inner.addColorStop(0, 'rgba(0,0,0,0.75)');
+  inner.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = inner;
+  ctx.fillRect(x, y, w, 14);
+  ctx.strokeStyle = 'rgba(120,160,220,0.045)';
+  ctx.lineWidth = 1;
+  const hs = 9;
+  for (let yy = y; yy < y + h + hs; yy += hs * 1.5) {
+    for (let xx = x - hs; xx < x + w + hs; xx += hs * Math.sqrt(3)) {
+      const ox = (Math.round((yy - y) / (hs * 1.5)) % 2) * hs * Math.sqrt(3) / 2;
+      ctx.beginPath();
+      for (let k = 0; k < 6; k++) {
+        const a = Math.PI / 6 + (k * Math.PI) / 3;
+        const px = xx + ox + Math.cos(a) * hs * 0.55;
+        const py = yy + Math.sin(a) * hs * 0.55;
+        if (k === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+  }
+  const glint = ctx.createLinearGradient(x, y, x + w * 0.6, y + h);
+  glint.addColorStop(0, 'rgba(160,190,255,0.06)');
+  glint.addColorStop(0.4, 'rgba(160,190,255,0)');
+  ctx.fillStyle = glint;
+  ctx.fillRect(x, y, w, h);
+  ctx.restore();
   ctx.strokeStyle = HUD.gold;
   ctx.lineWidth = 1.5;
   ctx.strokeRect(x - 1.5, y - 1.5, w + 3, h + 3);

@@ -12,6 +12,8 @@ import { TechSystem } from '../systems/TechSystem';
 import { Faction } from '../units/UnitDefs';
 import { CapturePointSystem } from '../systems/CapturePointSystem';
 import { AIController } from '../ai/AIController';
+import { Battle3D } from '../render3d/Battle3D';
+import { Stage3D } from '../render3d/Stage3D';
 import { FogOfWarSystem } from '../systems/FogOfWarSystem';
 import { AudioBridge } from '../systems/AudioBridge';
 import { CoverSystem } from '../systems/CoverSystem';
@@ -87,6 +89,10 @@ export class BattleScene extends Phaser.Scene {
   tutorial: TutorialDirector | null = null;
   /** Sides driven by the AI (abilities autocast, etc.). */
   aiOwners: Owner[] = ['enemy'];
+  /** True when the battlefield is drawn by the 3D renderer (see src/render3d). */
+  render3d = false;
+  r3d: Battle3D | null = null;
+  props!: PropSystem;
   production!: ProductionSystem;
   research!: ResearchSystem;
   tech!: TechSystem;
@@ -128,8 +134,19 @@ export class BattleScene extends Phaser.Scene {
     applyWargear(randomPick(this.factions.enemy), this.modifiers.enemy);
     Projection.setTilt(Settings.get().tilt);
     const tutorial = data.mode === 'tutorial';
+    // 3D battlefield (Three.js under a transparent Phaser canvas) unless unsupported or turned off.
+    this.render3d = Stage3D.wanted();
+    // Create the WebGL2 context before any world object exists; on failure fall back to 2D.
+    if (this.render3d) {
+      try {
+        Stage3D.attach(this.game);
+      } catch (e) {
+        console.warn('3D renderer unavailable, using 2D:', e);
+        this.render3d = false;
+      }
+    }
     this.map = new MapSystem(tutorial ? buildTutorialMap() : getMap(data.mapIndex ?? 0));
-    this.cameras.main.setBackgroundColor(0x07060a);
+    this.cameras.main.setBackgroundColor(this.render3d ? 'rgba(0,0,0,0)' : 0x07060a);
     this.map.render(this);
     this.pathfinder = new Pathfinder(this.map);
     this.cover = new CoverSystem(this);
@@ -150,7 +167,7 @@ export class BattleScene extends Phaser.Scene {
     this.tech = new TechSystem(this, this.factions);
     this.buildings.tierOf = (o) => this.tech.tierOf(o);
     this.capture = new CapturePointSystem(this);
-    new PropSystem(this, this.map.def.id.length * 7919 + (data.mapIndex ?? 0));
+    this.props = new PropSystem(this, this.map.def.id.length * 7919 + (data.mapIndex ?? 0));
     this.world = new WorldSystem(this, this.map.def.id.length * 131 + (data.mapIndex ?? 0), !!data.ashStorms);
     this.selection = new SelectionSystem(this);
     this.effects = new EffectsSystem(this);
@@ -187,6 +204,13 @@ export class BattleScene extends Phaser.Scene {
       this.aiOwners = [];
       this.tutorial = new TutorialDirector(this);
     }
+    this.r3d = this.render3d ? new Battle3D(this) : null;
+    // The scene object is reused on restart ("play again", the next campaign battle): the old
+    // renderer must go, or it keeps drawing its stale world over the new one.
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.r3d?.dispose();
+      this.r3d = null;
+    });
     this.fog = new FogOfWarSystem(this);
     this.audio = new AudioBridge(this);
     this.atmosphere = new Atmosphere(this);
@@ -194,13 +218,25 @@ export class BattleScene extends Phaser.Scene {
 
     this.cameraSystem = new CameraSystem(this, this.map.worldWidth, this.map.worldHeight);
     this.cameraSystem.centerOn(hq.x + 200, hq.y - 100);
+    // Opening shot: from high over the battlefield down to the base (not in the tutorial,
+    // whose first lesson is moving the camera).
+    if (data.mode !== 'tutorial' && Settings.get().cinematics !== false) {
+      // Start high above the base (explored ground, not black fog) and swoop down onto it.
+      this.cameras.main.setZoom(0.6);
+      this.cameraSystem.centerOn(hq.x + 60, hq.y - 260);
+      this.cameraSystem.flyTo(hq.x + 200, hq.y - 100, 1, 2600);
+    }
     this.inputController = new InputController(this);
 
     this.events.on(EV.buildingDestroyed, (b: Building) => {
       this.production.cancelAll(b);
       if (b.owner === 'player') this.stats.buildingsLost++;
       else this.stats.buildingsDestroyed++;
-      if (b.def.role === 'hq') this.endBattle(opponent(b.owner));
+      if (b.def.role === 'hq') {
+        // Final shot: push in slowly on the fallen stronghold.
+        if (!this.result && Settings.get().cinematics !== false) this.cameraSystem.flyTo(b.x, b.y, 1.35, 2200);
+        this.endBattle(opponent(b.owner));
+      }
     });
     this.events.on(EV.unitDied, (_x: number, _y: number, u: Unit) => {
       if (u.owner === 'player') this.stats.losses++;
@@ -214,6 +250,8 @@ export class BattleScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       // Scene events survive a restart, so drop every gameplay listener registered this battle.
       for (const e of Object.values(EV)) this.events.removeAllListeners(e);
+      this.r3d?.dispose();
+      this.r3d = null;
       this.cameraSystem.destroy();
       this.inputController.destroy();
       this.scene.stop('HudScene');

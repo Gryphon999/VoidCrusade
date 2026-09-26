@@ -523,4 +523,17 @@ export const enContent = {
   'tut.st.contested': 'Contested! Clear the enemies off the point.',
   'tut.st.capturing': 'Capturing… {p}%',
   'tut.st.left': 'Enemy structures left: {n}',
+  // AAA graphics settings
+  'gfx.ultra': 'Ultra',
+  'settings.advanced': 'Graphics…',
+  'settings.gfxTitle': 'Graphics',
+  'settings.renderer': 'Battlefield renderer',
+  'renderer.auto': 'Auto',
+  'renderer.3d': '3D',
+  'renderer.2d': 'Classic 2D',
+  'settings.rendererNote': 'Auto uses 3D when the browser supports WebGL2. Takes effect in the next battle.',
+  'settings.resScale': '3D resolution',
+  'settings.showFps': 'FPS counter: {v}',
+  'settings.adaptive': 'Adaptive quality: {v}',
+  'settings.adaptiveNote': 'Lowers the quality tier if the frame rate stays under 40 FPS.',
 } as const;

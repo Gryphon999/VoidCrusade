@@ -525,4 +525,17 @@ export const ruContent: Record<keyof typeof enContent, string> = {
   'tut.st.contested': 'Точка оспаривается! Выбейте врагов с неё.',
   'tut.st.capturing': 'Захват… {p}%',
   'tut.st.left': 'Осталось вражеских строений: {n}',
+  // Настройки графики
+  'gfx.ultra': 'Ультра',
+  'settings.advanced': 'Графика…',
+  'settings.gfxTitle': 'Графика',
+  'settings.renderer': 'Отрисовка поля боя',
+  'renderer.auto': 'Авто',
+  'renderer.3d': '3D',
+  'renderer.2d': 'Классика 2D',
+  'settings.rendererNote': 'Авто включает 3D, если браузер поддерживает WebGL2. Применяется со следующего боя.',
+  'settings.resScale': 'Разрешение 3D',
+  'settings.showFps': 'Счётчик FPS: {v}',
+  'settings.adaptive': 'Адаптивное качество: {v}',
+  'settings.adaptiveNote': 'Снижает уровень качества, если частота кадров держится ниже 40 FPS.',
 };

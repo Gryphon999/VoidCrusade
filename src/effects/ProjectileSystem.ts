@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 import { DEPTH, UNITS } from '../config';
+import * as THREE from 'three';
 import type { ExplosionEffect } from './ExplosionEffect';
+import type { Fx3D } from '../render3d/Fx3D';
+import { HEIGHT_SCALE } from '../render3d/Units3D';
 
 export type ProjectileKind = 'bullet' | 'shell' | 'spit' | 'spine' | 'flame' | 'sniper' | 'psy' | 'lob' | 'acidlob' | 'cannon' | 'rocket';
 
@@ -16,6 +19,9 @@ interface Shot {
   arc: number;
   trailT: number;
   onArrive: () => void;
+  /** 3D path endpoints (3D renderer only). */
+  p0?: THREE.Vector3;
+  p1?: THREE.Vector3;
 }
 
 const LOOK: Record<ProjectileKind, { tex: string; tint: number; add: boolean; arc: number; scale: number; speed: number }> = {
@@ -40,6 +46,10 @@ export class ProjectileSystem {
   private pool: Phaser.GameObjects.Image[] = [];
   /** Global projectile speed factor (ash storms slow shots). */
   speedMult = 1;
+  /** Set by the 3D renderer: shots are drawn as 3D streaks with 3D trails. */
+  fx3d: Fx3D | null = null;
+  private tmp = new THREE.Vector3();
+  private vel = new THREE.Vector3();
   private live: Shot[] = [];
   private smoke: Phaser.GameObjects.Particles.ParticleEmitter;
   private acid: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -71,6 +81,10 @@ export class ProjectileSystem {
 
   /** Splash of acid at a view-space point (spore mines). */
   burst(x: number, y: number): void {
+    if (this.fx3d) {
+      this.fx3d.splash('acidlob', x, y);
+      return;
+    }
     this.acid.emitParticleAt(x, y, 24);
     this.psy.emitParticleAt(x, y, 6);
   }
@@ -86,7 +100,24 @@ export class ProjectileSystem {
       img, kind, x0: from.x, y0: from.y, x1: to.x, y1: to.y, t: 0,
       dur: Math.max(0.06, dist / (UNITS.projectileSpeed * look.speed * this.speedMult)), arc: HIGH_ARC.has(kind) ? look.arc * Math.min(1.4, 0.5 + dist / 600) : look.arc * Math.min(1, dist / 250), trailT: 0, onArrive,
     });
-    this.place(this.live[this.live.length - 1]);
+    const shot = this.live[this.live.length - 1];
+    if (this.fx3d) {
+      img.setVisible(false);
+      // Muzzle ~14 px above the terrain, impact ~10 px: the straight 3D chord projects exactly
+      // onto the 2D path because the view projection is linear.
+      shot.p0 = this.fx3d.at(from.x, from.y, 14, new THREE.Vector3());
+      shot.p1 = this.fx3d.at(to.x, to.y, kind === 'lob' || kind === 'acidlob' || kind === 'rocket' ? 0 : 10, new THREE.Vector3());
+    }
+    this.place(shot);
+  }
+
+  /** 3D position of a shot at fraction f (with its arc) into `out`. */
+  private pos3(s: Shot, f: number, out: THREE.Vector3): THREE.Vector3 {
+    const p0 = s.p0 as THREE.Vector3;
+    const p1 = s.p1 as THREE.Vector3;
+    out.copy(p0).lerp(p1, f);
+    out.y += Math.sin(f * Math.PI) * s.arc * HEIGHT_SCALE.value;
+    return out;
   }
 
   private place(s: Shot): void {
@@ -103,8 +134,19 @@ export class ProjectileSystem {
       const s = this.live[i];
       s.t += dt;
       this.place(s);
+      const fx = this.fx3d;
+      if (fx && s.p0) {
+        s.img.setVisible(false);
+        const f = Math.min(1, s.t / s.dur);
+        const p = this.pos3(s, f, this.tmp);
+        this.pos3(s, Math.min(1, f + 0.02), this.vel).sub(p).multiplyScalar(50 / Math.max(0.05, s.dur));
+        fx.head(s.kind, p, this.vel, LOOK[s.kind].scale);
+      }
       s.trailT -= dt;
-      if (s.trailT <= 0) {
+      if (s.trailT <= 0 && fx && s.p0) {
+        s.trailT = s.kind === 'sniper' ? 0.006 : s.kind === 'rocket' ? 0.012 : s.kind === 'flame' ? 0.014 : 0.022;
+        fx.trail(s.kind, this.tmp);
+      } else if (s.trailT <= 0) {
         if (s.kind === 'shell' || s.kind === 'lob' || s.kind === 'cannon' || s.kind === 'rocket') {
           s.trailT = s.kind === 'shell' ? 0.03 : s.kind === 'rocket' ? 0.01 : 0.018;
           this.smoke.emitParticleAt(s.img.x, s.img.y, 1);
@@ -126,6 +168,11 @@ export class ProjectileSystem {
       this.live.splice(i, 1);
       s.img.setVisible(false);
       this.pool.push(s.img);
+      if (fx && s.p0 && (s.kind === 'acidlob' || s.kind === 'flame' || s.kind === 'psy')) {
+        fx.splash(s.kind, s.x1, s.y1);
+        s.onArrive();
+        continue;
+      }
       if (s.kind === 'shell') this.explosions.impact(s.x1, s.y1);
       else if (s.kind === 'lob' || s.kind === 'cannon' || s.kind === 'rocket') this.explosions.blast(s.x1, s.y1, s.kind === 'lob' ? 1 : 0.6);
       else if (s.kind === 'acidlob') this.acid.emitParticleAt(s.x1, s.y1, 18);

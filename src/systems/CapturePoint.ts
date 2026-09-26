@@ -4,6 +4,7 @@ import { Owner } from '../types';
 import { Projection } from '../render/Projection';
 import { PYLON_ORIGIN } from '../render/CaptureArt';
 import type { PointKind } from '../maps/MapBuilder';
+import { hide2D } from '../render3d/hide2D';
 
 export function ownerColor(o: Owner | null): number {
   return o === 'player' ? COLORS.player : o === 'enemy' ? COLORS.enemy : COLORS.neutral;
@@ -41,7 +42,7 @@ export class CapturePoint {
     this.ring.setScale((this.half * 2.1) / 256, ((this.half * 2.1) / 256) * k).setAlpha(0.55);
     scene.tweens.add({ targets: this.ring, alpha: 0.22, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     const depth = Projection.depth(y);
-    scene.add.image(x, vy, 'pylon').setOrigin(PYLON_ORIGIN.x, PYLON_ORIGIN.y).setDepth(depth);
+    const pylon = scene.add.image(x, vy, 'pylon').setOrigin(PYLON_ORIGIN.x, PYLON_ORIGIN.y).setDepth(depth);
     this.runes = scene.add.image(x, vy, 'pylon_runes').setOrigin(PYLON_ORIGIN.x, PYLON_ORIGIN.y).setDepth(depth + 0.1)
       .setBlendMode(Phaser.BlendModes.ADD);
     scene.tweens.add({ targets: this.runes, alpha: 0.5, duration: 800, yoyo: true, repeat: -1 });
@@ -55,6 +56,7 @@ export class CapturePoint {
       if (kind === 'relic') this.aura.setScale(2.8, 2.8 * k);
     }
     this.bar = scene.add.graphics().setDepth(DEPTH.overlay - 2);
+    for (const o of [pylon, this.runes, this.flag, this.badge]) if (o) hide2D(scene, o);
     this.refresh();
   }
 

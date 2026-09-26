@@ -14,10 +14,14 @@
     "test": "tsx --test tests/*.test.ts",
     "check:assets": "tsx scripts/check-assets.ts",
     "simulate": "tsx scripts/simulate.ts",
-    "screenshots:content": "tsx scripts/screenshots-content.ts"
+    "bake": "tsx scripts/bake.ts",
+    "screenshots:content": "tsx scripts/screenshots-content.ts",
+    "screenshots:aaa": "tsx scripts/screenshots-aaa.ts"
   },
   "dependencies": {
-    "phaser": "3.90.0"
+    "@types/three": "^0.186.0",
+    "phaser": "3.90.0",
+    "three": "^0.186.1"
   },
   "devDependencies": {
     "playwright-core": "1.56",

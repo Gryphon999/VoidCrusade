@@ -7,8 +7,15 @@ import { Culler } from './Culler';
 import { PROP_VARIANTS, PropKind, propBase, propKey } from './PropArt';
 import { Building } from '../buildings/Building';
 import type { BattleScene } from '../scenes/BattleScene';
+import { hide2D } from '../render3d/hide2D';
+import type { PropInstance } from '../render3d/Props3D';
+
+export const PROPS_CHANGED = 'props-changed';
 
 interface Prop {
+  kind: PropKind;
+  variant: number;
+  flip: boolean;
   x: number;
   y: number;
   img: Phaser.GameObjects.Image;
@@ -46,18 +53,27 @@ export class PropSystem {
     battle.events.on(EV.buildingPlaced, onPlaced);
   }
 
+  /** Placed props (the 3D renderer builds its models from this list). */
+  list(): PropInstance[] {
+    return this.props.map((p) => ({ kind: p.kind, variant: p.variant, x: p.x, y: p.y, rot: ((p.x * 7.3 + p.y * 3.1) % 6.283), scale: p.flip ? 1.05 : 0.95 }));
+  }
+
   private add(kind: PropKind, x: number, y: number, rnd: () => number): void {
-    const key = propKey(kind, Math.floor(rnd() * PROP_VARIANTS));
+    const variant = Math.floor(rnd() * PROP_VARIANTS);
+    const key = propKey(kind, variant);
     const vy = Projection.vy(y);
     const img = this.battle.add.image(x, vy, key).setOrigin(0.5, propBase(kind)).setDepth(Projection.depth(y));
-    if (rnd() < 0.5) img.setFlipX(true);
+    const flip = rnd() < 0.5;
+    if (flip) img.setFlipX(true);
     const w = img.width;
     const shadow = this.battle.add.image(x + w * 0.18, vy + 2, 'fx_soft').setTint(0x000000).setAlpha(0.45)
       .setScale((w * 1.1) / 32, (w * 0.5 * Projection.tilt) / 32).setDepth(DEPTH.shadows);
+    hide2D(this.battle, img);
+    hide2D(this.battle, shadow);
     const culler = Culler.for(this.battle);
     culler.add(img, x, vy);
     culler.add(shadow, x, vy);
-    this.props.push({ x, y, img, shadow });
+    this.props.push({ kind, variant, flip, x, y, img, shadow });
   }
 
   /** Removes props that a newly placed building would stand on. */
@@ -69,5 +85,6 @@ export class PropSystem {
       p.shadow.destroy();
       return false;
     });
+    this.battle.events.emit(PROPS_CHANGED);
   }
 }

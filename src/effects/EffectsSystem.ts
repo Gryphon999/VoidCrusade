@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { hide2D } from '../render3d/hide2D';
+import type { Fx3D } from '../render3d/Fx3D';
 import { spawnOrderMarker } from './OrderMarker';
 import { BloodEffect } from './BloodEffect';
 import { ExplosionEffect } from './ExplosionEffect';
@@ -59,6 +61,7 @@ export class EffectsSystem {
       scale: { start: 0.25, end: 0.9 }, alpha: { start: 0.4, end: 0 }, tint: [0x3a3836, 0x5a5652],
     }).setDepth(DEPTH.effects - 1);
     const trackLayer = scene.add.layer().setDepth(DEPTH.decals + 0.5);
+    hide2D(scene, trackLayer);
     for (let i = 0; i < 180; i++) {
       const img = scene.add.image(0, 0, 'fx_track').setVisible(false);
       trackLayer.add(img);
@@ -98,9 +101,24 @@ export class EffectsSystem {
     const key = ruinKey(this.scene, b.def.size, Projection.tilt, b.def.faction === 'nullhorde');
     const ruin = this.scene.add.image(b.x, Projection.vy(bottom) + 4, key).setOrigin(0.5, 1).setDepth(Projection.depth(bottom - 8));
     Culler.for(this.scene).add(ruin, b.x, Projection.vy(b.y));
+    hide2D(this.scene, ruin);
     this.explosions.burn(b.x, Projection.vy(b.y), b.radius, b.def.size >= 3 ? 25 : 10);
     this.lights.fire(b.x, Projection.vy(b.y), b.radius * 2.2, b.def.size >= 3 ? 25 : 10);
     return ruin;
+  }
+
+  private fx3d: Fx3D | null = null;
+
+  /** Tread-mark images (read by the 3D renderer). */
+  get trackImages(): Phaser.GameObjects.Image[] {
+    return this.tracks;
+  }
+
+  /** Hands particle effects to the 3D renderer (null restores 2D). */
+  attach3D(fx: Fx3D | null): void {
+    this.fx3d = fx;
+    this.explosions.fx3d = fx;
+    this.projectiles.fx3d = fx;
   }
 
   update(dt: number): void {
@@ -117,8 +135,9 @@ export class EffectsSystem {
   muzzle(x: number, y: number, kind: string, towardX: number): void {
     const col = kind === 'spit' ? 0x80ff50 : kind === 'spine' || kind === 'psy' ? 0xd070ff : kind === 'flame' ? 0xff8030 : 0xffc060;
     this.lights.flash(x, y + 6, kind === 'shell' || kind === 'flame' ? 60 : kind === 'sniper' ? 50 : 36, col, 90, 0.7);
+    if (this.fx3d) this.fx3d.muzzle(x, y, kind);
     if (kind === 'bullet' || kind === 'shell' || kind === 'sniper') {
-      this.flashes.emitParticleAt(x, y, 1);
+      if (!this.fx3d) this.flashes.emitParticleAt(x, y, 1);
       this.casings.speedX = towardX > 0 ? -40 : 40;
       if (Math.random() < 0.6 * this.detail) this.casings.emitParticleAt(x, y, 1);
     }
@@ -216,6 +235,10 @@ export class EffectsSystem {
   /** A shot stopped by a shield: blue ripple at a view-space point. */
   shieldHit(x: number, y: number): void {
     this.lights.flash(x, y, 40, 0x80c8ff, 200, 0.7);
+    if (this.fx3d) {
+      this.fx3d.sparks(x, y, [1.4, 2.8, 4]);
+      return;
+    }
     this.sparkFx.setParticleTint(0x9ad8ff);
     this.sparkFx.emitParticleAt(x, y, 3);
     this.sparkFx.setParticleTint(0xffd080);
@@ -223,7 +246,8 @@ export class EffectsSystem {
 
   /** Engine exhaust puff at a view-space point. */
   exhaust(x: number, y: number): void {
-    this.exhaustFx.emitParticleAt(x, y, 1);
+    if (this.fx3d) this.fx3d.exhaust(x, y);
+    else this.exhaustFx.emitParticleAt(x, y, 1);
   }
 
   /** Tread/tyre marks pressed into the ground behind a vehicle (logical position and heading). */
@@ -249,13 +273,15 @@ export class EffectsSystem {
 
   /** Welding sparks (engineer repairs). */
   sparks(x: number, y: number): void {
-    this.sparkFx.emitParticleAt(x, y, 4);
+    if (this.fx3d) this.fx3d.sparks(x, y);
+    else this.sparkFx.emitParticleAt(x, y, 4);
     this.lights.flash(x, y, 26, 0xffd080, 80, 0.5);
   }
 
   /** Dust kicked up where a shot hits rock. */
   dust(x: number, y: number): void {
-    this.dustFx.emitParticleAt(x, y, 3);
+    if (this.fx3d) this.fx3d.dust(x, y);
+    else this.dustFx.emitParticleAt(x, y, 3);
     this.explosions.impact(x, y);
   }
 

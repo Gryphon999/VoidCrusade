@@ -4,6 +4,7 @@ import { Projection } from '../render/Projection';
 import { BuildingArtInfo, buildingArt, scaffoldKey } from '../render/buildings/BuildingArt';
 import type { Building } from './Building';
 import type { BattleScene } from '../scenes/BattleScene';
+import { hide2D } from '../render3d/hide2D';
 
 /** All rendering for one building: painted volume, glow layer, lights, smoke, scaffolding, bars, ring. */
 export class BuildingView {
@@ -23,12 +24,15 @@ export class BuildingView {
   private fxTimer = Math.random();
   private readonly bottom: number;
   private readonly top: number;
+  /** Logical heading of the turret gun (radians, x east / y south), read by the 3D renderer. */
+  gunYaw: number;
 
   constructor(private scene: Phaser.Scene, private b: Building) {
     const def = b.def;
     const px = def.size * TILE_SIZE;
     const k = Projection.tilt;
     this.art = buildingArt(scene, def.id, k);
+    this.gunYaw = b.owner === 'player' ? -Math.PI / 4 : (Math.PI * 3) / 4;
     this.bottom = b.y + px / 2;
     this.top = b.y - px / 2;
     const bx = b.x;
@@ -63,6 +67,16 @@ export class BuildingView {
       this.scaffold.setY(by + 4);
     }
     this.bars = scene.add.graphics().setDepth(DEPTH.bars);
+    // The 3D renderer draws the structure itself; bars and the selection ring stay 2D.
+    for (const o of [this.body, this.glow, ...this.lights, this.gun, this.door, this.scaffold]) if (o) hide2D(scene, o);
+  }
+
+  get isShown(): boolean {
+    return this.shown;
+  }
+
+  get isDoorOpen(): boolean {
+    return this.doorOpen;
   }
 
   /** Iron door leaf with rivets and hazard stripes (baked once per size). */
@@ -108,6 +122,7 @@ export class BuildingView {
   }
 
   aimAt(x: number, y: number): void {
+    this.gunYaw = Math.atan2(y - this.b.y, x - this.b.x);
     if (this.gun) this.gun.rotation = Phaser.Math.Angle.Between(this.gun.x, this.gun.y, x, Projection.vy(y));
   }
 

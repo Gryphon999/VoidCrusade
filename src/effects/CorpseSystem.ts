@@ -5,10 +5,24 @@ import { Culler } from '../render/Culler';
 import { UNIT_MODELS, atlasKey, frameName } from '../render/puppet/UnitAtlas';
 import { ANIM_FRAMES } from '../render/puppet/Models';
 import { Unit } from '../units/Unit';
+import { hide2D } from '../render3d/hide2D';
+import type { UnitId } from '../units/UnitDefs';
+
+/** A body on the ground, as the 3D renderer draws it (the 2D image keeps its lifetime and fade). */
+export interface Body {
+  id: UnitId;
+  x: number;
+  y: number;
+  angle: number;
+  /** scene.time.now when the death animation started. */
+  born: number;
+  img: Phaser.GameObjects.Image;
+}
 
 /** Plays death animations and leaves bodies on the ground; the oldest fade out past the cap. */
 export class CorpseSystem {
   private corpses: Phaser.GameObjects.Image[] = [];
+  readonly bodies: Body[] = [];
 
   constructor(private scene: Phaser.Scene) {}
 
@@ -17,6 +31,8 @@ export class CorpseSystem {
     const dir = u.dir;
     const img = this.scene.add.image(u.x, Projection.vy(u.y), atlasKey(u.def.id), frameName('death', 0, dir));
     img.setOrigin(m.anchorX / m.cellW, m.anchorY / m.cellH).setDepth(Projection.depth(u.y));
+    hide2D(this.scene, img);
+    this.bodies.push({ id: u.def.id, x: u.x, y: u.y, angle: u.angle, born: this.scene.time.now, img });
     let f = 0;
     this.scene.time.addEvent({
       delay: 110,
@@ -40,5 +56,10 @@ export class CorpseSystem {
       this.scene.tweens.add({ targets: old, alpha: 0, duration: 1500, onComplete: () => old.destroy() });
     }
     return img;
+  }
+
+  /** Drops bodies whose image is gone (called by the 3D renderer each frame). */
+  pruneBodies(): void {
+    for (let i = this.bodies.length - 1; i >= 0; i--) if (!this.bodies[i].img.active) this.bodies.splice(i, 1);
   }
 }

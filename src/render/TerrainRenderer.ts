@@ -5,6 +5,7 @@ import { Culler } from './Culler';
 import { TerrainPainter } from './TerrainPainter';
 import { biomeForMap } from './Biomes';
 import { makeCanvas } from './CanvasUtil';
+import { hide2D } from '../render3d/hide2D';
 import type { MapSystem } from '../systems/MapSystem';
 
 const CHUNK = 1024;
@@ -47,7 +48,7 @@ export class TerrainRenderer {
         const tex = scene.textures.addCanvas(key, canvas);
         if (!tex) throw new Error('terrain texture failed');
         this.chunks.push({ key, x0, y0, ctx, tex });
-        scene.add.image(x0, y0, key).setOrigin(0).setDepth(DEPTH.terrain);
+        hide2D(scene, scene.add.image(x0, y0, key).setOrigin(0).setDepth(DEPTH.terrain));
       }
     }
     this.paint(0, 0, map.width - 1, map.height - 1);
@@ -138,6 +139,7 @@ export class TerrainRenderer {
       const name = `occ_${ix0}_${iy0}`;
       if (!c.tex.has(name)) c.tex.add(name, 0, ix0 - c.x0, Math.floor(iy0 - c.y0), ix1 - ix0, Math.ceil(iy1 - iy0));
       const img = this.scene.add.image(ix0, Math.floor(iy0), c.key, name).setOrigin(0).setDepth(depth);
+      hide2D(this.scene, img);
       Culler.for(this.scene).add(img, (ix0 + ix1) / 2, iy0);
       this.occluders.push(img);
     }
