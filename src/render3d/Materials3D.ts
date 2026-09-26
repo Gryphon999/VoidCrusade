@@ -193,7 +193,7 @@ export type SurfaceKind = 'metal' | 'organic' | 'stone';
  * plus contact darkening near the ground and a micro bump from the detail map.
  * `panel` is the seam spacing in px.
  */
-export function surfaceMaterial(mat: THREE.MeshStandardMaterial, kind: SurfaceKind, panel = 18, strength = 1): THREE.MeshStandardMaterial {
+export function surfaceMaterial(mat: THREE.MeshStandardMaterial, kind: SurfaceKind, panel = 18, strength = 1, rim: THREE.Color | null = null): THREE.MeshStandardMaterial {
   const detail = surfaceDetail();
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uDetail = { value: detail };
@@ -231,6 +231,9 @@ float triDetail(vec3 p, vec3 n, float s) {
   diffuseColor.rgb *= 0.65 + sD * 0.6;
   diffuseColor.rgb += vec3(0.05, 0.0, 0.04) * smoothstep(0.6, 0.8, sD);` : `
   diffuseColor.rgb *= 0.7 + sD * 0.5;`}`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+  ${rim ? `// Rim light: silhouettes pop off the ground (sky bounce from behind).
+  totalEmissiveRadiance += vec3(${rim.r.toFixed(3)}, ${rim.g.toFixed(3)}, ${rim.b.toFixed(3)}) * pow(1.0 - clamp(abs(normalize(normal).z), 0.0, 1.0), 2.5) * smoothstep(-0.2, 0.6, normalize(normal).y);` : ''}`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
   ${kind === 'organic' ? 'roughnessFactor *= 0.45 + sD * 0.8;' : kind === 'metal' ? 'roughnessFactor *= 0.8 + sD * 0.5;' : ''}`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
@@ -245,6 +248,6 @@ float triDetail(vec3 p, vec3 n, float s) {
     normal = normalize(abs(fDet) * normal - grad);
   }`);
   };
-  mat.customProgramCacheKey = () => `surface-${kind}-${panel}-${strength}`;
+  mat.customProgramCacheKey = () => `surface-${kind}-${panel}-${strength}-${rim ? rim.getHexString() : 'n'}`;
   return mat;
 }

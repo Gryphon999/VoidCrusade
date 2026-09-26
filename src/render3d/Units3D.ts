@@ -25,8 +25,8 @@ export class Units3D {
   private geos = new Map<string, ModelGeometry>();
   private batches = new Map<string, Batch>();
   // Iron Void armour: painted ceramite plates; Horde: wet chitin. Bodies: dulled and dusty.
-  private ironMat = surfaceMaterial(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.55 }), 'metal', 5, 0.35);
-  private hordeMat = surfaceMaterial(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.1 }), 'organic', 18, 0.5);
+  private ironMat = surfaceMaterial(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.55 }), 'metal', 5, 0.35, new THREE.Color(0.32, 0.38, 0.5));
+  private hordeMat = surfaceMaterial(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.1 }), 'organic', 18, 0.5, new THREE.Color(0.42, 0.22, 0.48));
   private deadMat = surfaceMaterial(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0.1, color: 0x6a625c }), 'stone');
   private glowMat = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
   private m4 = new THREE.Matrix4();

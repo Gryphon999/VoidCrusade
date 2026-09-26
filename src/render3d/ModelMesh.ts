@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Part, Pose, V3 } from '../render/puppet/Puppet3D';
 
 /**
@@ -56,7 +57,12 @@ export function buildModelGeometry(parts: Part[], detail = 1, pose: Pose = {}): 
   const seg = Math.max(4, Math.round(8 * detail));
   for (const p of parts) {
     if (p.kind === 'box') {
-      const g = new THREE.BoxGeometry(p.h.f * 2, p.h.z * 2, p.h.s * 2);
+      // Bevelled plates catch a highlight on every edge, like painted miniatures.
+      const w = p.h.f * 2;
+      const hh = p.h.z * 2;
+      const d = p.h.s * 2;
+      const r = Math.min(w, hh, d) * 0.22;
+      const g = detail >= 0.8 && r > 0.15 && !p.emissive ? new RoundedBoxGeometry(w, hh, d, 2, r) : new THREE.BoxGeometry(w, hh, d);
       g.applyMatrix4(partRotation(p.pitch, p.yaw, p.roll));
       const c = p3(p.c);
       g.translate(c.x, c.y, c.z);
