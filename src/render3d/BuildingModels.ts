@@ -105,13 +105,13 @@ export function buildingModel(id: BuildingId, S: number, H: number, team: number
       k.cyl(h * 0.45, h * 0.55, H * 0.8, STEEL, [0, H * 0.4 + 8, 0], undefined, 14);
       for (let i = 0; i < 4; i++) {
         k.torus(h * 0.5, 2.2, GOLD, [0, 18 + i * H * 0.18, 0], [Math.PI / 2, 0, 0]);
-        k.glow(glowCyl(h * 0.47, 3), dim(CYAN, 0.5), [0, 24 + i * H * 0.18, 0]);
+        k.glow(glowCyl(h * 0.47, 3), dim(CYAN, 0.35), [0, 24 + i * H * 0.18, 0]);
       }
       for (let i = 0; i < 6; i++) {
         const a = (i / 6) * Math.PI * 2;
         k.box(3, H * 0.55, h * 0.3, STEEL_DARK, [Math.cos(a) * h * 0.62, H * 0.3, Math.sin(a) * h * 0.62], [0, -a, 0]);
       }
-      k.glow(glowBall(h * 0.22), dim(CYAN, 0.6), [0, H * 0.85 + 8, 0]);
+      k.glow(glowBall(h * 0.22), dim(CYAN, 0.35), [0, H * 0.85 + 8, 0]);
       k.cyl(3, 3, h * 0.9, STEEL_DARK, [h * 0.7, 12, 0], [0, 0, Math.PI / 2]);
       break;
     }

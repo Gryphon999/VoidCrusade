@@ -207,3 +207,40 @@ every object, real light falloff, and specular on armour.
   need to thin near the player's units.
 - **Pale grading on Veyra:** the image is washed out and would benefit from a touch more local
   contrast.
+
+## A6 — Visual effects
+
+**Done.**
+- **GPU particles in 3D** (`Fx3D`): two ring-buffered instanced pools (additive glow and lit
+  soft). Motion is analytic in the vertex shader (drag, gravity, ground stop), so there is no
+  per-particle CPU work. Sparks and tracers stretch along their screen-space velocity; smoke
+  is noise-shaped and lit from above by the map's sun and sky mix.
+- **Placement:** every 2D effect call (view-space point) is ray-cast onto the 3D terrain, so
+  effects appear exactly where the 2D effects did. They now have depth: buildings occlude
+  them, smoke really rises, and debris falls and stops on the ground.
+- **Explosions:** white-hot core, fireball, sparks, bouncing debris, a smoke burst and a slow
+  second smoke column. Shell blasts are a smaller version. Burning ruins emit flames and smoke
+  from the 3D rubble.
+- **Projectiles:** each shot is a 3D streak along a 3D chord. The view projection is linear,
+  so the chord lands exactly on the 2D path and gameplay timing is untouched. Trails per
+  weapon: shell smoke, rocket flame plus smoke, acid droplets, flame licks, the sniper's white
+  line, psy motes. Acid, flame and psy shots splash on arrival.
+- **Muzzle flashes:** coloured per weapon at the real gun height, together with the point
+  lights from A5. Exhaust, welding sparks, shield hits and dust are also in 3D.
+- **Ground decals in 3D** (`Decals3D`): blood pools, scorch marks and tread marks reuse the
+  baked 2D decal textures but lie on the terrain under units, buildings and rubble. Before,
+  they were drawn over them, and a scorch mark hid the 3D ruin.
+- **Ambient motes:** falling ash and rising embers on Ashfall, drifting dust on Veyra, cold
+  specks on Khorvan.
+- Screens: `a6-fight.jpg`, `a6-explosion.jpg`.
+
+**Self-critique.**
+- **Explosions:** they read as soft blobs. No flipbook fire texture, no heat distortion, no
+  ground shockwave ring in 3D (the 2D one was removed because it drew over models).
+- **Blood and gore:** still the 2D particle emitters (mist, drops, chunks), drawn over
+  everything and not depth-aware. They are small and short-lived, but noticeable on close
+  zoom.
+- **Ability effects:** smoke clouds, acid clouds, shield domes and target markers are still
+  2D overlays. They are acceptable because they are ground-hugging UI-like effects.
+- **Ground haze:** the A5 haze makes close-ups look a little dirty. Its density should fall
+  off with camera zoom.

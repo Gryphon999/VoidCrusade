@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { hide2D } from '../render3d/hide2D';
 import { DEPTH, FX } from '../config';
 import { DragProcessor } from './DragProcessor';
 import { Projection } from '../render/Projection';
@@ -77,6 +78,7 @@ export class BloodEffect {
 
   constructor(private scene: Phaser.Scene) {
     this.decalLayer = scene.add.layer().setDepth(DEPTH.decals);
+    hide2D(scene, this.decalLayer);
     this.culler = Culler.for(scene);
     bakeDecals(scene);
     this.drops = scene.add.particles(0, 0, 'fx_dot', {
@@ -155,6 +157,11 @@ export class BloodEffect {
     img.setVisible(false);
     this.culler.remove(img);
     this.free.push(img);
+  }
+
+  /** Live decal images (read by the 3D renderer). */
+  get decalImages(): Phaser.GameObjects.Image[] {
+    return this.decals;
   }
 
   get decalCount(): number {

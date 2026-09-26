@@ -66,8 +66,9 @@ export class Lights3D {
       }
       const s = r.s;
       l.color.setHex(s.color);
-      l.distance = s.radius * 2.4;
-      l.intensity = s.radius * s.radius * s.strength * (s.dynamic ? 1.1 : 0.45);
+      const rad = Math.min(s.radius, 160);
+      l.distance = rad * 2.2;
+      l.intensity = rad * rad * s.strength * (s.dynamic ? 0.55 : 0.45);
       l.position.set(s.x, heightAt(s.x, s.y) + s.h, s.y);
     }
   }

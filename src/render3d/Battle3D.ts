@@ -18,6 +18,8 @@ import { Buildings3D } from './Buildings3D';
 import { World3D } from './World3D';
 import { Lights3D, Spot } from './Lights3D';
 import { Fog3D } from './Fog3D';
+import { Fx3D } from './Fx3D';
+import { Decals3D } from './Decals3D';
 import { finishPass, gradePass } from './Post3D';
 import type { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { biomeForMap } from '../render/Biomes';
@@ -53,6 +55,9 @@ export class Battle3D implements BattleRenderer {
   private world: World3D;
   private lights: Lights3D;
   private fog: Fog3D;
+  private fx: Fx3D;
+  private decals: Decals3D;
+  private decalList: Phaser.GameObjects.Image[] = [];
   private finish: ShaderPass;
   private statics: Spot[] = [];
   private clock = 0;
@@ -93,6 +98,11 @@ export class Battle3D implements BattleRenderer {
     this.lights = new Lights3D(this.scene, tier.pointLights);
     this.lights.budget = tier.pointLights;
     this.fog = new Fog3D(this.scene, at.fogColor, at.fog);
+    // Smoke is lit by the mix of sun and sky at this map's time of day.
+    const smokeLight = new THREE.Color(at.sunColor).multiplyScalar(at.sunIntensity * 0.16).add(new THREE.Color(at.skyColor).multiplyScalar(at.ambient * 0.3));
+    this.fx = new Fx3D(this.scene, (x, y) => this.terrain.heightAt(x, y), smokeLight, tier.modelDetail >= 1 ? 1 : 0.6);
+    battle.effects.attach3D(this.fx);
+    this.decals = new Decals3D(this.scene, battle.textures, new THREE.Color(at.sunColor).multiplyScalar(at.sunIntensity * 0.12).add(new THREE.Color(at.skyColor).multiplyScalar(at.ambient * 0.45)));
     this.world = new World3D(this.scene, battle.capture.points, (x, y) => this.terrain.heightAt(x, y), tier.shadows);
     const refreshProps = (): void => {
       const barrels = battle.world.barrelSpots().map((p, i) => ({ kind: 'barrels' as PropInstance['kind'], variant: i, x: p.x, y: p.y, rot: i * 1.7, scale: 1 }));
@@ -222,6 +232,12 @@ export class Battle3D implements BattleRenderer {
     this.world.lightSpots(this.statics);
     this.lights.update(this.battle.effects.lights.sources(), this.statics, this.battle.cameras.main.worldView, hAt);
     this.fog.update(this.clock);
+    const mood = this.battle.map.def.id === 'veyra' ? 'dust' : this.battle.map.def.id === 'khorvan' ? 'night' : 'ash';
+    this.fx.ambient(dt, mood, this.battle.cameras.main.worldView, mood === 'dust' ? 5 : 22 * GFX3D[this.tierName].modelDetail);
+    this.fx.update(dt);
+    this.decalList.length = 0;
+    this.decalList.push(...this.battle.effects.blood.decalImages, ...this.battle.effects.trackImages);
+    this.decals.update(this.decalList, hAt);
     this.finish.uniforms.uTime.value = this.clock;
     this.buildings.update(this.battle.buildings.buildings, this.battle.wrecks.ruins, hAt, dt);
     this.composer.render();
@@ -236,6 +252,9 @@ export class Battle3D implements BattleRenderer {
     this.buildings.dispose();
     this.world.dispose();
     this.fog.dispose();
+    this.battle.effects.attach3D(null);
+    this.fx.dispose();
+    this.decals.dispose();
     this.env.dispose();
     this.terrain.dispose();
     this.composer.dispose();

@@ -3,6 +3,7 @@ import { DEPTH, FX } from '../config';
 import { DragProcessor } from './DragProcessor';
 import { Projection } from '../render/Projection';
 import { Settings } from '../systems/Settings';
+import type { Fx3D } from '../render3d/Fx3D';
 
 /** Fireball, shockwave, lingering smoke and screen shake for destroyed buildings. */
 export class ExplosionEffect {
@@ -10,6 +11,8 @@ export class ExplosionEffect {
   private sparks: Phaser.GameObjects.Particles.ParticleEmitter;
   private chimney: Phaser.GameObjects.Particles.ParticleEmitter;
   private debris: Phaser.GameObjects.Particles.ParticleEmitter;
+  /** Set by the 3D renderer: particle effects are drawn in 3D instead. */
+  fx3d: Fx3D | null = null;
 
   constructor(private scene: Phaser.Scene) {
     this.fire = scene.add.particles(0, 0, 'fx_soft', {
@@ -51,6 +54,12 @@ export class ExplosionEffect {
   /** Explosion at a logical ground point, centred `lift` px above the ground. */
   explode(x: number, groundY: number, radius: number, lift = radius * 0.4): void {
     const y = Projection.vy(groundY) - lift;
+    const view = this.scene.cameras.main.worldView;
+    if (this.fx3d) {
+      this.fx3d.explode(x, groundY, radius, lift);
+      if (Settings.get().screenShake && view.contains(x, y)) this.scene.cameras.main.shake(FX.shakeDuration, FX.shakeIntensity);
+      return;
+    }
     this.fire.explode(Phaser.Math.Between(20, 30), x, y);
     this.sparks.explode(18, x, y);
     this.debris.explode(Math.round(10 + radius / 8), x, y);
@@ -58,7 +67,6 @@ export class ExplosionEffect {
     ring.lineStyle(6, 0xffa040, 1).strokeEllipse(0, 0, radius, radius * Projection.tilt);
     this.scene.tweens.add({ targets: ring, scale: 3, alpha: 0, duration: 500, onComplete: () => ring.destroy() });
     this.smoke(x, y, radius);
-    const view = this.scene.cameras.main.worldView;
     if (Settings.get().screenShake && view.contains(x, y)) {
       this.scene.cameras.main.shake(FX.shakeDuration, FX.shakeIntensity);
     }
@@ -66,6 +74,10 @@ export class ExplosionEffect {
 
   /** Shell blast at a view-space ground point (artillery, tank cannon): fireball, sparks, a little debris. */
   blast(x: number, y: number, size = 1): void {
+    if (this.fx3d) {
+      this.fx3d.blast(x, y, size);
+      return;
+    }
     this.fire.explode(Math.round(6 + 6 * size), x, y - 6);
     this.sparks.explode(Math.round(6 * size), x, y - 6);
     this.debris.explode(Math.round(3 + 3 * size), x, y);
@@ -74,16 +86,31 @@ export class ExplosionEffect {
 
   /** Small burst at a view-space point. */
   impact(x: number, y: number): void {
+    if (this.fx3d) {
+      this.fx3d.impact(x, y);
+      return;
+    }
     this.sparks.explode(3, x, y);
   }
 
   /** One chimney/exhaust smoke puff at a view-space point. */
   puff(x: number, y: number): void {
+    if (this.fx3d) {
+      this.fx3d.puff(x, y);
+      return;
+    }
     this.chimney.emitParticleAt(x, y, 1);
   }
 
   /** A burning ruin: flames and smoke for a while after a building falls. */
   burn(x: number, y: number, radius: number, seconds: number): void {
+    const fx = this.fx3d;
+    if (fx) {
+      const gy = Projection.groundY(y);
+      const ev = this.scene.time.addEvent({ delay: 70, loop: true, callback: () => fx.burnTick(x, gy, radius) });
+      this.scene.time.delayedCall(seconds * 1000, () => ev.remove());
+      return;
+    }
     const flames = this.scene.add.particles(x, y, 'fx_soft', {
       frequency: 90, quantity: 1, x: { min: -radius * 0.5, max: radius * 0.5 }, y: { min: -radius * 0.2, max: radius * 0.2 },
       speedY: { min: -60, max: -25 }, scale: { start: 1.1, end: 0.2 }, alpha: { start: 0.9, end: 0 },
