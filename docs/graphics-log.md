@@ -170,3 +170,40 @@ every object, real light falloff, and specular on armour.
   sparks) are the busiest thing on screen and are not depth-aware. A6 replaces them.
 - **Team colour:** it is only on helmets and shoulders, which is too little at a distance.
 - The obelisk is thin for its height.
+
+## A5 — Lighting, atmosphere and grading
+
+**Done.**
+- **Dynamic point lights** (`Lights3D`): a fixed pool sized by the tier (4/8/12/16 lights).
+  Each frame the pool goes to the strongest sources in view: muzzle flashes, explosions and
+  burning ruins (bridged from the 2D `LightSystem`, whose additive sprites are hidden in 3D),
+  light spilling from building windows, cores and orifices (cyan for power, warm amber for
+  Iron Void, violet for the Horde), and capture obelisk runes. Damaged buildings' lights
+  flicker. Unused lights stay in the scene at zero intensity, so the light count never changes
+  and shaders never recompile mid-battle.
+- **Colour grading:** `npm run bake` (`scripts/bake.ts`) turns per-map grade recipes
+  (`Grades.ts`: saturation, split toning, S-curve, lift/gain) into 16³ LUT strips
+  (`src/assets/baked/lut-*.png`, about 12 KB each, byte-identical on every run). A `LUTPass`
+  applies them after tone mapping.
+  - Ashfall: teal shadows, amber highlights.
+  - Veyra: bleached warm dust with milky blacks.
+  - Khorvan: blue moonlit shadows.
+- **Lens finish:** a soft vignette and fine animated film grain, set per map.
+- **Ground haze** (`Fog3D`): two slow-drifting noise layers just above the ground. Lowlands sit
+  in the murk while plateaus and buildings rise out of it: smoky brown on Ashfall, dust on
+  Veyra, cold mist on Khorvan.
+- **Shadows:** a PCF shadow map follows the view (1K/2K/2K/4K by tier), with the sun direction
+  and colour set per map.
+- Screens: `a5-ashfall-dusk.jpg`, `a5-veyra-noon.jpg`, `a5-khorvan-night.jpg`.
+
+**Self-critique.**
+- **No ambient occlusion:** contact darkening is baked into the surface shader only. GTAO on
+  Ultra is the obvious next step if the budget allows (A9 measures it).
+- **No shadows from point lights:** fires do not cast flickering shadows, which would be too
+  expensive on the target GPU.
+- **Flat haze:** the haze is a flat layer. It does not pool in craters or roll around
+  obstacles, and no light shafts cut through it.
+- **Night readability:** on Khorvan the enemy is hard to spot outside lit areas. The haze may
+  need to thin near the player's units.
+- **Pale grading on Veyra:** the image is washed out and would benefit from a touch more local
+  contrast.

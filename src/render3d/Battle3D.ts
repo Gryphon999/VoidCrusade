@@ -16,6 +16,10 @@ import { PropInstance, Props3D } from './Props3D';
 import { Env3D } from './Env3D';
 import { Buildings3D } from './Buildings3D';
 import { World3D } from './World3D';
+import { Lights3D, Spot } from './Lights3D';
+import { Fog3D } from './Fog3D';
+import { finishPass, gradePass } from './Post3D';
+import type { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { biomeForMap } from '../render/Biomes';
 import { PROPS_CHANGED } from '../render/PropSystem';
 import type { BattleScene } from '../scenes/BattleScene';
@@ -47,6 +51,11 @@ export class Battle3D implements BattleRenderer {
   private env: Env3D;
   private buildings: Buildings3D;
   private world: World3D;
+  private lights: Lights3D;
+  private fog: Fog3D;
+  private finish: ShaderPass;
+  private statics: Spot[] = [];
+  private clock = 0;
   private refreshProps: () => void = () => undefined;
   private barrelCount = -1;
   private fps: FpsOverlay;
@@ -81,6 +90,9 @@ export class Battle3D implements BattleRenderer {
     this.props = new Props3D(this.scene, tier.shadows);
     this.buildings = new Buildings3D(this.scene, tier.shadows);
     this.renderer.localClippingEnabled = true;
+    this.lights = new Lights3D(this.scene, tier.pointLights);
+    this.lights.budget = tier.pointLights;
+    this.fog = new Fog3D(this.scene, at.fogColor, at.fog);
     this.world = new World3D(this.scene, battle.capture.points, (x, y) => this.terrain.heightAt(x, y), tier.shadows);
     const refreshProps = (): void => {
       const barrels = battle.world.barrelSpots().map((p, i) => ({ kind: 'barrels' as PropInstance['kind'], variant: i, x: p.x, y: p.y, rot: i * 1.7, scale: 1 }));
@@ -97,6 +109,9 @@ export class Battle3D implements BattleRenderer {
     this.bloom.enabled = tier.bloom;
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
+    this.composer.addPass(gradePass(battle.map.def.id));
+    this.finish = finishPass(at.vignette, at.grain);
+    this.composer.addPass(this.finish);
     this.fps = new FpsOverlay();
     battle.game.events.on(Phaser.Core.Events.POST_RENDER, this.onPost);
   }
@@ -150,6 +165,7 @@ export class Battle3D implements BattleRenderer {
     this.tierName = name;
     const t = GFX3D[name];
     this.bloom.enabled = t.bloom;
+    this.lights.budget = t.pointLights;
     if (this.renderer.shadowMap.enabled !== t.shadows) {
       this.renderer.shadowMap.enabled = t.shadows;
       this.sun.castShadow = t.shadows;
@@ -200,6 +216,13 @@ export class Battle3D implements BattleRenderer {
     this.battle.effects.corpses.pruneBodies();
     this.units.update(all, this.battle.effects.corpses.bodies, this.battle.time.now, hAt);
     this.world.update(dt, this.battle.world.derelictSpots(), hAt);
+    this.clock += dt;
+    this.statics.length = 0;
+    this.buildings.lightSpots(this.statics);
+    this.world.lightSpots(this.statics);
+    this.lights.update(this.battle.effects.lights.sources(), this.statics, this.battle.cameras.main.worldView, hAt);
+    this.fog.update(this.clock);
+    this.finish.uniforms.uTime.value = this.clock;
     this.buildings.update(this.battle.buildings.buildings, this.battle.wrecks.ruins, hAt, dt);
     this.composer.render();
     this.fps.update(this.battle.game.loop.actualFps, `3D · ${this.tierName}`);
@@ -212,6 +235,7 @@ export class Battle3D implements BattleRenderer {
     this.props.dispose();
     this.buildings.dispose();
     this.world.dispose();
+    this.fog.dispose();
     this.env.dispose();
     this.terrain.dispose();
     this.composer.dispose();

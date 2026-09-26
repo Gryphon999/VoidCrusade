@@ -6,6 +6,7 @@ import { buildingModel, gunModel } from './BuildingModels';
 import { Kit } from './Kit';
 import { surfaceMaterial } from './Materials3D';
 import { HEIGHT_SCALE } from './Units3D';
+import type { Spot } from './Lights3D';
 
 /** Models are built at this height scale; live tilt changes rescale them on Y. */
 const BUILD_SCALE = 1.3;
@@ -357,6 +358,21 @@ export class Buildings3D {
     }
     for (const [r, m] of this.ruins) {
       m.scale.y = HEIGHT_SCALE.value / BUILD_SCALE * (r.alive ? 1 : 0.6);
+    }
+  }
+
+  /** Light spilling from windows, cores and orifices of finished, visible buildings. */
+  lightSpots(out: Spot[]): void {
+    for (const e of this.entries.values()) {
+      const b = e.b;
+      if (!b.alive || !b.isReady || !e.glow || !e.group.visible || b.def.wall || b.def.mine) continue;
+      const horde = b.def.faction === 'nullhorde';
+      const flicker = b.hp / b.maxHp < 0.3 ? 0.5 + 0.5 * Math.sin(this.time * 17 + b.uid * 3) : 1;
+      out.push({
+        x: b.x, y: b.y + b.radius * 0.7, h: b.def.height * 0.5, radius: b.radius * 1.6 + 30,
+        color: b.def.id === 'generator' || b.def.id === 'shield' ? 0x6ff0ff : horde ? 0xb050ff : 0xffb060,
+        strength: 0.55 * flicker, dynamic: false,
+      });
     }
   }
 

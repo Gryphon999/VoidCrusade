@@ -14,6 +14,7 @@
     "test": "tsx --test tests/*.test.ts",
     "check:assets": "tsx scripts/check-assets.ts",
     "simulate": "tsx scripts/simulate.ts",
+    "bake": "tsx scripts/bake.ts",
     "screenshots:content": "tsx scripts/screenshots-content.ts"
   },
   "dependencies": {

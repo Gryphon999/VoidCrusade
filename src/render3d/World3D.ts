@@ -5,6 +5,7 @@ import { buildingModel } from './BuildingModels';
 import { Kit } from './Kit';
 import { surfaceMaterial } from './Materials3D';
 import { HEIGHT_SCALE } from './Units3D';
+import type { Spot } from './Lights3D';
 
 const BUILD_SCALE = 1.3;
 
@@ -114,6 +115,13 @@ export class World3D {
       }
       m.visible = d.visible;
       m.scale.y = ys;
+    }
+  }
+
+  /** Rune glow of the obelisks. */
+  lightSpots(out: Spot[]): void {
+    for (const py of this.pylons) {
+      out.push({ x: py.p.x, y: py.p.y + 8, h: 60, radius: 90, color: py.runes.color.getHex() || 0xffc850, strength: 0.5 + 0.1 * Math.sin(this.time * 3 + py.p.index), dynamic: false });
     }
   }
 
