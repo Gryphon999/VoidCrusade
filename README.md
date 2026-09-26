@@ -16,42 +16,49 @@ npm run dev        # http://localhost:5173
 ## Build
 
 ```bash
-npm run build      # type-check + production bundle in dist/
-npm run preview    # serve dist/ locally
-npm run zip        # build and package dist/ as voidcrusade.zip (e.g. for Yandex Games)
-npm run check:i18n # every English key has a Russian translation and vice versa
+npm run build          # type-check + production bundle in dist/
+npm run preview        # serve dist/ locally
+npm run zip            # build and package dist/ as voidcrusade.zip (e.g. for Yandex Games)
+npm test               # unit tests: damage table, production queue, supply cap, pathing clearance
+npm run check:i18n     # every key used in code exists in English and Russian
+npm run check:assets   # every unit/building/ability/research has art, sounds and voice lines
+npm run simulate -- --matches=9 --diff=hard      # headless AI-vs-AI balance runs (see docs/balance.md)
 npm run screenshots -- final --langs=en,ru --sizes=1280x720,1920x1080
+npm run screenshots:content                      # tutorial/encyclopedia/tech/vehicles/bunker/drops JPEGs
 ```
 
 `npm run zip` uses a small Node script (`scripts/zip.mjs`, `node:zlib`), so packaging works on Windows
-as well as macOS/Linux — no `zip` CLI needed. `npm run screenshots` starts a Vite server and drives
-Chromium via `playwright-core` (set `CHROMIUM_PATH` if Playwright's browsers are not installed); the PNGs
-land in `docs/screens/<set>/`.
+as well as macOS/Linux — no `zip` CLI needed. The screenshot, asset-check and simulation scripts start a
+Vite dev server and drive headless Chromium via `playwright-core` (set `CHROMIUM_PATH` if Playwright's
+browsers are not installed).
 
 `dist/` uses relative paths (`base: './'`), so it can be hosted from any sub-folder.
 
 ## Controls
 
+New players: **Tutorial** in the main menu (offered on first launch, replayable any time) teaches all of
+this in 13 interactive steps. **F1** opens the Encyclopedia everywhere.
+
 | Input | Action |
 |-------|--------|
-| WASD / arrow keys / screen edge | Scroll camera |
-| Middle-mouse drag | Pan |
-| Mouse wheel | Zoom (0.5×–2×) |
-| Left click / drag box | Select squad(s) or building · **Shift** adds/removes |
-| Right click | Move · attack enemy under cursor · set rally point (production building) |
-| **B** | Select Command Bastion (opens build menu) · **1–6** pick a building |
-| **R** | Reinforce selected squads |
-| **M** / **G** | Move / attack-move mode |
-| **H** | Hold position (soldiers seek nearby cover) |
-| **X** | Stop |
-| **Q** | Select whole army |
+| Arrow keys / screen edge / middle-mouse drag | Scroll camera |
+| Mouse wheel | Zoom |
+| Left click / drag box | Select · **Shift** adds/removes · double-click selects all of that type |
+| Right click | Move · attack · capture · enter bunker/transport · set rally point (production building) |
+| **Shift** + right click | Queue waypoints |
+| **Q W E R T Y U / A S D F G H J** | Command grid, by position (abilities on Q/W/E, Retreat T, Attack-move A, Stop S, Defend D, Aggressive F, Unload G, Hold H, Move J) |
+| **B** | Select the Command Bastion (build menu: A Economy · S Military · D Defense · F Tech · Y tier up) |
+| **Ctrl/Alt + 1–9** · **1–9** · **Shift + 1–9** | Bind group · recall (twice centres) · add to group |
+| **Ctrl + A** · **.** | Select whole army · cycle idle squads |
 | **Space** | Centre camera on selection |
-| **Esc** / right click | Cancel placement or order mode |
-| **P** / F10 | Pause menu |
+| **Esc** | Cancel order / placement, close a build page |
+| **P** / F10 | Pause menu (Resume, Settings, Encyclopedia, Tutorial, Leave) |
+| **F1** | Encyclopedia (pauses the battle) |
 
-The HUD command grid (bottom right) mirrors the hotkeys; hover a button for its tooltip (cost, time,
-requirements). The cursor changes with context: move, attack (over a visible enemy), capture (over a
-Void-Nexus you don't own) and build (while placing).
+Production buildings queue up to five units (click a queued unit in the unit panel to cancel it with a full refund, **U** toggles repeat).
+Every button has a tooltip with cost, time, counters and, if locked, the reason (tier or missing
+building). Hint toasts explain each mechanic the first time it happens; turn them off or reset them in
+Settings.
 
 ## Graphics
 
@@ -95,44 +102,78 @@ Medium is the target for 60 FPS on integrated graphics.
 
 ## Game Overview
 
-Two factions: **Iron Void** (human militarists, playable) vs **Null Horde** (alien swarm, AI).
+Two factions: **Iron Void** (human militarists, playable) vs **Null Horde** (alien swarm, AI). All
+numbers live in data definitions (`UnitDefs`, `BuildingDefs`, `Abilities`, `ResearchSystem`, `Wargear`,
+`config.ts`).
 
-- **Resources** — *Scrip* from held Void-Nexus points (+25/s each) and *Flux* from Flux Conduits (+10/s each).
-- **Base building** — seven Iron Void structures on a 4-tile grid, placed within range of existing buildings; they construct over time, can be destroyed, and leave rubble that serves as cover.
-- **Squads** — Void Riflemen, Iron Guard and the Void Commander hero; formation movement with A* pathing, auto-targeting, projectiles, reinforcement.
-- **Research** — the Void Foundry unlocks damage, HP, turret, construction-speed and squad-cap upgrades.
-- **Void-Nexus capture points** — 5 per map; fill the bar with squads in the zone, contested by enemies.
-- **Cover & line of sight** — ruins and cliff edges halve damage; cliffs block projectiles.
-- **Fog of war** — unexplored, explored and visible areas.
-- **AI** — builds, raids on a timer, expands to free points, defends its Hive and rushes when winning. Easy / Normal / Hard.
-- **Blood and fire** — directional blood sprays, gibs and lasting pools, building explosions that leave burning ruins.
-- **Campaign** — ten hex territories on a planet map; each conquest grants a permanent bonus and a choice of one of three upgrade cards. Take the Iron Void Throne to win.
-- **Audio** — all sound effects, ambience and music are synthesised with the Web Audio API.
+**Roster**
+
+| | Iron Void | Null Horde |
+|---|---|---|
+| Infantry | Void Riflemen, Void Rangers (scouts, fast capture, detect), Breacher Squad (flamers), Void Marksmen (snipers), Field Engineers (build, repair, salvage), Iron Guard | Void Crawlers, Acid Spitters, Void Leapers (pounce), Burrowers (burrow, ambush), Brood-shamans (healing aura) |
+| Vehicles / monsters | Scout Buggy (detects), Rhino APC (transport), Iron Tyrant Tank (turret, crushes), Thunder Mortar (deploys, indirect) | Null Behemoth, Void Skimmer (flying), Carrier Beast (transport), Siege Beast, Titan |
+| Heroes | Void Commander (Rally, Orbital Barrage) | Null Overlord |
+| Buildings | 20: Bastion, Flux Conduit, Supply Depot, Barracks, Mechanis Bay, Vehicle Foundry, Void Turret, Signal Relay, Void Foundry (research), Barricade, Blast Gate, Listening Post, Tank Mines, Bunker, Armoury, Field Hospital, Sensor Array, Shield Projector, Missile Battery, Orbital Beacon | 15: Hive, Flux Spire, Brood Nest, Brood Pit, Gestation Maw, Gestation Vat, Spine Tower, Thorn Wall, Spore Node, Spore Mine, Evolution Pit, Healing Pool, Sensory Organ, Acid Spire, Hive Portal |
+
+**Mechanics**
+
+- **Resources** — *Scrip* from held points (+25/s each), *Flux* from conduits/spires and relic points.
+- **Tech tiers** — the HQ advances to Tier 2 (needs a barracks) and Tier 3 (heavy + vehicle factory); locked items show why.
+- **Supply** — every squad costs supply; the HQ gives 10, each depot/nest 8, hard cap 40; queued units count.
+- **Damage types vs armour** — bullet, explosive, melee, acid, flame against light, heavy, vehicle, monster, building; one table decides every counter (shown in tooltips and the Encyclopedia).
+- **Active abilities** — 14 (frag, smoke, sprint, rally, barrage, smite, overcharge, frenzy, pounce, burrow, acid cloud, regenerate, scream, spawn brood) with cooldown sweeps.
+- **Suppression and morale** — sustained fire slows and pins squads; losses break them and they flee until rallied.
+- **Veterancy** — three ranks from damage and kills.
+- **Garrisons and transports** — bunkers, ruins, APCs and carriers; flamers burn garrisons out.
+- **Points** — strategic, relic (Flux) and forward (reinforce and build there); outposts fortify them.
+- **Drops** — Orbital Beacon / Hive Portal drop squads onto visible ground after a warning.
+- **Research tree** and **commander wargear** (weapon, armour, relic).
+- **Vehicles** — wide pathing, crushing, wrecks that block paths, give cover and can be salvaged.
+- **Stealth and detection**, **cover and line of sight**, **fog of war**, **map events** (explosive barrels, derelict turrets, ash storms).
+- **Stances** — hold, defend, aggressive, plus retreat.
+
+**Modes** — Campaign (ten hex territories with bonuses and upgrade cards), Skirmish (Annihilation,
+Control, Survival; map, difficulty, AI personality, ash storms, wargear), Tutorial.
+
+**AI** — Easy, Normal, Hard, Brutal scale *skill*, never income: think rate, queue depth, counter-picks
+from what it has actually scouted, ability use, retreats, focus fire, garrisons, harassment, point and
+drop defence, its own drops, and sieges. Personalities **Rusher**, **Turtler** and **Balanced** are
+chosen (or randomised) in setup and announced at the start of the battle. Balance results are in
+[docs/balance.md](docs/balance.md).
+
+**Performance** — with 163 units and 63 buildings in view the game logic costs about 1.6 ms per
+frame (0.2 ms in an empty battle), a tenth of a 60 FPS frame; in the software-rendered test browser the
+frame rate drops by only about 5 % against an empty battle. Rendering cost on a real GPU was not
+measured in this environment.
+
+**Screenshots** — [docs/screens/content/](docs/screens/content/) (tutorial, encyclopedia, research tree,
+vehicles, bunker fight, drop pods; English and Russian).
 
 ## Project Layout
 
 ```
 src/
   main.ts, config.ts (all tuning numbers), events.ts, types.ts
-  scenes/     Boot, Preload (loading bar), Menu, Campaign, Battle, Hud, Settings, Subtitle
-  maps/       MapBuilder + three point-symmetric battle maps
-  systems/    Map, Camera, Resource, Selection, Input, Pathfinder, Production, Research,
-              CapturePoint, FogOfWar, Cover, Audio, Ambience, Music, Voice, Settings
-  buildings/  BuildingDefs, Building, BuildingView, BuildingSystem, BuildingPlacementUI
-  units/      UnitDefs, Unit, Squad, UnitSystem, CombatSystem
-  ai/         AIController, AIBuilder
-  effects/    Blood, Explosion, Light, Projectile, Corpse systems (EffectsSystem ties them together)
-  render/     Projection, terrain chunks & textures, props, culling, atmosphere, planet art,
-              puppet/ (3D unit puppets → sprite atlases), buildings/ (oblique building painters)
-  i18n/       t(), plural rules, en.ts, ru.ts
-  campaign/   CampaignData, CampaignState (localStorage), UpgradeCards
-  ui/         HUD frame, TopBar, SelectionPanel, CommandGrid, Tooltip, MiniMap, EndScreen, PauseMenu, …
-  assets/     procedural texture and cursor generators
-scripts/preview-maps.ts   ASCII map preview + connectivity check (npm run preview-maps)
-scripts/screenshots.ts    reference screenshots into docs/screens/
-scripts/check-i18n.ts     translation completeness check
-scripts/zip.mjs           cross-platform packaging
-docs/screens/             before / after-g7 / final screenshots
+  scenes/     Boot, Preload, Menu, Campaign, Battle, Hud, Settings, Subtitle, Encyclopedia
+  maps/       MapBuilder, three battle maps and the tutorial's Proving Grounds
+  systems/    Map, Camera, Resource, Selection, Input, Pathfinder, Production, Research, Tech,
+              CapturePoint, FogOfWar, Cover, Drop, Victory, World (events), Audio, Music, Voice, Settings
+  buildings/  BuildingDefs, Building, BuildingView, BuildingSystem, StructureSystem, placement UI
+  units/      UnitDefs, Damage, Abilities, Unit, Squad, Unit/Combat/Support/Vehicle/Wreck/Morale/Ability systems
+  ai/         AIController, AIProfile (skill + personality), AIMemory (scouting), AIBuilder, Personality
+  tutorial/   TutorialDirector (steps), TutorialOverlay (highlights), data (step/mechanic/hint ids)
+  effects/    blood, explosions, lights, projectiles, corpses, smoke, shields, tread marks
+  render/     projection, terrain, props, atmosphere, unit puppets → atlases, vehicle and building painters
+  i18n/       t(), plurals, en.ts / ru.ts and content.en.ts / content.ru.ts
+  campaign/   CampaignData, CampaignState, UpgradeCards, Wargear
+  ui/         HUD, TopBar, SelectionPanel, CommandGrid, Commands, Tooltip, MiniMap, HintToast,
+              ResearchTree, WargearPicker, SkirmishSetup, EndScreen, PauseMenu, …
+tests/core.test.ts           unit tests (node:test via tsx)
+scripts/simulate.ts          seeded headless AI-vs-AI balance simulation
+scripts/check-assets.ts      art/sound/voice completeness
+scripts/check-i18n.ts        translation completeness
+scripts/screenshots*.ts      reference screenshots
+docs/balance.md              balance notes and simulation results
 ```
 
-See [TASK.md](TASK.md) for the original specification and [GRAPHICS_TASK.md](GRAPHICS_TASK.md) for the graphics overhaul.
+See [TASK.md](TASK.md), [GRAPHICS_TASK.md](GRAPHICS_TASK.md) and [CONTENT_TASK.md](CONTENT_TASK.md) for the specifications.
