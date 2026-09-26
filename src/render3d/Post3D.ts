@@ -73,3 +73,64 @@ export function finishPass(vignette: number, grain: number): ShaderPass {
       }`,
   });
 }
+
+/**
+ * Fog of war as a post effect: world position is rebuilt from the depth buffer and looked up
+ * in the fog grid (bilinear plus a small blur, with drifting smoke noise on the edges).
+ * Explored ground turns cold and desaturated; unexplored ground sinks into dark smoke.
+ */
+export function fogPass(noise: THREE.Texture): ShaderPass {
+  return new ShaderPass({
+    uniforms: {
+      tDiffuse: { value: null },
+      tDepth: { value: null },
+      tFog: { value: null },
+      uInvPV: { value: new THREE.Matrix4() },
+      uFogOrigin: { value: new THREE.Vector2() },
+      uFogSize: { value: new THREE.Vector2(1, 1) },
+      uTexel: { value: new THREE.Vector2(1, 1) },
+      uNoise: { value: noise },
+      uTime: { value: 0 },
+      uOn: { value: 0 },
+    },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `
+      uniform sampler2D tDiffuse;
+      uniform sampler2D tDepth;
+      uniform sampler2D tFog;
+      uniform sampler2D uNoise;
+      uniform mat4 uInvPV;
+      uniform vec2 uFogOrigin;
+      uniform vec2 uFogSize;
+      uniform vec2 uTexel;
+      uniform float uTime;
+      uniform float uOn;
+      varying vec2 vUv;
+      void main() {
+        vec4 c = texture2D(tDiffuse, vUv);
+        if (uOn < 0.5) { gl_FragColor = c; return; }
+        float d = texture2D(tDepth, vUv).r;
+        vec4 w = uInvPV * vec4(vUv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
+        w /= w.w;
+        vec2 f = (w.xz - uFogOrigin) / uFogSize;
+        float a = texture2D(tFog, f).a * 0.4;
+        a += texture2D(tFog, f + vec2(uTexel.x, 0.0) * 0.8).a * 0.15;
+        a += texture2D(tFog, f - vec2(uTexel.x, 0.0) * 0.8).a * 0.15;
+        a += texture2D(tFog, f + vec2(0.0, uTexel.y) * 0.8).a * 0.15;
+        a += texture2D(tFog, f - vec2(0.0, uTexel.y) * 0.8).a * 0.15;
+        float n = texture2D(uNoise, w.xz / 700.0 + vec2(uTime * 0.006, uTime * 0.003)).r;
+        float n2 = texture2D(uNoise, w.xz / 260.0 - vec2(uTime * 0.01, 0.0)).r;
+        // Smoky, drifting edges: noise pushes the boundary in and out.
+        float edge = a * (1.0 - a) * 4.0;
+        a = clamp(a + (n * 0.6 + n2 * 0.4 - 0.5) * 0.5 * edge, 0.0, 1.0);
+        float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+        vec3 cold = vec3(l) * vec3(0.72, 0.8, 1.0);
+        float explored = smoothstep(0.08, 0.45, a);
+        vec3 col = mix(c.rgb, cold * 0.62, explored * 0.85);
+        float dark = smoothstep(0.55, 0.95, a);
+        vec3 smoke = vec3(0.006, 0.0065, 0.009) * (0.5 + 1.0 * n);
+        col = mix(col, smoke, dark * 0.96);
+        gl_FragColor = vec4(col, c.a);
+      }`,
+  });
+}

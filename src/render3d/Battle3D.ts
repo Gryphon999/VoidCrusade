@@ -4,7 +4,6 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
-import { GFX3D } from '../config';
 import { Projection } from '../render/Projection';
 import { GraphicsQuality, Settings } from '../systems/Settings';
 import { Stage3D } from './Stage3D';
@@ -20,7 +19,9 @@ import { Lights3D, Spot } from './Lights3D';
 import { Fog3D } from './Fog3D';
 import { Fx3D } from './Fx3D';
 import { Decals3D } from './Decals3D';
-import { finishPass, gradePass } from './Post3D';
+import { finishPass, fogPass, gradePass } from './Post3D';
+import { surfaceDetail } from './Materials3D';
+import { FOG, GFX3D, TILE_SIZE } from '../config';
 import type { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { biomeForMap } from '../render/Biomes';
 import { PROPS_CHANGED } from '../render/PropSystem';
@@ -59,6 +60,9 @@ export class Battle3D implements BattleRenderer {
   private decals: Decals3D;
   private decalList: Phaser.GameObjects.Image[] = [];
   private finish: ShaderPass;
+  private fogFx: ShaderPass;
+  private fogTex: THREE.CanvasTexture | null = null;
+  private fogVersion = -1;
   private statics: Spot[] = [];
   private clock = 0;
   private refreshProps: () => void = () => undefined;
@@ -113,8 +117,13 @@ export class Battle3D implements BattleRenderer {
     battle.events.on(PROPS_CHANGED, refreshProps);
     HEIGHT_SCALE.value = 1 / this.cosE();
     const size = Stage3D.bufferSize();
-    this.composer = new EffectComposer(this.renderer);
+    // Scene target with a depth texture (fog of war reads world positions from it) and MSAA.
+    const rt = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: tier.antialias ? 4 : 0 });
+    rt.depthTexture = new THREE.DepthTexture(size.x, size.y);
+    this.composer = new EffectComposer(this.renderer, rt);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.fogFx = fogPass(surfaceDetail());
+    this.composer.addPass(this.fogFx);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), at.bloom, 0.45, 0.9);
     this.bloom.enabled = tier.bloom;
     this.composer.addPass(this.bloom);
@@ -168,6 +177,33 @@ export class Battle3D implements BattleRenderer {
     sc.near = 100;
     sc.far = 4200;
     sc.updateProjectionMatrix();
+  }
+
+  /** Feeds the fog-of-war canvas and the inverse camera matrix to the fog pass. */
+  private syncFog(): void {
+    const fog = this.battle.fog;
+    const u = this.fogFx.uniforms;
+    u.uOn.value = fog && fog.enabled ? 1 : 0;
+    if (!fog) return;
+    if (!this.fogTex) {
+      this.fogTex = new THREE.CanvasTexture(fog.canvas);
+      this.fogTex.flipY = false;
+      this.fogTex.minFilter = this.fogTex.magFilter = THREE.LinearFilter;
+      this.fogTex.wrapS = this.fogTex.wrapT = THREE.ClampToEdgeWrapping;
+      const texel = (FOG.cellTiles * TILE_SIZE) / 2;
+      u.uFogOrigin.value.set(-texel, -texel);
+      u.uFogSize.value.set(fog.canvas.width * texel, fog.canvas.height * texel);
+      u.uTexel.value.set(1 / fog.canvas.width, 1 / fog.canvas.height);
+      u.tFog.value = this.fogTex;
+    }
+    if (fog.version !== this.fogVersion) {
+      this.fogVersion = fog.version;
+      this.fogTex.needsUpdate = true;
+    }
+    u.uInvPV.value.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse).invert();
+    u.uTime.value = this.clock;
+    // RenderPass draws into the composer's read buffer; its depth is what the fog pass reads.
+    u.tDepth.value = this.composer.readBuffer.depthTexture;
   }
 
   /** Applies a quality tier live (adaptive quality or a settings change). */
@@ -239,6 +275,7 @@ export class Battle3D implements BattleRenderer {
     this.decalList.push(...this.battle.effects.blood.decalImages, ...this.battle.effects.trackImages);
     this.decals.update(this.decalList, hAt);
     this.finish.uniforms.uTime.value = this.clock;
+    this.syncFog();
     this.buildings.update(this.battle.buildings.buildings, this.battle.wrecks.ruins, hAt, dt);
     this.composer.render();
     this.fps.update(this.battle.game.loop.actualFps, `3D · ${this.tierName}`);
@@ -254,6 +291,7 @@ export class Battle3D implements BattleRenderer {
     this.fog.dispose();
     this.battle.effects.attach3D(null);
     this.fx.dispose();
+    this.fogTex?.dispose();
     this.decals.dispose();
     this.env.dispose();
     this.terrain.dispose();

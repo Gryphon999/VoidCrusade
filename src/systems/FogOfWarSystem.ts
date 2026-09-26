@@ -3,6 +3,7 @@ import { DEPTH, FOG, TILE_SIZE } from '../config';
 import type { BattleScene, FogQueries } from '../scenes/BattleScene';
 import { Projection } from '../render/Projection';
 import { makeCanvas } from '../render/CanvasUtil';
+import { hide2D } from '../render3d/hide2D';
 
 const UNEXPLORED = 0;
 const EXPLORED = 1;
@@ -22,6 +23,9 @@ export class FogOfWarSystem implements FogQueries {
   private static serial = 0;
   private timer = 0;
   enabled = true;
+  /** Fog canvas (2 texels per cell, 1-texel border) and a counter bumped on every redraw. */
+  canvas!: HTMLCanvasElement;
+  version = 0;
 
   constructor(private battle: BattleScene) {
     this.cols = Math.ceil(battle.map.worldWidth / this.cellPx);
@@ -37,8 +41,11 @@ export class FogOfWarSystem implements FogQueries {
     this.texKey = `fog_${FogOfWarSystem.serial++}`;
     this.tex = battle.textures.addCanvas(this.texKey, c.canvas) as Phaser.Textures.CanvasTexture;
     const texel = this.cellPx / 2;
-    battle.add.image(-texel, Projection.vy(-texel), this.texKey).setOrigin(0).setDepth(DEPTH.fog)
+    const img = battle.add.image(-texel, Projection.vy(-texel), this.texKey).setOrigin(0).setDepth(DEPTH.fog)
       .setScale(texel, texel * Projection.tilt);
+    // The 3D renderer draws the fog as a post effect from the same canvas.
+    hide2D(battle, img);
+    this.canvas = c.canvas;
     battle.events.once(Phaser.Scenes.Events.SHUTDOWN, () => battle.textures.remove(this.texKey));
     this.recompute();
   }
@@ -118,6 +125,7 @@ export class FogOfWarSystem implements FogQueries {
     }
     this.ctx.putImageData(this.img, 0, 0);
     this.tex.refresh();
+    this.version++;
   }
 
   /** Iterates fog cells in world pixels with the alpha each should be darkened by. */
