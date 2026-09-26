@@ -16,6 +16,9 @@ export class TutorialOverlay {
   private header: Phaser.GameObjects.Text;
   private title: Phaser.GameObjects.Text;
   private body: Phaser.GameObjects.Text;
+  /** Live line: what blocks the step right now (construction, prerequisites…). */
+  private status: Phaser.GameObjects.Text;
+  private statusText = '';
   private list: Phaser.GameObjects.Text;
   private listBg: Phaser.GameObjects.Graphics;
   private hi: Phaser.GameObjects.Graphics;
@@ -33,6 +36,8 @@ export class TutorialOverlay {
     this.title = scene.add.text(PANEL.x + 14, PANEL.y + 28, '', textStyle(17, HUD.goldHi)).setDepth(153).setStroke('#000', 3);
     this.body = scene.add.text(PANEL.x + 14, PANEL.y + 54, '', { ...textStyle(13, '#e8e0c8'), wordWrap: { width: PANEL.w - 28 }, lineSpacing: 3 })
       .setDepth(153);
+    this.status = scene.add.text(PANEL.x + 14, 0, '', { ...textStyle(13, '#ffb050'), wordWrap: { width: PANEL.w - 28 }, lineSpacing: 2 })
+      .setDepth(153).setStroke('#000', 2);
     this.skip = new Button(scene, { x: PANEL.x + PANEL.w - 190, y: 0, w: 130, h: 28, label: t('tut.skip'), onClick: () => director.skip() });
     this.exit = new Button(scene, { x: PANEL.x + PANEL.w - 66, y: 0, w: 100, h: 28, label: t('tut.exit'), onClick: () => battle.scene.start('MenuScene') });
     this.skip.container.setDepth(154);
@@ -49,12 +54,16 @@ export class TutorialOverlay {
   }
 
   private cardHeight(): number {
-    return 54 + this.body.height + 48;
+    return 54 + this.body.height + (this.statusText ? this.status.height + 8 : 0) + 48;
   }
 
   update(dt: number): void {
     const d = this.director;
-    if (d.index !== this.shown) this.relayout();
+    const st = d.current?.status?.() ?? '';
+    if (d.index !== this.shown || st !== this.statusText) {
+      this.statusText = st;
+      this.relayout();
+    }
     this.pulse += dt;
     const step = d.current;
     this.drawTarget(step ? step.target() : { kind: 'none' });
@@ -67,6 +76,7 @@ export class TutorialOverlay {
     this.header.setText(t('tut.header', { n: Math.min(d.index + 1, d.steps.length), max: d.steps.length }));
     this.title.setText(step ? t(dyn(`tut.${step.id}.title`)) : t('tut.done'));
     this.body.setText(step ? t(dyn(`tut.${step.id}.text`)) : t('tut.done.text'));
+    this.status.setText(this.statusText ? `▸ ${this.statusText}` : '').setY(PANEL.y + 54 + this.body.height + 6);
     const h = this.cardHeight();
     const g = this.card.clear();
     g.fillStyle(0x0c0b10, 0.92).fillRect(PANEL.x, PANEL.y, PANEL.w, h);
@@ -150,7 +160,7 @@ export class TutorialOverlay {
   }
 
   destroy(): void {
-    for (const o of [this.card, this.header, this.title, this.body, this.list, this.listBg, this.hi, this.dim]) o.destroy();
+    for (const o of [this.card, this.header, this.title, this.body, this.status, this.list, this.listBg, this.hi, this.dim]) o.destroy();
     this.skip.destroy();
     this.exit.destroy();
   }

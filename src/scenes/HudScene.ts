@@ -111,6 +111,7 @@ export class HudScene extends Phaser.Scene {
     });
     this.hints = new HintToast(this, this.battle);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.hints.destroy());
+    this.events.on('command-denied', (why: string) => this.notify(why, 'warn'));
     this.panel.refresh();
     this.wireEvents();
     // Language switch: rebuild the HUD in place (keeping the pause menu open if the battle is paused).

@@ -35,7 +35,7 @@ export class CommandGrid {
   private cmds: (Command | null)[] = [];
   private hovered = -1;
 
-  constructor(scene: Phaser.Scene, private tip: Tooltip) {
+  constructor(private scene: Phaser.Scene, private tip: Tooltip) {
     const g = HUD.grid;
     const cell = 62;
     const x0 = g.x + (g.w - GRID_COLS * cell) / 2 + cell / 2;
@@ -49,8 +49,16 @@ export class CommandGrid {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const i = GRID_KEYS.indexOf(e.key.toUpperCase());
       const c = i >= 0 ? this.cmds[i] : null;
-      if (c && this.usable(c)) c.onClick();
+      if (!c) return;
+      if (this.usable(c)) c.onClick();
+      else this.denied(c);
     });
+  }
+
+  /** A locked command says why (padlock reason) when it is clicked or its key is pressed. */
+  private denied(c: Command): void {
+    const why = c.locked?.();
+    if (why) this.scene.events.emit('command-denied', why);
   }
 
   private usable(c: Command): boolean {
@@ -75,6 +83,7 @@ export class CommandGrid {
       if (!c) {
         b.hide();
         b.onClick = () => undefined;
+        b.onDenied = () => undefined;
         b.onHover = () => undefined;
         return;
       }
@@ -82,6 +91,7 @@ export class CommandGrid {
       b.onClick = () => {
         if (this.usable(c)) c.onClick();
       };
+      b.onDenied = () => this.denied(c);
       b.onHover = (over) => {
         this.hovered = over ? i : -1;
         if (over) this.showTip(i);
