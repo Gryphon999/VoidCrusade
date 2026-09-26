@@ -2,7 +2,7 @@
 
 ## Test scene and hardware
 
-**Heavy test scene.** Ashfall, first Nexus point, 1280×720 viewport, camera zoom 1, fog off.
+**Heavy test scene.** Ashfall, first Nexus point, 1280×720 viewport, camera zoom 0.6 so that everything is on screen, fog off.
 The scene holds:
 - 63 buildings;
 - 153 units in a fight, with tanks and a Behemoth;
@@ -29,20 +29,24 @@ exactly that.
 
 | Renderer / tier | Frame (SwiftShader) | p95 | 3D CPU ms | Draw calls | Triangles |
 |---|---|---|---|---|---|
-| Classic 2D | 306 ms | 357 ms | – | – | – |
-| 3D Low | 717 ms | 815 ms | 7.8 | 125 | 0.33 M |
-| 3D Medium | 1657 ms | 2080 ms | 28.7 | 251 | 0.85 M |
-| 3D High | 1939 ms | 2376 ms | 34.6 | 245 | 0.92 M |
-| 3D Ultra | 2181 ms | 2668 ms | 43.1 | 257 | 1.20 M |
+| Classic 2D | 333 ms | 386 ms | – | – | – |
+| 3D Low | 886 ms | 1061 ms | 11.4 | 293 | 0.36 M |
+| 3D Medium | 1998 ms | 2434 ms | 31.6 | 463 | 0.90 M |
+| 3D High | 2191 ms | 2675 ms | 41.6 | 469 | 0.96 M |
+| 3D Ultra | 2488 ms | 3067 ms | 50.7 | 454 | 1.25 M |
 
-Before the A9 optimisations, Medium drew 1.36 M triangles in 2053 ms per frame and Ultra
-1.76 M triangles.
+- **All 63 buildings on screen.** An earlier run had most of them off-screen because of a
+  tile-size bug in the benchmark script.
+- **Building cost:** with the buildings in view they add about 210 draw calls (2–3 per building
+  plus their shadows) but few triangles.
+- **Before the A9 optimisations** (earlier layout, fewer buildings in view): Medium drew 1.36 M
+  triangles and Ultra 1.76 M.
 
 ## How to read the numbers
 
-- **Low:** about 2.3× the cost of Classic 2D. It has no shadow pass, no bloom and no MSAA, and
-  draws 125 calls and 0.33 M triangles, which is trivial for any GPU from the last ten years.
-- **Medium:** about 5.4× the cost of 2D under SwiftShader, mostly from fill-rate work that a real
+- **Low:** about 2.7× the cost of Classic 2D. It has no shadow pass, no bloom and no MSAA, and
+  draws 293 calls and 0.36 M triangles, which is light for any GPU from the last ten years.
+- **Medium:** about 6× the cost of 2D under SwiftShader, mostly from fill-rate work that a real
   GPU does almost for free on this scene:
   - the shadow pass (2K map), which roughly doubles the triangles;
   - 4× MSAA;
@@ -91,7 +95,8 @@ Before the A9 optimisations, Medium drew 1.36 M triangles in 2053 ms per frame a
 ## Not done or not verified
 
 - **Real-GPU FPS** (see the caveat above).
-- **Buildings are not instanced.** Each one is 2–3 draw calls; 63 buildings account for about
-  150 of the ~250 calls.
+- **Buildings are not instanced.** Each one is 2–3 draw calls plus shadows; 63 buildings account
+  for about 210 of the ~460 calls on Medium. Instancing ready buildings per model is the next
+  CPU-side win.
 - **No IndexedDB caching** of generated textures between sessions.
 - **No texture compression.** All textures are procedural canvases.
