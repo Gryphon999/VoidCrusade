@@ -296,3 +296,54 @@ every object, real light falloff, and specular on armour.
 - **Not done:** a tilt that changes with zoom. The 2D overlay layer (bars, rings, picking) is
   built for one fixed oblique angle, so changing the 3D pitch would break alignment. Camera
   rotation is not done for the same reason.
+
+## A10 — QA, comparison, honest verdict
+
+**QA pass.**
+- **Screenshots** (`npm run screenshots:aaa`, JPEG, `docs/screens/aaa/final/`, 22 files, 4.6 MB):
+  - menu and battle HUD in EN and RU at 1280×720, 1920×1080 and 2560×1440;
+  - the campaign map in both languages;
+  - all three battle maps at the start;
+  - a big fight;
+  - both faction rosters and both building line-ups.
+- **Tutorial:** played end to end in 3D with real mouse and keyboard input, all 13 steps to
+  victory.
+- **Checks:** `npm test`, `npm run check:i18n` and `npm run build` pass. `npm run bake` is
+  deterministic (byte-identical LUTs on every run).
+- **Bug found by QA:** the 3D battle renderer was never disposed when a battle ended. Phaser reuses
+  the scene object on "play again" and for the next campaign battle, so the old renderer kept
+  drawing its stale world over the new one and cost an extra frame. It is now disposed on scene
+  shutdown, and its props listener is unhooked.
+- **Also found:** the screenshot tool left an orphaned dev server behind. Because it had no file
+  watcher, it served stale modules to later runs. The tool now stops its whole process tree.
+
+**Verdict against the goal ("looks like a different, much more expensive game").**
+- **Mostly achieved on the battlefield:**
+  - real 3D terrain with cliffs, real shadows and per-map time of day;
+  - dynamic lights, colour grading and a fog of war that breathes;
+  - 3D effects with depth;
+  - construction, destruction and turrets that are alive.
+- **Mostly achieved on the front end:** the live 3D planet in the menu and on the campaign map.
+- Side by side with the 2D version (Settings → Graphics… → Renderer → Classic 2D), the difference
+  is obvious.
+- **Not yet at the level of the reference games:** model quality. Units and several Iron Void
+  buildings are primitive kit-bashes.
+
+**Remaining weaknesses, ranked by what would improve quality most next.**
+1. **Unit models.** They are still the 64-px puppet designs as 3D primitives. Sculpted
+   pauldrons, backpacks, weapons and Horde carapace ridges would be the biggest single gain,
+   along with blended animation instead of 6–8 stepped frames.
+2. **Iron Void roofs and silhouettes.** Mid-size buildings (workshop, armoury, depot, research)
+   have flat, bright roofs that read as boxes from the RTS camera. They need layered gothic
+   roofs, buttresses, pipes, vents and antennas.
+3. **Horde biomass.** The creep under Horde structures is still the 2D overlay. It needs 3D
+   creep with tendrils, and liquid shading (ripples, fresnel) on the acid and void pools, which
+   are flat discs.
+4. **Explosions.** They need flipbook fire and smoke textures, a ground shockwave ring in 3D,
+   and heat distortion.
+5. **Ambient occlusion.** GTAO on High and Ultra, if the real-GPU budget allows.
+6. **Blood and gore.** The mist, drops and chunks are still 2D particles over the 3D scene.
+7. **UI.** A UI-scale slider (needs anchored HUD layouts), animated campaign borders and fleets,
+   and a fly-in transition from the campaign map into battle.
+8. **Performance.** Measure on real hardware. Instance static buildings, which are 2–3 draw
+   calls each.
