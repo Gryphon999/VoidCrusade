@@ -66,6 +66,7 @@ export class Battle3D implements BattleRenderer {
   private statics: Spot[] = [];
   private clock = 0;
   private refreshProps: () => void = () => undefined;
+  private offProps: () => void = () => undefined;
   private barrelCount = -1;
   private fps: FpsOverlay;
   private tierName: GraphicsQuality;
@@ -115,6 +116,9 @@ export class Battle3D implements BattleRenderer {
     this.refreshProps = refreshProps;
     refreshProps();
     battle.events.on(PROPS_CHANGED, refreshProps);
+    this.offProps = (): void => {
+      battle.events.off(PROPS_CHANGED, refreshProps);
+    };
     HEIGHT_SCALE.value = 1 / this.cosE();
     const size = Stage3D.bufferSize();
     // Scene target with a depth texture (fog of war reads world positions from it) and MSAA.
@@ -297,6 +301,7 @@ export class Battle3D implements BattleRenderer {
 
   dispose(): void {
     this.battle.game.events.off(Phaser.Core.Events.POST_RENDER, this.onPost);
+    this.offProps();
     this.units.dispose();
     this.props.dispose();
     this.buildings.dispose();

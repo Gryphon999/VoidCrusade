@@ -205,6 +205,12 @@ export class BattleScene extends Phaser.Scene {
       this.tutorial = new TutorialDirector(this);
     }
     this.r3d = this.render3d ? new Battle3D(this) : null;
+    // The scene object is reused on restart ("play again", the next campaign battle): the old
+    // renderer must go, or it keeps drawing its stale world over the new one.
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.r3d?.dispose();
+      this.r3d = null;
+    });
     this.fog = new FogOfWarSystem(this);
     this.audio = new AudioBridge(this);
     this.atmosphere = new Atmosphere(this);

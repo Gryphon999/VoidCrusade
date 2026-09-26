@@ -66,6 +66,8 @@ async function start(page: Page, key: string, data: object): Promise<void> {
   await page.evaluate(([k, d]) => {
     const g = window.game;
     const current = g.scene.getScene(k);
+    // Remember the old battle's map so the wait below sees the new battle, not the old one.
+    (window as any).__oldMap = current?.map ?? null;
     // Stopping and starting the same scene in one tick leaves it stopped: restart it from itself.
     if (current?.sys.isActive()) {
       current.scene.start(k, d);
@@ -78,7 +80,7 @@ async function start(page: Page, key: string, data: object): Promise<void> {
   if (key === 'BattleScene') {
     await page.waitForFunction(() => {
       const b = window.game.scene.getScene('BattleScene');
-      return b && b.hud && b.hud.scene.isActive() && b.elapsed > 0.2;
+      return b && b.map && b.map !== (window as any).__oldMap && b.hud && b.hud.scene.isActive() && b.elapsed > 0.2;
     }, null, { timeout: 180000 });
   }
 }
@@ -207,9 +209,10 @@ async function main(): Promise<void> {
         const iv = ['generator', 'depot', 'barracks', 'mechanis', 'foundry', 'turret', 'relay', 'research', 'gate', 'listening', 'bunker', 'armoury', 'hospital', 'sensor', 'shield', 'missile', 'beacon'];
         const hd = ['spire', 'nest', 'brood', 'maw', 'vat', 'spine', 'thornwall', 'sporenode', 'evolution', 'pool', 'organ', 'acidspire', 'portal'];
         const list = f === 'ironvoid' ? iv : hd;
+        const errors: string[] = [];
         const p = b.capture.points[1] ?? b.capture.points[0];
-        let tx = Math.floor(p.x / 32) - 22;
-        let ty = Math.floor(p.y / 32) - 7;
+        let tx = Math.floor(p.x / 64) - 11;
+        let ty = Math.floor(p.y / 64) - 5;
         const x0 = tx;
         let row = 0;
         for (const id of list) {
@@ -217,19 +220,20 @@ async function main(): Promise<void> {
             const bb = b.buildings.spawn(id, f === 'ironvoid' ? 'player' : 'enemy', tx, ty, true);
             tx += bb.def.size + 1;
             row = Math.max(row, bb.def.size);
-            if (tx > x0 + 40) {
+            if (tx > x0 + 24) {
               tx = x0;
               ty += row + 1;
               row = 0;
             }
-          } catch {
-            /* skip */
+          } catch (e) {
+            errors.push(`${id}: ${String(e)}`);
           }
         }
         b.cameras.main.setZoom(0.9);
         b.cameraSystem.centerOn(p.x, p.y);
-      }, faction);
-      await shoot(page, `buildings-${faction}`);
+        return { placed: b.buildings.buildings.length, errors: errors.slice(0, 3) };
+      }, faction).then((r) => console.log('line-up', faction, JSON.stringify(r)));
+      await shoot(page, `buildings-${faction}`, 20000);
     }
     await page.close();
     await browser.close();
