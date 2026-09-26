@@ -245,7 +245,11 @@ export class Battle3D implements BattleRenderer {
     }
   }
 
+  /** Last frame's cost: CPU ms spent in this renderer (scene sync + submit) and GPU work counters. */
+  readonly stats = { cpuMs: 0, calls: 0, tris: 0 };
+
   private render(): void {
+    const t0 = performance.now();
     if (!this.battle.sys.isActive() && !this.battle.sys.isPaused()) return;
     const dt = this.battle.game.loop.delta / 1000;
     if (Stage3D.fit()) {
@@ -281,8 +285,14 @@ export class Battle3D implements BattleRenderer {
     this.finish.uniforms.uTime.value = this.clock;
     this.syncFog();
     this.buildings.update(this.battle.buildings.buildings, this.battle.wrecks.ruins, hAt, dt);
+    this.renderer.info.autoReset = false;
+    this.renderer.info.reset();
     this.composer.render();
-    this.fps.update(this.battle.game.loop.actualFps, `3D · ${this.tierName}`);
+    const cpu = performance.now() - t0;
+    this.stats.cpuMs = this.stats.cpuMs * 0.9 + cpu * 0.1;
+    this.stats.calls = this.renderer.info.render.calls;
+    this.stats.tris = this.renderer.info.render.triangles;
+    this.fps.update(this.battle.game.loop.actualFps, `3D · ${this.tierName} · ${this.stats.calls} calls · ${(this.stats.tris / 1000).toFixed(0)}k tris`);
     this.adapt(dt);
   }
 

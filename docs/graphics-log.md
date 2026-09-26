@@ -244,3 +244,55 @@ every object, real light falloff, and specular on armour.
   2D overlays. They are acceptable because they are ground-hugging UI-like effects.
 - **Ground haze:** the A5 haze makes close-ups look a little dirty. Its density should fall
   off with camera zoom.
+
+## A5+ — Fog of war restyle
+
+- The fog of war is now a post effect in the 3D pipeline, where before it was a 2D overlay drawn
+  over the 3D image.
+- **How it works:** world positions are rebuilt from the depth buffer and looked up in the fog
+  grid, with bilinear filtering plus a 4-tap blur.
+- **Edges:** drifting smoke noise pushes the boundary in and out, so there are no hard cell edges.
+- **Explored areas** turn cold and desaturated; unexplored ground sinks into dark smoke.
+  Plateaus and building tops are fogged by their true position.
+- **Anti-aliasing:** the scene now renders into a multisampled half-float target (4× MSAA on
+  Medium and above). Before this, the post-processing chain had no anti-aliasing at all.
+
+## A7 — Front end, HUD, portraits
+
+**Done.**
+- **Space3D** (menu and campaign map): a live 3D planet. Procedural continents, ash seas with a
+  specular glint, glowing lava faults, night-side fires and hive lights, a drifting cloud layer,
+  atmospheric scattering and an atmosphere rim. Behind it, a nebula sky with twinkling stars and a
+  gothic warship group gliding past with lit ports and engine glow. The campaign hexes sit on the
+  real rotating planet.
+- **Portraits and previews** (`ModelSnap`): HUD portraits are studio renders of the real 3D models
+  (key, fill and a faction-coloured rim light) with an idle animation strip, a backlight and
+  scanline glass. Buildings show a slow turntable. The Encyclopedia shows the real models on a
+  turntable: units walk in place while turning, buildings rotate.
+- **HUD material:** the frame is lit steel, shaded per pixel from a height field (edge bevels,
+  plate seams, scratches, hammered mottling, specular highlights). The panel wells are recessed
+  dark glass with an inner shadow, a faint hex lattice and a cold glint.
+- **Cinematics:** a battle fly-in (a high shot over the base swoops down) and a final shot that
+  pushes in on the fallen stronghold. Both can be switched off with `cinematics: false`. The
+  tutorial has no fly-in, because its first lesson is moving the camera.
+- **Shader precompile** (`compileAsync`) so the opening shot does not hitch.
+- Screens: see `final/` (A10).
+
+**Self-critique.**
+- **No UI scale slider:** the HUD is a fixed 1280×720 layout scaled to the window. A real
+  UI-scale option needs anchored layouts, which were not done.
+- **Menu:** the logo is still the 2D text treatment, and the menu has no music sync.
+- **Campaign map:** the planet is live 3D, but the territory hexes and fleets on it are 2D.
+  There are no animated borders and no fly-in transition into battle.
+- **No new art:** no mission briefing art and no new loading-screen art. The loading screen
+  keeps its progress bar and lore tips.
+
+## A8 — Camera and feel
+
+- **Scrolling** has inertia: it accelerates, then glides to a stop.
+- **Zoom** is smoothed and eases toward the target while the point under the cursor stays put.
+  Zoom set by scripts or focus-on-event is adopted instead of being fought.
+- **Scripted camera moves** (`flyTo`, ease in-out) ignore player input while they play.
+- **Not done:** a tilt that changes with zoom. The 2D overlay layer (bars, rings, picking) is
+  built for one fixed oblique angle, so changing the 3D pitch would break alignment. Camera
+  rotation is not done for the same reason.

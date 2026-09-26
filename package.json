@@ -15,7 +15,8 @@
     "check:assets": "tsx scripts/check-assets.ts",
     "simulate": "tsx scripts/simulate.ts",
     "bake": "tsx scripts/bake.ts",
-    "screenshots:content": "tsx scripts/screenshots-content.ts"
+    "screenshots:content": "tsx scripts/screenshots-content.ts",
+    "screenshots:aaa": "tsx scripts/screenshots-aaa.ts"
   },
   "dependencies": {
     "@types/three": "^0.186.0",
