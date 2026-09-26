@@ -31,8 +31,17 @@ function findChromium(): string | undefined {
 async function battle(page: Page, data: object): Promise<void> {
   await page.evaluate((d) => {
     const g = (window as any).game;
-    g.scene.getScenes(true).forEach((s: any) => s.scene.key !== 'SubtitleScene' && s.scene.stop());
-    g.scene.start('BattleScene', d);
+    const b = g.scene.getScene('BattleScene');
+    // Restart through the scene itself (like the game's own Restart); stopping scenes by hand in
+    // the same tick as a start leaves every other restart half shut down.
+    if (b?.sys.settings.status >= 2 && b.sys.settings.status <= 6) {
+      if (b.scene.isPaused()) b.scene.resume();
+      g.scene.getScenes(true).forEach((s: any) => s.scene.key === 'EncyclopediaScene' && s.scene.stop());
+      b.scene.restart(d);
+    } else {
+      g.scene.getScenes(true).forEach((s: any) => s.scene.key !== 'SubtitleScene' && s.scene.stop());
+      g.scene.start('BattleScene', d);
+    }
   }, data);
   await page.waitForFunction(() => {
     const b = (window as any).game.scene.getScene('BattleScene');
@@ -122,6 +131,7 @@ async function main(): Promise<void> {
         b.hud.openTree(lab);
       });
       await shoot(page, `techtree-${lang}`);
+      await page.evaluate(() => (window as any).game.scene.getScene('HudScene').tree.close());
 
       // 4. Vehicles and monsters clash in the open.
       await battle(page, { mode: 'skirmish', mapIndex: 0, difficulty: 'normal' });
