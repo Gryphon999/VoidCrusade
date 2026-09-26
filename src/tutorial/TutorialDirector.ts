@@ -313,6 +313,8 @@ export class TutorialDirector {
   }
 
   private advance(): void {
+    // The retreat lesson's raiders withdraw once it is over, so they cannot raze the base.
+    if (this.current?.id === 'retreat') this.withdrawAttackers();
     this.index++;
     if (this.index >= this.steps.length) {
       this.finished = true;
@@ -326,8 +328,32 @@ export class TutorialDirector {
   update(): void {
     const s = this.current;
     if (s && s.done()) this.advance();
-    // Tutorial attackers that lose their target just go for the base.
-    for (const a of this.attackers) if (a.alive && !a.engaged && !a.isMoving()) a.stance = 'aggressive';
+    const b = this.battle;
+    for (const a of this.attackers) {
+      if (!a.alive) continue;
+      if (this.withdrawn) {
+        const base = b.map.def.enemyBase;
+        if (!a.isMoving()) a.moveTo((base.tx + 2) * TILE_SIZE, (base.ty + 6) * TILE_SIZE, false);
+        if (b.elapsed > this.withdrawAt + 12 || !b.fogVisibleFor('player', a.center.x, a.center.y)) a.destroy();
+      } else if (!a.engaged && !a.isMoving()) {
+        // Tutorial attackers that lose their target just go for the base.
+        a.stance = 'aggressive';
+      }
+    }
+    this.attackers = this.attackers.filter((a) => a.alive);
+  }
+
+  private withdrawn = false;
+  private withdrawAt = 0;
+
+  private withdrawAttackers(): void {
+    this.withdrawn = true;
+    this.withdrawAt = this.battle.elapsed;
+    const base = this.battle.map.def.enemyBase;
+    for (const a of this.attackers) if (a.alive) {
+      a.stance = 'hold';
+      a.moveTo((base.tx + 2) * TILE_SIZE, (base.ty + 6) * TILE_SIZE, false);
+    }
   }
 
   /** Builds the enemy outpost the tutorial ends on. */

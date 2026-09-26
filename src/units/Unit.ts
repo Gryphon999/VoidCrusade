@@ -5,6 +5,7 @@ import { Owner } from '../types';
 import { UnitDef } from './UnitDefs';
 import { MODEL_HEIGHT, UNIT_MODELS, atlasKey, dirFromAngle, frameName, turretKey } from '../render/puppet/UnitAtlas';
 import { AnimName } from '../render/puppet/Models';
+import { hide2D } from '../render3d/hide2D';
 import type { Squad } from './Squad';
 
 let nextUnitId = 1;
@@ -53,6 +54,11 @@ export class Unit {
   private mound?: Phaser.GameObjects.Image;
   private shown = true;
   private frameKey = '';
+  /** Current animation and frame (read by the 3D renderer). */
+  anim: AnimName = 'idle';
+  animFrame = 0;
+  /** Turret firing frame (0 rest, 1 fire). */
+  turretFire = 0;
   private walkT = Math.random() * 10;
   private idleT = Math.random() * 3;
   private fidgetIn = 3 + Math.random() * 7;
@@ -94,6 +100,7 @@ export class Unit {
     this.silhouette = scene.add.image(x, y, key, frameName('idle', 0, 2)).setDepth(DEPTH.silhouettes);
     this.silhouette.setOrigin(this.sprite.originX, this.sprite.originY).setTintFill(0x9ad0ff).setAlpha(0.35).setVisible(false);
     this.shield = scene.add.image(x, y, 'icon_cover').setDepth(DEPTH.bars - 1).setVisible(false);
+    for (const o of [this.sprite, this.shadow, this.silhouette, this.turret]) if (o) hide2D(scene, o);
   }
 
   /** On-screen height of the model (px at zoom 1). */
@@ -267,6 +274,9 @@ export class Unit {
       this.fidgetT -= dt;
       frame = this.fidgetT > 0 ? 2 : Math.floor(this.idleT / 0.8) % 2;
     }
+    this.anim = anim;
+    this.animFrame = frame;
+    this.turretFire = this.fireT > 0 ? 1 : 0;
     const name = frameName(anim, frame, this.dir);
     if (name !== this.frameKey) {
       this.frameKey = name;

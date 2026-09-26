@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { Part, V3 } from '../render/puppet/Puppet3D';
+import { Part, Pose, V3 } from '../render/puppet/Puppet3D';
 
 /**
  * Converts the procedural puppet parts (the same model definitions that feed the 2D sprite
@@ -50,7 +50,7 @@ function paint(g: THREE.BufferGeometry, color: number): THREE.BufferGeometry {
 }
 
 /** Builds merged geometry for one pose of a puppet model. */
-export function buildModelGeometry(parts: Part[], detail = 1): ModelGeometry {
+export function buildModelGeometry(parts: Part[], detail = 1, pose: Pose = {}): ModelGeometry {
   const solid: THREE.BufferGeometry[] = [];
   const glow: THREE.BufferGeometry[] = [];
   const seg = Math.max(4, Math.round(8 * detail));
@@ -87,6 +87,15 @@ export function buildModelGeometry(parts: Part[], detail = 1): ModelGeometry {
     }
   }
   const merged = solid.length ? mergeGeometries(solid) : new THREE.BufferGeometry();
+  const glowG = glow.length ? mergeGeometries(glow) : null;
+  // Whole-figure pose (same order as the 2D rasteriser): roll, then fall about the feet, then lift.
+  if (pose.roll || pose.fall || pose.lift) {
+    const m = new THREE.Matrix4().makeTranslation(0, pose.lift ?? 0, 0);
+    m.multiply(new THREE.Matrix4().makeRotationZ(pose.fall ?? 0));
+    m.multiply(new THREE.Matrix4().makeRotationX(-(pose.roll ?? 0)));
+    merged.applyMatrix4(m);
+    glowG?.applyMatrix4(m);
+  }
   merged.computeBoundingSphere();
-  return { solid: merged, glow: glow.length ? mergeGeometries(glow) : null };
+  return { solid: merged, glow: glowG };
 }

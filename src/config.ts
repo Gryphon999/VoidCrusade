@@ -174,4 +174,13 @@ export const GFX = {
   low: { lights: 8, ash: 0, fogPatches: 0, bloom: false, grade: false, grain: false, particleMult: 0.5 },
   medium: { lights: 24, ash: 6, fogPatches: 28, bloom: false, grade: true, grain: true, particleMult: 1 },
   high: { lights: 48, ash: 14, fogPatches: 44, bloom: true, grade: true, grain: true, particleMult: 1.3 },
+  ultra: { lights: 64, ash: 18, fogPatches: 56, bloom: true, grade: true, grain: true, particleMult: 1.6 },
+} as const;
+
+/** 3D battlefield settings per quality tier (see docs/graphics-decision.md). */
+export const GFX3D = {
+  low: { shadows: false, shadowMap: 1024, bloom: false, antialias: false, maxDpr: 1, modelDetail: 0.6, pointLights: 4 },
+  medium: { shadows: true, shadowMap: 2048, bloom: true, antialias: true, maxDpr: 1.5, modelDetail: 0.8, pointLights: 8 },
+  high: { shadows: true, shadowMap: 2048, bloom: true, antialias: true, maxDpr: 2, modelDetail: 1, pointLights: 12 },
+  ultra: { shadows: true, shadowMap: 4096, bloom: true, antialias: true, maxDpr: 3, modelDetail: 1.25, pointLights: 16 },
 } as const;

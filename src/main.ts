@@ -23,6 +23,8 @@ const config: Phaser.Types.Core.GameConfig = {
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
   backgroundColor: COLORS.background,
+  // Transparent so the 3D battlefield canvas underneath shows through.
+  transparent: true,
   pixelArt: false,
   antialias: true,
   physics: {

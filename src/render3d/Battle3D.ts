@@ -1,0 +1,176 @@
+import * as THREE from 'three';
+import Phaser from 'phaser';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { GFX3D } from '../config';
+import { Projection } from '../render/Projection';
+import { GraphicsQuality, Settings } from '../systems/Settings';
+import { Stage3D } from './Stage3D';
+import { Terrain3D } from './Terrain3D';
+import { HEIGHT_SCALE, Units3D } from './Units3D';
+import { FpsOverlay } from './FpsOverlay';
+import type { BattleScene } from '../scenes/BattleScene';
+import type { BattleRenderer } from './Renderer';
+
+const TIERS: GraphicsQuality[] = ['low', 'medium', 'high', 'ultra'];
+
+/**
+ * The 3D battlefield renderer. It owns no gameplay state: every frame it reads the simulation
+ * (units, terrain) and the Phaser battle camera, and draws.
+ *
+ * Camera: an orthographic camera tilted so that its projection equals the 2D oblique view
+ * (ground squashed by `tilt`, heights scaled by cos(asin(tilt))). Scroll and zoom stay owned
+ * by CameraSystem, so picking, the minimap and every 2D overlay (bars, rings, fog, markers)
+ * stay pixel-aligned with the 3D scene.
+ */
+export class Battle3D implements BattleRenderer {
+  readonly scene = new THREE.Scene();
+  readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 20000);
+  private renderer: THREE.WebGLRenderer;
+  private composer: EffectComposer;
+  private bloom: UnrealBloomPass;
+  private sun: THREE.DirectionalLight;
+  private terrain: Terrain3D;
+  private units: Units3D;
+  private fps: FpsOverlay;
+  private tierName: GraphicsQuality;
+  private lowFor = 0;
+  private onPost = (): void => this.render();
+
+  constructor(private battle: BattleScene) {
+    this.renderer = Stage3D.attach(battle.game);
+    this.tierName = Settings.get().graphics;
+    const tier = GFX3D[this.tierName];
+    this.renderer.toneMappingExposure = 1.35;
+    this.scene.background = new THREE.Color(0x07060a);
+    this.scene.fog = null;
+    // Lights: warm key sun from the north-west, cool sky / warm bounce fill.
+    this.scene.add(new THREE.HemisphereLight(0xaab6d6, 0x4a3b2c, 1.0));
+    this.sun = new THREE.DirectionalLight(0xffe0bc, 2.4);
+    this.sun.castShadow = tier.shadows;
+    this.sun.shadow.mapSize.set(tier.shadowMap, tier.shadowMap);
+    this.sun.shadow.bias = -0.0004;
+    this.sun.shadow.normalBias = 1.2;
+    this.scene.add(this.sun, this.sun.target);
+    this.renderer.shadowMap.enabled = tier.shadows;
+    this.terrain = new Terrain3D(battle.map, this.renderer.capabilities.getMaxAnisotropy());
+    this.scene.add(this.terrain.mesh);
+    this.units = new Units3D(this.scene, tier.modelDetail, tier.shadows);
+    HEIGHT_SCALE.value = 1 / this.cosE();
+    const size = Stage3D.bufferSize();
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), 0.55, 0.45, 0.9);
+    this.bloom.enabled = tier.bloom;
+    this.composer.addPass(this.bloom);
+    this.composer.addPass(new OutputPass());
+    this.fps = new FpsOverlay();
+    battle.game.events.on(Phaser.Core.Events.POST_RENDER, this.onPost);
+  }
+
+  private cosE(): number {
+    return Math.sqrt(1 - Projection.tilt * Projection.tilt);
+  }
+
+  /** Terrain height (px, 3D units) at a logical point. */
+  heightAt(x: number, y: number): number {
+    return this.terrain.heightAt(x, y);
+  }
+
+  /** Orthographic camera matching the Phaser battle camera's view rectangle. */
+  private syncCamera(): void {
+    const v = this.battle.cameras.main.worldView;
+    const sinE = Projection.tilt;
+    const cosE = this.cosE();
+    const up = new THREE.Vector3(0, cosE, -sinE);
+    const back = new THREE.Vector3(0, sinE, cosE);
+    const D = 8000;
+    this.camera.position.copy(back).multiplyScalar(D);
+    const m = new THREE.Matrix4().makeBasis(new THREE.Vector3(1, 0, 0), up, back);
+    this.camera.quaternion.setFromRotationMatrix(m);
+    this.camera.left = v.x;
+    this.camera.right = v.x + v.width;
+    this.camera.top = -v.y;
+    this.camera.bottom = -(v.y + v.height);
+    this.camera.near = 10;
+    this.camera.far = D * 2;
+    this.camera.updateProjectionMatrix();
+    this.camera.updateMatrixWorld();
+    // Sun and its shadow frustum follow the ground point at the centre of the view.
+    const cx = v.centerX;
+    const cy = Projection.groundY(v.centerY);
+    const span = Math.max(v.width, v.height / sinE) * 0.62 + 200;
+    this.sun.target.position.set(cx, 0, cy);
+    this.sun.position.set(cx - 900, 1500, cy - 700);
+    const sc = this.sun.shadow.camera;
+    sc.left = -span;
+    sc.right = span;
+    sc.top = span;
+    sc.bottom = -span;
+    sc.near = 200;
+    sc.far = 4000;
+    sc.updateProjectionMatrix();
+  }
+
+  /** Applies a quality tier live (adaptive quality or a settings change). */
+  applyTier(name: GraphicsQuality): void {
+    this.tierName = name;
+    const t = GFX3D[name];
+    this.bloom.enabled = t.bloom;
+    if (this.renderer.shadowMap.enabled !== t.shadows) {
+      this.renderer.shadowMap.enabled = t.shadows;
+      this.sun.castShadow = t.shadows;
+      this.scene.traverse((o) => {
+        const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+        if (m) m.needsUpdate = true;
+      });
+    }
+    if (this.sun.shadow.mapSize.x !== t.shadowMap) {
+      this.sun.shadow.mapSize.set(t.shadowMap, t.shadowMap);
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+    }
+  }
+
+  /** Adaptive quality: after 6 s under 40 FPS, step down one tier (and remember it). */
+  private adapt(dt: number): void {
+    if (Settings.get().adaptiveQuality === false) return;
+    const fps = this.battle.game.loop.actualFps;
+    this.lowFor = fps < 40 ? this.lowFor + dt : 0;
+    const i = TIERS.indexOf(this.tierName);
+    if (this.lowFor > 6 && i > 0) {
+      this.lowFor = 0;
+      const next = TIERS[i - 1];
+      Settings.set({ graphics: next });
+      this.applyTier(next);
+    }
+  }
+
+  private render(): void {
+    if (!this.battle.sys.isActive() && !this.battle.sys.isPaused()) return;
+    const dt = this.battle.game.loop.delta / 1000;
+    if (Stage3D.fit()) {
+      const s = Stage3D.bufferSize();
+      this.composer.setSize(s.x / this.renderer.getPixelRatio(), s.y / this.renderer.getPixelRatio());
+      this.composer.setPixelRatio(this.renderer.getPixelRatio());
+    }
+    HEIGHT_SCALE.value = 1 / this.cosE();
+    this.syncCamera();
+    const all = this.battle.units.squads.flatMap((s) => s.units);
+    this.units.update(all, (x, y) => this.terrain.heightAt(x, y));
+    this.composer.render();
+    this.fps.update(this.battle.game.loop.actualFps, `3D · ${this.tierName}`);
+    this.adapt(dt);
+  }
+
+  dispose(): void {
+    this.battle.game.events.off(Phaser.Core.Events.POST_RENDER, this.onPost);
+    this.units.dispose();
+    this.terrain.dispose();
+    this.composer.dispose();
+    this.fps.destroy();
+    Stage3D.hide();
+  }
+}

@@ -58,7 +58,8 @@ for (const m of ['annihilation', 'control', 'survival']) dyn.push(`mode.${m}`, `
 for (const p of ['random', ...PERSONALITIES]) dyn.push(`ai.${p}`);
 for (const p of PERSONALITIES) dyn.push(`ai.${p}.desc`);
 for (const s of ['weapon', 'armor', 'relic']) dyn.push(`wargear.slot.${s}`);
-for (const q of ['low', 'medium', 'high']) dyn.push(`gfx.${q}`);
+for (const q of ['low', 'medium', 'high', 'ultra']) dyn.push(`gfx.${q}`);
+for (const r of ['auto', '3d', '2d']) dyn.push(`renderer.${r}`);
 for (const id of TUTORIAL_STEP_IDS) dyn.push(`tut.${id}.title`, `tut.${id}.text`, `tut.${id}.vo`);
 for (const id of MECHANICS) dyn.push(`enc.m.${id}.title`, `enc.m.${id}.text`);
 for (const id of HINT_IDS) dyn.push(`hint.${id}`);
