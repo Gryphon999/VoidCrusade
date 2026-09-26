@@ -140,7 +140,8 @@ export class BattleScene extends Phaser.Scene {
     if (this.render3d) {
       try {
         Stage3D.attach(this.game);
-      } catch {
+      } catch (e) {
+        console.warn('3D renderer unavailable, using 2D:', e);
         this.render3d = false;
       }
     }

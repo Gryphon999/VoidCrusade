@@ -27,7 +27,8 @@ export class MenuBackground {
         this.live3D = true;
         scene.time.addEvent({ delay: 900, loop: true, callback: () => this.explosion() });
         return;
-      } catch {
+      } catch (e) {
+        console.warn('3D backdrop unavailable:', e);
         this.live3D = false;
       }
     }

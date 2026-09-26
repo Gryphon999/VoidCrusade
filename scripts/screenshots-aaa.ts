@@ -15,6 +15,8 @@ import { join } from 'node:path';
 import { chromium, Page } from 'playwright-core';
 
 const quick = process.argv.includes('--quick');
+/** Skip the menu/HUD/campaign matrix (only maps, fight, rosters, line-ups). */
+const rest = process.argv.includes('--rest');
 const outDir = join('docs', 'screens', 'aaa', 'final');
 const PORT = 5198;
 const SIZES: [number, number][] = quick ? [[1280, 720]] : [[1280, 720], [1920, 1080], [2560, 1440]];
@@ -50,20 +52,29 @@ declare global {
 }
 
 async function open(page: Page, url: string, lang: string): Promise<void> {
+  page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && !m.text().includes('GL Driver') && console.log('[console]', m.text().slice(0, 400)));
   await page.addInitScript((l) => {
     localStorage.setItem('voidcrusade.settings.v1', JSON.stringify({ language: l, graphics: 'high', tutorialPrompted: true, hints: false, cinematics: false, adaptiveQuality: false }));
   }, lang);
   await page.goto(url);
   await page.mouse.move(640, 300);
   await page.waitForFunction(() => !!window.game?.scene.isActive('MenuScene'), null, { timeout: 180000 });
+  if (process.env.DEBUG_AAA) console.log(await page.evaluate(() => [localStorage.getItem('voidcrusade.settings.v1'), !!document.createElement('canvas').getContext('webgl2'), document.querySelectorAll('canvas').length]));
 }
 
 async function start(page: Page, key: string, data: object): Promise<void> {
   await page.evaluate(([k, d]) => {
     const g = window.game;
+    const current = g.scene.getScene(k);
+    // Stopping and starting the same scene in one tick leaves it stopped: restart it from itself.
+    if (current?.sys.isActive()) {
+      current.scene.start(k, d);
+      return;
+    }
     g.scene.getScenes(true).forEach((s: any) => s.scene.key !== 'SubtitleScene' && s.scene.stop());
     g.scene.start(k, d);
   }, [key, data] as const);
+  await page.waitForTimeout(500);
   if (key === 'BattleScene') {
     await page.waitForFunction(() => {
       const b = window.game.scene.getScene('BattleScene');
@@ -80,12 +91,14 @@ async function shoot(page: Page, name: string, wait = 3500): Promise<void> {
 
 async function main(): Promise<void> {
   mkdirSync(outDir, { recursive: true });
-  const server = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', shell: process.platform === 'win32', env: { ...process.env, VC_STATIC: '1' } });
+  // Own process group, so the whole npx → vite tree is stopped at the end (a leftover server
+  // without a file watcher would keep serving stale modules to the next run).
+  const server = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', shell: process.platform === 'win32', detached: process.platform !== 'win32', env: { ...process.env, VC_STATIC: '1' } });
   const url = `http://localhost:${PORT}/`;
   try {
     await waitForServer(url);
     const browser = await chromium.launch({ executablePath: findChromium(), args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
-    for (const lang of LANGS) {
+    for (const lang of rest ? [] : LANGS) {
       for (const [w, h] of SIZES) {
         const suffix = `${lang}-${w}`;
         const page = await browser.newPage({ viewport: { width: w, height: h } });
@@ -221,7 +234,12 @@ async function main(): Promise<void> {
     await page.close();
     await browser.close();
   } finally {
-    server.kill();
+    try {
+      if (process.platform !== 'win32' && server.pid) process.kill(-server.pid);
+      else server.kill();
+    } catch {
+      server.kill();
+    }
   }
 }
 
