@@ -19,7 +19,7 @@ import { Lights3D, Spot } from './Lights3D';
 import { Fog3D } from './Fog3D';
 import { Fx3D } from './Fx3D';
 import { Decals3D } from './Decals3D';
-import { finishPass, fogPass, gradePass } from './Post3D';
+import { fogPass, gradeFinishPass } from './Post3D';
 import { surfaceDetail } from './Materials3D';
 import { FOG, GFX3D, TILE_SIZE } from '../config';
 import type { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
@@ -128,8 +128,7 @@ export class Battle3D implements BattleRenderer {
     this.bloom.enabled = tier.bloom;
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
-    this.composer.addPass(gradePass(battle.map.def.id));
-    this.finish = finishPass(at.vignette, at.grain);
+    this.finish = gradeFinishPass(battle.map.def.id, at.vignette, at.grain);
     this.composer.addPass(this.finish);
     this.fps = new FpsOverlay();
     battle.game.events.on(Phaser.Core.Events.POST_RENDER, this.onPost);

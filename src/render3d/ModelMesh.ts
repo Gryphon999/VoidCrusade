@@ -54,7 +54,8 @@ function paint(g: THREE.BufferGeometry, color: number): THREE.BufferGeometry {
 export function buildModelGeometry(parts: Part[], detail = 1, pose: Pose = {}): ModelGeometry {
   const solid: THREE.BufferGeometry[] = [];
   const glow: THREE.BufferGeometry[] = [];
-  const seg = Math.max(4, Math.round(8 * detail));
+  // Units are ~30-60 px tall on screen: keep tessellation modest (portraits pass a higher detail).
+  const seg = Math.max(4, Math.round(6 * detail));
   for (const p of parts) {
     if (p.kind === 'box') {
       // Bevelled plates catch a highlight on every edge, like painted miniatures.
@@ -62,7 +63,7 @@ export function buildModelGeometry(parts: Part[], detail = 1, pose: Pose = {}): 
       const hh = p.h.z * 2;
       const d = p.h.s * 2;
       const r = Math.min(w, hh, d) * 0.22;
-      const g = detail >= 0.8 && r > 0.15 && !p.emissive ? new RoundedBoxGeometry(w, hh, d, 2, r) : new THREE.BoxGeometry(w, hh, d);
+      const g = detail >= 0.8 && r > 0.15 && !p.emissive ? new RoundedBoxGeometry(w, hh, d, 1, r) : new THREE.BoxGeometry(w, hh, d);
       g.applyMatrix4(partRotation(p.pitch, p.yaw, p.roll));
       const c = p3(p.c);
       g.translate(c.x, c.y, c.z);
@@ -71,7 +72,7 @@ export function buildModelGeometry(parts: Part[], detail = 1, pose: Pose = {}): 
       const a = p3(p.a);
       const b = p3(p.b);
       const len = a.distanceTo(b);
-      const g = new THREE.CapsuleGeometry(p.r, Math.max(0.01, len), 2, seg);
+      const g = new THREE.CapsuleGeometry(p.r, Math.max(0.01, len), detail > 1 ? 2 : 1, seg);
       const dir = b.clone().sub(a).normalize();
       const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
       g.applyQuaternion(q);
@@ -79,7 +80,7 @@ export function buildModelGeometry(parts: Part[], detail = 1, pose: Pose = {}): 
       g.translate(mid.x, mid.y, mid.z);
       solid.push(paint(g, p.color));
     } else if (p.kind === 'ball') {
-      const g = new THREE.SphereGeometry(p.r, seg + 2, Math.max(4, seg - 2));
+      const g = new THREE.SphereGeometry(p.r, seg + 1, Math.max(3, seg - 2));
       g.scale(1, p.squash ?? 1, 1);
       const c = p3(p.c);
       g.translate(c.x, c.y, c.z);

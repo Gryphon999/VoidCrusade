@@ -134,3 +134,53 @@ export function fogPass(noise: THREE.Texture): ShaderPass {
       }`,
   });
 }
+
+/**
+ * Colour grade (baked 16³ LUT) and lens finish (vignette, grain) in one full-screen pass.
+ * Until the LUT image has loaded the grade is skipped.
+ */
+export function gradeFinishPass(mapId: string, vignette: number, grain: number): ShaderPass {
+  const pass = new ShaderPass({
+    uniforms: {
+      tDiffuse: { value: null },
+      tLut: { value: null },
+      uHasLut: { value: 0 },
+      uTime: { value: 0 },
+      uVignette: { value: vignette },
+      uGrain: { value: grain },
+    },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `
+      precision highp sampler3D;
+      uniform sampler2D tDiffuse;
+      uniform sampler3D tLut;
+      uniform float uHasLut;
+      uniform float uTime;
+      uniform float uVignette;
+      uniform float uGrain;
+      varying vec2 vUv;
+      float h(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+      void main() {
+        vec4 c = texture2D(tDiffuse, vUv);
+        if (uHasLut > 0.5) {
+          vec3 uvw = clamp(c.rgb, 0.0, 1.0) * (15.0 / 16.0) + 0.5 / 16.0;
+          c.rgb = texture(tLut, uvw).rgb;
+        }
+        vec2 d = vUv - 0.5;
+        c.rgb *= 1.0 - uVignette * smoothstep(0.35, 0.85, length(d * vec2(1.25, 1.0)));
+        float n = h(vUv * 1024.0 + fract(uTime * 7.13) * 91.0) - 0.5;
+        c.rgb += n * uGrain * (1.0 - c.rgb * 0.6);
+        gl_FragColor = c;
+      }`,
+  });
+  const lut = gradePass(mapId);
+  // Borrow the loader of gradePass: poll until its texture is ready.
+  const poll = (): void => {
+    if (lut.lut) {
+      pass.uniforms.tLut.value = lut.lut;
+      pass.uniforms.uHasLut.value = 1;
+    } else setTimeout(poll, 50);
+  };
+  poll();
+  return pass;
+}
