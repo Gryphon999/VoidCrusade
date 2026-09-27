@@ -1,4 +1,54 @@
-# Performance (A9)
+# Performance
+
+## Measured on a real integrated GPU
+
+`npx tsx scripts/screenshots-models.ts --fps` plays a fight on Ashfall in a visible Chrome window
+on the machine's own graphics card and times real frames for 10 seconds, on every tier.
+
+**Hardware:** AMD Radeon 860M (integrated), 1920×1200 panel at 125 % scaling, Chrome, Direct3D 11.
+**Scene:** 27 squads fighting at the first Nexus point with three tanks, 25 buildings behind
+them, HUD on, camera zoom 0.7. About 65 to 70 soldiers are alive while frames are timed, so this
+is a normal large fight, lighter than the 153-unit stress scene further down.
+
+| Tier | 1280×720 | 1920×1080 | This laptop, browser maximised (1536×864 at 1.25×) |
+|---|---|---|---|
+| Low | 172 fps (1 % low 57) | 123 fps (1 % low 69) | 139 fps (1 % low 74) |
+| Medium | 71 fps (1 % low 43) | 43 fps (1 % low 27) | 57 fps (1 % low 37) |
+| High | 59 fps (1 % low 33) | 37 fps (1 % low 25) | 50 fps (1 % low 37) |
+| Ultra | 40 fps (1 % low 20) | 33 fps (1 % low 19) | 47 fps (1 % low 32) |
+
+- Every tier holds the 45 fps target on the laptop's own screen in this scene. At a full
+  1920×1080 canvas Medium sits just under it (43 fps): the resolution scale setting or the Low
+  tier closes the gap, and adaptive quality drops a tier by itself after 6 s under 40 fps.
+- **Medium now renders at one pixel per CSS pixel** (`maxDpr` 1.5 → 1). On a scaled laptop panel
+  that is about a third fewer pixels for every full-screen pass; 4× anti-aliasing keeps edges clean.
+- Single runs vary by a few frames per second (the fight is not identical each time), so treat
+  differences under 10 % as noise.
+- Not measured: the 153-unit stress scene on real hardware, other GPUs, and battery power.
+
+## After the larger maps and the layered ground
+
+Same scene, same laptop, on Ashfall Ridge at its new size (96×72 tiles). The display refreshes at
+60 Hz and this run was capped by it, so Low reads 60 where the first table shows the uncapped rate.
+
+| Tier | 1280×720 | 1920×1080 | This laptop, browser maximised (1536×864 at 1.25×) |
+|---|---|---|---|
+| Low | 59 fps (1 % low 54) | 60 fps (1 % low 51) | 60 fps (1 % low 35) |
+| Medium | 59 fps (1 % low 31) | 40 fps (1 % low 18) | 52 fps (1 % low 24) |
+| High | 54 fps (1 % low 30) | 33 fps (1 % low 13) | 44 fps (1 % low 20) |
+| Ultra | 50 fps (1 % low 29) | 32 fps (1 % low 17) | 43 fps (1 % low 22) |
+
+- **The new ground costs about a tenth of the frame rate** on Medium and above (57 → 52 fps on
+  this laptop). High and Ultra now sit just under the 45 fps target on this screen; Medium holds it.
+- **The ground is drawn in chunks** of 16×16 tiles, so only what is in view and in the shadow map
+  is sent to the GPU: about 120 000 fewer triangles in this scene than as one mesh. It did not
+  raise the frame rate, which says the cost is in the pixels (texture samples), not the triangles.
+- **Low takes one sample of each ground material** where the other tiers take two.
+- **1 % lows are worse than before** (24 against 37 on Medium). Another Chrome window with the
+  game was open during this run and shares the GPU, so part of that is the measurement.
+- Not measured: the two largest maps in a fight, and a clean run with nothing else on the GPU.
+
+# Software-rasteriser measurements (A9)
 
 ## Test scene and hardware
 
@@ -85,7 +135,7 @@ exactly that.
   | Tier | Shadows | Bloom | MSAA | Max pixel ratio | Point lights | Model detail |
   |---|---|---|---|---|---|---|
   | Low | off | off | off | 1 | 4 | 0.6 |
-  | Medium | 2K | on | 4× | 1.5 | 8 | 0.8 |
+  | Medium | 2K | on | 4× | 1 | 8 | 0.8 |
   | High | 2K | on | 4× | 2 | 12 | 1.0 |
   | Ultra | 4K | on | 4× | 3 | 16 | 1.25 |
 
@@ -94,7 +144,6 @@ exactly that.
 
 ## Not done or not verified
 
-- **Real-GPU FPS** (see the caveat above).
 - **Buildings are not instanced.** Each one is 2–3 draw calls plus shadows; 63 buildings account
   for about 210 of the ~460 calls on Medium. Instancing ready buildings per model is the next
   CPU-side win.

@@ -28,6 +28,11 @@ export class CapturePointSystem {
     });
   }
 
+  /** Scrip per second from one point: the map's total income is shared between its points. */
+  get income(): number {
+    return Math.min(RESOURCES.captureScripPerSec, Math.round(RESOURCES.captureScripTotal / Math.max(1, this.points.length)));
+  }
+
   /** Hero XP multiplier for holding the relic. */
   relicHeroXp(owner: Owner): number {
     return this.points.some((p) => p.kind === 'relic' && p.owner === owner) ? 1.5 : 1;
@@ -104,8 +109,8 @@ export class CapturePointSystem {
     const old = p.owner;
     if (old === owner) return;
     const res = this.battle.resources;
-    if (old) res.removeIncome(old, 'scrip', RESOURCES.captureScripPerSec);
-    res.addIncome(owner, 'scrip', RESOURCES.captureScripPerSec);
+    if (old) res.removeIncome(old, 'scrip', this.income);
+    res.addIncome(owner, 'scrip', this.income);
     if (p.kind === 'relic') {
       if (old) res.removeIncome(old, 'flux', RESOURCES.relicFluxPerSec);
       res.addIncome(owner, 'flux', RESOURCES.relicFluxPerSec);

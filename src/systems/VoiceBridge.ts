@@ -2,8 +2,8 @@ import Phaser from 'phaser';
 import { EV } from '../events';
 import { MessageKey, dyn } from '../i18n';
 import { Voice, Speaker } from './VoiceSystem';
+import { SHOUTS, speakerOfUnit } from './VoiceCast';
 import { Squad } from '../units/Squad';
-import { UnitId } from '../units/UnitDefs';
 import { Building } from '../buildings/Building';
 import { Unit } from '../units/Unit';
 import { CapturePoint } from './CapturePoint';
@@ -12,16 +12,14 @@ import { Owner } from '../types';
 import { Settings } from './Settings';
 import type { BattleScene } from '../scenes/BattleScene';
 
-const SPEAKERS: Partial<Record<UnitId, Speaker>> = {
-  commander: 'commander', heavy: 'heavy', ranger: 'ranger', breacher: 'breacher', marksman: 'marksman', engineer: 'engineer',
-  buggy: 'crew', apc: 'crew', tank: 'crew', artillery: 'crew',
-};
+export { SHOUTS };
 
-/** Abilities whose use gets a battle cry. */
-export const SHOUTS = ['frag', 'smoke', 'rally', 'barrage', 'sprint', 'smite', 'overcharge'];
+/** Lines fetched when a battle starts, so the first orders and alerts are answered at once. */
+const WARM_ANNOUNCER: MessageKey[] = ['vo.underAttack', 'vo.captured', 'vo.pointLost', 'vo.buildDone', 'vo.squadLost', 'vo.noResources', 'vo.reinforced'];
+const WARM_SQUAD: MessageKey[] = ['vo.move', 'vo.attack', 'vo.capture'];
 
 export function speakerFor(s: Squad): Speaker {
-  return SPEAKERS[s.def.id] ?? 'rifleman';
+  return speakerOfUnit(s.def.id);
 }
 
 /** Hooks battle events to voice lines (announcer alerts and squad acknowledgements). */
@@ -30,6 +28,10 @@ export class VoiceBridge {
 
   constructor(private battle: BattleScene) {
     const ev = battle.events;
+    Voice.preload('announcer', WARM_ANNOUNCER);
+    Voice.preload('commander', ['vo.battleStart', dyn('vo.select.commander'), ...WARM_SQUAD]);
+    Voice.preload('rifleman', [dyn('vo.select.rifleman'), ...WARM_SQUAD]);
+    ev.on(EV.squadSpawned, (s: Squad) => s.owner === 'player' && Voice.preload(speakerFor(s), [dyn(`vo.select.${s.def.id}`), ...WARM_SQUAD]));
     ev.on(EV.squadDestroyed, (s: Squad) => s.owner === 'player' && Voice.say('vo.squadLost', 'announcer', 'alert'));
     ev.on(EV.pointCaptured, (_p: CapturePoint, owner: Owner, old: Owner | null) => {
       if (owner === 'player') Voice.say('vo.captured', 'announcer', 'event');

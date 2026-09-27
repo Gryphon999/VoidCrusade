@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { MAP_H, MAP_W, TILE_SIZE } from '../config';
+import { TILE_SIZE } from '../config';
 import { surfaceDetail } from './Materials3D';
 
 /**
@@ -10,11 +10,11 @@ export class Fog3D {
   private layers: THREE.Mesh[] = [];
   private mats: THREE.ShaderMaterial[] = [];
 
-  constructor(scene: THREE.Scene, color: number, density: number) {
+  constructor(scene: THREE.Scene, color: number, density: number, worldW: number, worldH: number) {
     if (density <= 0) return;
     const pad = 12 * TILE_SIZE;
-    const w = MAP_W * TILE_SIZE + pad * 2;
-    const h = MAP_H * TILE_SIZE + pad * 2;
+    const w = worldW + pad * 2;
+    const h = worldH + pad * 2;
     const tex = surfaceDetail();
     [[14, 1, 0.6], [34, 0.6, -0.4]].forEach(([y, k, dir], i) => {
       const mat = new THREE.ShaderMaterial({
@@ -44,7 +44,7 @@ export class Fog3D {
       const geo = new THREE.PlaneGeometry(w, h);
       geo.rotateX(-Math.PI / 2);
       const m = new THREE.Mesh(geo, mat);
-      m.position.set(MAP_W * TILE_SIZE / 2, y, MAP_H * TILE_SIZE / 2);
+      m.position.set(worldW / 2, y, worldH / 2);
       m.renderOrder = 5;
       scene.add(m);
       this.layers.push(m);

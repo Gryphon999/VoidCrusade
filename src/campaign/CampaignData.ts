@@ -31,12 +31,12 @@ export const TERRITORIES: TerritoryDef[] = [
   { id: 'veyra', name: 'Veyra Wastes', q: -1, r: 2, bonus: 'flux', bonusText: '+75 Flux per battle', mapIndex: 1, enemyBonus: 0 },
   { id: 'khorvan', name: 'Khorvan Deep', q: 1, r: 1, bonus: 'squadSlot', bonusText: 'Extra squad slot', mapIndex: 2, enemyBonus: 0 },
   { id: 'ossuary', name: 'The Ossuary', q: 0, r: 1, bonus: 'hp', bonusText: '+15% unit HP', mapIndex: 1, enemyBonus: 100 },
-  { id: 'mourn', name: 'Mourngate', q: -1, r: 1, bonus: 'damage', bonusText: '+10% unit damage', mapIndex: 2, enemyBonus: 100 },
-  { id: 'cinder', name: 'Cinder Spires', q: 1, r: 0, bonus: 'build', bonusText: '+25% build speed', mapIndex: 0, enemyBonus: 100 },
+  { id: 'mourn', name: 'Mourngate', q: -1, r: 1, bonus: 'damage', bonusText: '+10% unit damage', mapIndex: 3, enemyBonus: 100 },
+  { id: 'cinder', name: 'Cinder Spires', q: 1, r: 0, bonus: 'build', bonusText: '+25% build speed', mapIndex: 4, enemyBonus: 100 },
   { id: 'halcyon', name: 'Halcyon Ruin', q: -1, r: 0, bonus: 'turret', bonusText: '+20% turret damage', mapIndex: 0, enemyBonus: 200 },
-  { id: 'nadir', name: 'Nadir Rift', q: 1, r: -1, bonus: 'scrip', bonusText: '+50 Scrip per battle', mapIndex: 1, enemyBonus: 200 },
+  { id: 'nadir', name: 'Nadir Rift', q: 1, r: -1, bonus: 'scrip', bonusText: '+50 Scrip per battle', mapIndex: 3, enemyBonus: 200 },
   { id: 'spire', name: 'Hollow Spire', q: 0, r: -1, bonus: 'squadSlot', bonusText: 'Extra squad slot', mapIndex: 2, enemyBonus: 200 },
-  { id: 'throne', name: 'Iron Void Throne', q: 0, r: 0, bonus: 'throne', bonusText: 'Final objective', mapIndex: 0, enemyBonus: 400 },
+  { id: 'throne', name: 'Iron Void Throne', q: 0, r: 0, bonus: 'throne', bonusText: 'Final objective', mapIndex: 4, enemyBonus: 400 },
 ];
 
 export const START_TERRITORY = 'ascalon';

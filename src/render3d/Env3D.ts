@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { MAP_H, MAP_W, TILE_SIZE } from '../config';
 import { Kit } from './Kit';
 import { CLIFF_3D } from './Terrain3D';
 
@@ -10,7 +9,7 @@ import { CLIFF_3D } from './Terrain3D';
 export class Env3D {
   private meshes: THREE.InstancedMesh[] = [];
 
-  constructor(scene: THREE.Scene, heightAt: (x: number, y: number) => number, rockColor: number, seed: number, shadows: boolean) {
+  constructor(scene: THREE.Scene, heightAt: (x: number, y: number) => number, rockColor: number, seed: number, shadows: boolean, worldW: number, worldH: number) {
     const variants = [0, 1, 2, 3].map((v) => new Kit().rock(10 + v * 3, rockColor, [0, 0, 0], seed + v * 17, 0.62).build().solid);
     const spots: THREE.Matrix4[][] = variants.map(() => []);
     let s = seed;
@@ -20,8 +19,8 @@ export class Env3D {
     };
     const step = 30;
     const q = new THREE.Quaternion();
-    for (let y = step; y < MAP_H * TILE_SIZE - step; y += step) {
-      for (let x = step; x < MAP_W * TILE_SIZE - step; x += step) {
+    for (let y = step; y < worldH - step; y += step) {
+      for (let x = step; x < worldW - step; x += step) {
         const jx = x + (rnd() - 0.5) * step;
         const jy = y + (rnd() - 0.5) * step;
         const h = heightAt(jx, jy);

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { MAP_H, MAP_W, TILE, TILE_SIZE, TileType } from '../config';
+import { TILE, TILE_SIZE, TileType } from '../config';
 import { MapDef } from '../maps/MapBuilder';
 import { TerrainRenderer } from '../render/TerrainRenderer';
 import { Owner } from '../types';
@@ -7,10 +7,11 @@ import { Owner } from '../types';
 /** Owns the battle terrain: tile data, rendering, and passability queries. */
 export class MapSystem {
   readonly def: MapDef;
-  readonly width = MAP_W;
-  readonly height = MAP_H;
-  readonly worldWidth = MAP_W * TILE_SIZE;
-  readonly worldHeight = MAP_H * TILE_SIZE;
+  /** Size in tiles and in world px; every map has its own. */
+  readonly width: number;
+  readonly height: number;
+  readonly worldWidth: number;
+  readonly worldHeight: number;
   private tiles: number[][];
   /** Tiles occupied by buildings (blocks movement). */
   private occupied: Uint8Array;
@@ -21,8 +22,12 @@ export class MapSystem {
   constructor(def: MapDef) {
     this.def = def;
     this.tiles = def.tiles.map((r) => r.slice());
-    this.occupied = new Uint8Array(MAP_W * MAP_H);
-    this.blocked = new Uint8Array(MAP_W * MAP_H);
+    this.width = def.w;
+    this.height = def.h;
+    this.worldWidth = def.w * TILE_SIZE;
+    this.worldHeight = def.h * TILE_SIZE;
+    this.occupied = new Uint8Array(def.w * def.h);
+    this.blocked = new Uint8Array(def.w * def.h);
   }
 
   /** Bakes the projected terrain. */
@@ -36,7 +41,7 @@ export class MapSystem {
   }
 
   inBounds(tx: number, ty: number): boolean {
-    return tx >= 0 && ty >= 0 && tx < MAP_W && ty < MAP_H;
+    return tx >= 0 && ty >= 0 && tx < this.width && ty < this.height;
   }
 
   getTile(tx: number, ty: number): TileType {
@@ -58,8 +63,8 @@ export class MapSystem {
 
   /** Passable for units: not a cliff and not covered by a building (own gates are open to `owner`). */
   isPassable(tx: number, ty: number, owner?: Owner): boolean {
-    if (!this.isTerrainPassable(tx, ty) || this.blocked[ty * MAP_W + tx] !== 0) return false;
-    const o = this.occupied[ty * MAP_W + tx];
+    if (!this.isTerrainPassable(tx, ty) || this.blocked[ty * this.width + tx] !== 0) return false;
+    const o = this.occupied[ty * this.width + tx];
     return o === 0 || (!!owner && ((o === 2 && owner === 'player') || (o === 3 && owner === 'enemy')));
   }
 
@@ -69,18 +74,18 @@ export class MapSystem {
   }
 
   isOccupied(tx: number, ty: number): boolean {
-    return !this.inBounds(tx, ty) || this.occupied[ty * MAP_W + tx] !== 0 || this.blocked[ty * MAP_W + tx] !== 0;
+    return !this.inBounds(tx, ty) || this.occupied[ty * this.width + tx] !== 0 || this.blocked[ty * this.width + tx] !== 0;
   }
 
   /** Adds/removes a wreck blocker on one tile. */
   setBlocked(tx: number, ty: number, on: boolean): void {
     if (!this.inBounds(tx, ty)) return;
-    const i = ty * MAP_W + tx;
+    const i = ty * this.width + tx;
     this.blocked[i] = Math.max(0, this.blocked[i] + (on ? 1 : -1));
   }
 
   isBlocked(tx: number, ty: number): boolean {
-    return this.inBounds(tx, ty) && this.blocked[ty * MAP_W + tx] !== 0;
+    return this.inBounds(tx, ty) && this.blocked[ty * this.width + tx] !== 0;
   }
 
   /** Marks a building footprint; a gate's footprint stays passable for `gateOwner`'s units. */
@@ -88,7 +93,7 @@ export class MapSystem {
     const v = !value ? 0 : gateOwner === 'player' ? 2 : gateOwner === 'enemy' ? 3 : 1;
     for (let y = ty; y < ty + h; y++) {
       for (let x = tx; x < tx + w; x++) {
-        if (this.inBounds(x, y)) this.occupied[y * MAP_W + x] = v;
+        if (this.inBounds(x, y)) this.occupied[y * this.width + x] = v;
       }
     }
   }
@@ -96,7 +101,7 @@ export class MapSystem {
   /** True if the tile is a gate owned by `owner`. */
   isGateFor(tx: number, ty: number, owner: Owner): boolean {
     if (!this.inBounds(tx, ty)) return false;
-    const o = this.occupied[ty * MAP_W + tx];
+    const o = this.occupied[ty * this.width + tx];
     return (o === 2 && owner === 'player') || (o === 3 && owner === 'enemy');
   }
 

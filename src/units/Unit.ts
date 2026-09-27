@@ -57,6 +57,8 @@ export class Unit {
   /** Current animation and frame (read by the 3D renderer). */
   anim: AnimName = 'idle';
   animFrame = 0;
+  /** Pose for the 3D renderer; between two sprite frames while walking. */
+  poseFrame = 0;
   /** Turret firing frame (0 rest, 1 fire). */
   turretFire = 0;
   private walkT = Math.random() * 10;
@@ -276,6 +278,8 @@ export class Unit {
     }
     this.anim = anim;
     this.animFrame = frame;
+    // The 3D figure walks in half-frame steps: twice as many poses as the sprite atlas holds.
+    this.poseFrame = anim === 'walk' ? (Math.floor(this.walkT * 2) % 12) / 2 : frame;
     this.turretFire = this.fireT > 0 ? 1 : 0;
     const name = frameName(anim, frame, this.dir);
     if (name !== this.frameKey) {

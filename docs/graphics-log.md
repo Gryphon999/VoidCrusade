@@ -347,3 +347,82 @@ every object, real light falloff, and specular on armour.
    and a fly-in transition from the campaign map into battle.
 8. **Performance.** Measure on real hardware. Instance static buildings, which are 2–3 draw
    calls each.
+
+## Models pass: units, vehicles, buildings, walk cycle
+
+Checked on a real GPU with `npx tsx scripts/screenshots-models.ts` (close-ups in
+`docs/screens/models/`; Iron Void buildings before this pass in `docs/screens/models-before/`).
+
+**Done.**
+- **New shapes for the puppet models** (`Puppet3D`, `ModelMesh`): tapering limbs, flat-ended
+  cylinders and frustums, cones, tapered blocks and curved armour plates (sphere caps). The 2D
+  sprite rasteriser draws each as its nearest simple shape, so Classic 2D keeps working.
+- **Iron Void infantry:** helmets with a brow, visor slit, snout plate, vox grille and ear cups;
+  layered pauldrons with a brass rim and a unit bar; a plastron over a ribbed abdomen; gorget;
+  thigh plates, knee cops and flared greaves; belt pouches and a tabard in the team colour;
+  a power pack with exhaust stacks. Weapons have receivers, magazines, stocks, sights, barrels
+  with muzzle brakes, a drum-fed autocannon with a cooling shroud, a scoped long rifle with a
+  bipod, a flamer with a heat shield, and a sword that narrows to a point.
+- **Iron Void vehicles:** sloped glacis plates, track guards, road wheels, sprockets and skirt
+  plates; the tank has a cast turret on a ring, a cupola, smoke dischargers, a gun with a
+  thermal sleeve, fume extractor and muzzle brake, and an engine deck with grilles and fuel
+  drums. The APC has hatches, doors and vision slits, the buggy a ram bar and real wheels, the
+  mortar walker pistons, a banded tube and a shell rack.
+- **Null Horde:** bone sticks became pointed claws, horns, teeth and spines; limbs taper;
+  overlapping carapace plates with ridge spines cover backs, shoulders and skulls, on the
+  infantry and on the carrier, siege beast and titan.
+- **Walk cycle:** the 3D figures use twelve walk poses where the sprites have six.
+- **Iron Void buildings:** the flat gold and grey lids are gone. Barracks and hospital have
+  gabled roofs with rafters, ridge beams and finials; the workshop a saw-tooth roof with lit
+  glazing; the armoury a hipped roof with a deck and hoist; the bunker a sloped glacis; depot and
+  foundry hooped vaults; the research hall battlements under its dome. Buttresses, vent stacks,
+  pipe runs and antennas break up the walls and roof lines.
+- **Null Horde buildings:** every structure grows roots that crawl outward in two bends,
+  swollen creep between them and glowing pustules. Mounds are girdled by ribs and covered in
+  overlapping carapace plates.
+
+**Self-critique.**
+- **Still built from primitives.** The figures read as armoured soldiers, machines and beasts,
+  not as balls and capsules, but they are not sculpted meshes: no textures beyond the surface
+  shader, no faces, and cloth does not move.
+- **Horde building bodies** kept their shapes (nest, spire, pools); only the mounds and the
+  ground around every structure changed. Pools are still flat glowing discs.
+- **Gabled roofs look flat from straight above:** both slopes take nearly the same light from
+  the high camera. A darker north slope or roof tiles in the shader would help.
+- **Animation** still steps between poses; twelve is smoother than six, not blended.
+- **Cost:** soldiers have roughly twice the parts they had. The frame rates in
+  [performance.md](performance.md) were measured with the new infantry and buildings, before
+  the vehicle and Horde building details were added.
+
+## Ground pass: layered terrain, rock faces, wet and volcanic ground
+
+Before and after on the same five maps: `docs/screens/maps-before/` and `docs/screens/maps/`
+(`npx tsx scripts/screenshots-models.ts --only=maps`).
+
+**Done.**
+- **Three ground materials blended in the shader** (`groundMaterials` in `Materials3D`, the
+  terrain shader in `Terrain3D`): cracked earth, gravel and wind-rippled dust, each at two
+  scales. They are blended by height, so one material breaks into the next along crack lines and
+  between stones. The baked albedo now only carries the biome's colour; the structure is drawn at
+  full sharpness at any zoom.
+- **A mask of the map** (roads, ruins, the foot of cliffs) steers the blend: scree and damp, dark
+  earth gather under rock walls, rubble spreads around ruins.
+- **Roads** are plating sampled at full resolution, worn through to the ground along ragged
+  edges, and a little glossier than the earth.
+- **Rock faces:** strata bands bent by the relief, dark fractures, pale weathered edges, rain
+  streaks down the walls, and dust settled on every ledge. Rock is sampled at two scales.
+- **Broad warm and cool drifts** of colour across the map, so a wide view is never one tone.
+- **Wet ground** (Mourngate Fens): standing water in the hollows, dark and mirror-smooth.
+- **Volcanic ground** (Cinder Spires): the cracks of the crust glow where the field runs hot.
+- **Two new looks**, each with its own biome, light, haze and colour grade: an overcast green
+  dawn for the fens and an ember dusk for the spires.
+
+**Self-critique.**
+- **Plating is too large.** One plate is about two tiles wide; on the wider roads of the bigger
+  maps it reads as a floor of slabs, not a road.
+- **Lava is only light.** It glows and lights nothing around it, and squads walk over it
+  unharmed. It is a look, not a hazard.
+- **Water is flat.** Puddles have no ripples and do not reflect the units standing in them.
+- **Cliff outlines are still stepped** where the wall runs diagonally: that is the mesh (four
+  subdivisions per tile, three on the largest map), not the shader.
+- **No plants.** Dead trees are props; there is no grass, moss or reeds, not even in the fens.

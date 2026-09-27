@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
+import { ATTRITION } from '../config';
 import { EV } from '../events';
 import { Owner, opponent } from '../types';
 import { UnitId } from '../units/UnitDefs';
 import { WinMode } from '../scenes/BattleTypes';
 import type { BattleScene } from '../scenes/BattleScene';
 
-/** Control Points: hold all but one point for this long. */
+/** Control Points: hold two thirds of the points for this long. */
 export const CONTROL_HOLD = 120;
 /** Survival: seconds between waves and the number of waves to win. */
 export const WAVE_EVERY = 45;
@@ -14,7 +15,7 @@ export const SURVIVAL_WAVES = 15;
 /**
  * Skirmish victory conditions.
  * - Annihilation: destroy the enemy headquarters (handled by BattleScene).
- * - Control Points: hold N-1 of N points for 120 s without a break.
+ * - Control Points: hold two thirds of the points (all but one on a small map) for 120 s without a break.
  * - Survival: the Horde has no base; ever larger waves pour in; survive 15 to win. Score = waves + kills.
  */
 export class VictorySystem {
@@ -29,7 +30,8 @@ export class VictorySystem {
   }
 
   get needed(): number {
-    return Math.max(1, this.battle.capture.points.length - 1);
+    const n = this.battle.capture.points.length;
+    return Math.max(1, Math.min(n - 1, Math.ceil((n * 2) / 3)));
   }
 
   /** Seconds until the next survival wave. */
@@ -40,6 +42,7 @@ export class VictorySystem {
   update(dt: number): void {
     const b = this.battle;
     if (b.ended) return;
+    if (this.mode !== 'survival' && !b.tutorial) this.attrition();
     if (this.mode === 'control') {
       for (const o of ['player', 'enemy'] as Owner[]) {
         if (b.capture.countOwned(o) >= this.needed) {
@@ -56,6 +59,15 @@ export class VictorySystem {
     } else if (this.mode === 'survival') {
       if (b.elapsed >= this.nextWave) this.spawnWave();
     }
+  }
+
+  /** After a long fight every structure takes more and more damage, so no siege lasts forever. */
+  private attrition(): void {
+    const b = this.battle;
+    const over = b.elapsed - ATTRITION.start;
+    if (over < 0) return;
+    if (b.buildings.wear === 1) b.events.emit(EV.message, 'note.attrition');
+    b.buildings.wear = 1 + Math.min(ATTRITION.max, ATTRITION.perMinute * (1 + over / 60));
   }
 
   /** Wave n: a growing mix of swarm, then heavier beasts from wave 5 and titans late. */

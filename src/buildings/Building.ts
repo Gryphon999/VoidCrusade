@@ -28,6 +28,8 @@ export class Building {
   repeat = false;
   rally: { x: number; y: number };
   attackCooldown = 0;
+  /** Seconds since the last hit (self-repair waits for a lull). */
+  sinceHit = 1e3;
   /** True once the enemy has ever seen it (fog of war). */
   discovered = false;
   /** Has ever finished construction (upkeep bookkeeping). */

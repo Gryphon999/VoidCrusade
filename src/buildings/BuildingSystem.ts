@@ -23,6 +23,8 @@ export class BuildingSystem {
   readonly reserved = new Set<number>();
   /** Per-owner construction speed multiplier. */
   buildSpeed: Record<Owner, number> = { player: 1, enemy: 1 };
+  /** Damage multiplier for every structure (attrition in long battles, set by the victory rules). */
+  wear = 1;
   /** Current tech tier per owner (wired to TechSystem by the battle). */
   tierOf: (owner: Owner) => number = () => 3;
   /** Forward-base points an owner holds (wired by the battle). */
@@ -113,7 +115,8 @@ export class BuildingSystem {
       if (!b.alive) continue;
       if (!b.needsBuilder && b.updateConstruction(dt, this.buildSpeed[b.owner])) this.onComplete(b, true);
       b.view.update(dt);
-      if (b.def.regen && b.isReady) b.heal(b.def.regen * dt);
+      b.sinceHit += dt;
+      if (b.def.regen && b.isReady && b.sinceHit >= BUILD.regenDelay) b.heal(b.def.regen * dt);
     }
   }
 
@@ -132,8 +135,9 @@ export class BuildingSystem {
   damage(b: Building, amount: number): void {
     if (!b.alive) return;
     const wasReady = b.isReady;
+    b.sinceHit = 0;
     this.scene.events.emit(EV.buildingDamaged, b, amount);
-    if (!b.takeDamage(amount)) return;
+    if (!b.takeDamage(amount * this.wear)) return;
     if (wasReady && b.def.fluxGen > 0) this.resources.removeIncome(b.owner, 'flux', b.def.fluxGen);
     this.map.setOccupied(b.tx, b.ty, b.def.size, b.def.size, false);
     for (let y = b.ty; y < b.ty + b.def.size; y++) {
