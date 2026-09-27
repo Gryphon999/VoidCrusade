@@ -19,7 +19,7 @@ interface Batch {
 /**
  * Draws every soldier and vehicle as instanced meshes, one batch per (unit type, animation,
  * frame). Poses come from the same procedural models that baked the 2D atlases, so the 3D
- * animation matches the sprite animation frame for frame; facing is a rotation per instance.
+ * animation matches the sprite animation frame for frame (walking adds the poses in between); facing is a rotation per instance.
  */
 export class Units3D {
   private geos = new Map<string, ModelGeometry>();
@@ -92,7 +92,7 @@ export class Units3D {
     for (const b of this.batches.values()) b.used = 0;
     // Count first so each batch is allocated once with enough room.
     const want = new Map<string, number>();
-    const keyOf = (u: Unit): string => `${u.def.id}:${u.anim}:${u.animFrame}`;
+    const keyOf = (u: Unit): string => `${u.def.id}:${u.anim}:${u.poseFrame}`;
     for (const u of units) {
       if (!u.alive || !u.sprite.visible) continue;
       want.set(keyOf(u), (want.get(keyOf(u)) ?? 0) + 1);
@@ -124,7 +124,7 @@ export class Units3D {
     for (const u of units) {
       if (!u.alive || !u.sprite.visible) continue;
       const key = keyOf(u);
-      const b = this.batch(key, this.geometry(u.def.id, u.anim, u.animFrame), want.get(key) ?? 1, this.matFor(u.def.id));
+      const b = this.batch(key, this.geometry(u.def.id, u.anim, u.poseFrame), want.get(key) ?? 1, this.matFor(u.def.id));
       const h = heightAt(u.x, u.y) + u.lift * HEIGHT_SCALE.value;
       this.p.set(u.x, h, u.y);
       this.q.setFromAxisAngle(this.up, -u.angle);

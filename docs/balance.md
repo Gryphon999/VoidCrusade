@@ -1,5 +1,75 @@
 # Balance notes
 
+## Latest measurement (108 matches per state, real hardware)
+
+Two runs of `npm run simulate -- --matches=54 --parallel=4 --seed=1` for each state, Hard against
+Hard. The plan is now a full factorial: every map meets every pair of AI personalities.
+
+| State | Iron Void wins | Horde wins | Draws (15 min) | Points held (IV / Horde) |
+|---|---|---|---|---|
+| Before | 25 | 28 | 55 | 1.79 / 2.58 |
+| After (regeneration pause, Listening Post 900 HP, attrition) | 28 | 32 | 48 | 1.75 / 2.59 |
+
+By map, after the changes (Iron Void wins / Horde wins / draws):
+
+| Map | Result |
+|---|---|
+| Ashfall Ridge | 4 / 14 / 18 |
+| Veyra Wastes | 7 / 16 / 13 |
+| Khorvan Deep | 17 / 2 / 17 |
+
+**What this says.**
+- **The factions win about equally often overall** (47 % to 53 % of decided games, before and
+  after). The earlier note that the Horde is stronger came from 9 matches, which is too few.
+- **The changes did not move the balance.** They shortened sieges a little (55 → 48 stalemates)
+  and that is all that can be claimed for them.
+- **The imbalance is per map, and it is large.** The Horde's swarm wins the two open maps, Iron
+  Void's guns win the canyon. The maps are point-symmetric, so this comes from how each faction
+  uses the ground, not from the layout favouring a side.
+- **The Horde holds about 0.8 more points** on average in every run. That gap is stable.
+- **Runs are noisy.** Two runs of the same code with the same seed gave 16/14/24 and 9/14/31:
+  the matches are not reproducible in practice, and 54 matches cannot resolve a difference of a
+  few wins. Compare states on 100 matches or more.
+
+**What was changed.**
+- Self-repairing structures (all Horde buildings) mend only after 6 s without being hit
+  (`BUILD.regenDelay`).
+- Listening Post 600 → 900 HP.
+- Attrition (`ATTRITION`): from minute 8 every structure takes 12 % more damage per minute, up to
+  +120 %, with a message to the player. Not in survival mode or the tutorial.
+
+**A fault in the earlier method.** On Windows the script tools left their dev server running,
+and the next run reused it. That server has no file watcher, so it kept serving the code as it
+was when it started. `scripts/devserver.ts` now refuses a port that is already serving and stops
+the whole process tree. Any comparison made here before that fix measured the same code twice.
+
+**Next, if the per-map gap should close:** give the open maps more cover and chokepoints near
+the side points, or let the Horde lose less in the canyon (its melee units reach the guns late).
+Both are map work and need the 100-match check afterwards.
+
+## On the larger maps (15 matches, 20-minute cap)
+
+One match for every map and Horde personality, Hard against Hard, after the maps grew to 96×72 and
+larger and gained points (9 to 13 on a map).
+
+| | Iron Void wins | Horde wins | Draws | Points held (IV / Horde) |
+|---|---|---|---|---|
+| 15 matches | 1 | 0 | 14 | 3.76 / 5.46 |
+
+- **Every match played through** on all five maps: both AIs expand, capture and fight.
+- **Almost every match between two AIs now ends in a stalemate** at the 20-minute cap, both sides
+  at full supply with their strongholds untouched. The march between bases is longer, so losses are
+  replaced before an attack reaches anything that matters. Attrition (from minute 8) does not
+  break it.
+- **The Horde still holds more of the map**, by about 1.7 points of 9 to 13.
+- This does not say how a battle against a person goes. It does say that on these maps a game will
+  not end by itself: the next things to try are a higher supply cap on the larger maps and a
+  stronger late attack from the AI.
+- Income per point is the map total (125 Scrip/s) shared between its points: 14 per point with 9,
+  11 with 11, 10 with 13.
+
+## Earlier notes (cloud runs, 9 matches each)
+
 Numbers in this file come from `npm run simulate` (`scripts/simulate.ts`): headless AI-vs-AI
 matches, Iron Void AI (player side) against Null Horde AI (enemy side), Hard vs Hard, on all three
 maps, cycling both personalities, seed 1, a 15-minute cap (a match still running then counts as a

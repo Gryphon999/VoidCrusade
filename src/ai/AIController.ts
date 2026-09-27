@@ -18,7 +18,7 @@ import { dyn, t } from '../i18n';
 import type { BattleScene } from '../scenes/BattleScene';
 
 type Pt = { x: number; y: number };
-type Role = 'home' | 'army' | 'harass' | 'scout';
+type Role = 'home' | 'army' | 'harass' | 'scout' | 'guard';
 type Target = { pt: Pt; hq: boolean; point?: CapturePoint };
 
 const dist = (a: Pt, b: Pt): number => Math.hypot(a.x - b.x, a.y - b.y);
@@ -31,6 +31,9 @@ const power = (s: Squad): number => Math.max(1, s.def.supply) * (s.hp / Math.max
  * Each think tick: macro (supply, tier, build order, reactive builds, training with counter-picks,
  * research, reinforcing) → army (roles, retreats, focus fire, home and point defence, drop
  * response, attack waves, harassment, scouting, garrisons, own drops).
+ *
+ * The battle opens with a truce (`SkillProfile.peace`): until it ends the AI claims the free points
+ * on its own half, posts guards on them and builds up, and attacks nothing of the enemy's.
  */
 export class AIController {
   readonly skill: SkillProfile;
@@ -49,6 +52,10 @@ export class AIController {
   private healing = new Set<Squad>();
   private scoutGoal: Pt | null = null;
   private alerts: { x: number; y: number; until: number }[] = [];
+  /** The squad posted at each held point. */
+  private posts = new Map<CapturePoint, Squad>();
+  private lastTrain = -99;
+  private warned = false;
   rushing = false;
   /** Off in the tutorial (the outpost just defends itself). */
   enabled = true;
@@ -88,6 +95,7 @@ export class AIController {
     this.reinforce();
     this.assignRoles();
     this.micro();
+    this.guardPoints();
     this.defendHome();
     this.defendPoints();
     this.attackWaves();
@@ -101,6 +109,18 @@ export class AIController {
 
   private get hq(): Building | null {
     return this.battle.buildings.getHQ(this.owner) ?? null;
+  }
+
+  /** True while the opening truce lasts: the AI builds, expands on its own half and defends. */
+  private get peace(): boolean {
+    return this.battle.elapsed < this.skill.peace;
+  }
+
+  /** True for points nearer to the AI's stronghold than to the enemy's. */
+  private ownHalf(p: Pt): boolean {
+    const hq = this.hq;
+    const foeHq = this.battle.buildings.getHQ(this.foe);
+    return !hq || !foeHq || dist(p, hq) <= dist(p, foeHq) * 1.05;
   }
 
   private get foe(): Owner {
@@ -204,13 +224,17 @@ export class AIController {
   private train(): void {
     const b = this.battle;
     const reserve = this.reserve();
+    // Slow hands and a smaller army on the easier levels.
+    if (b.elapsed - this.lastTrain < this.skill.trainEvery) return;
+    if (b.production.supplyUsed(this.owner) >= b.units.supplyCap(this.owner) * this.skill.armyCap) return;
     const producers = b.buildings.getOwned(this.owner).filter((q) => q.isReady && q.def.produces.length > 0);
-    for (let n = 0; n < 4; n++) {
+    for (let n = 0; n < (this.skill.trainEvery > 0 ? 1 : 4); n++) {
       if (b.resources.getResources(this.owner).scrip < reserve + 60) return;
       const open = producers.filter((q) => q.queue.length < this.skill.queue);
       if (!open.length) return;
       const best = this.pick(open);
       if (!best || !b.production.enqueue(best.at, best.id)) return;
+      this.lastTrain = b.elapsed;
     }
   }
 
@@ -310,7 +334,7 @@ export class AIController {
       if (s.role) continue;
       const fast = s.def.speed >= 120 && !s.def.isHero;
       if (this.skill.scout && count('scout') === 0 && fast && s.def.category === 'infantry' && this.battle.elapsed > 20) s.role = 'scout';
-      else if (this.skill.harass && count('harass') < (this.personality === 'rusher' ? 2 : 1) && fast && this.battle.elapsed > 150) s.role = 'harass';
+      else if (this.skill.harass && count('harass') < (this.personality === 'rusher' ? 2 : 1) && fast && !this.peace) s.role = 'harass';
       else if (count('home') < this.style.homeGuard && all.filter((q) => this.role(q) === 'army' && !q.def.isHero).length >= 3 && !s.def.isHero && s.def.category === 'infantry') s.role = 'home';
       else s.role = 'army';
     }
@@ -371,9 +395,41 @@ export class AIController {
     }
   }
 
+  /**
+   * Posts a squad at each held point, the ones nearest to the enemy first. A guard stays at its
+   * post in cover, goes back to it after a fight and tries to retake it when it falls.
+   */
+  private guardPoints(): void {
+    const b = this.battle;
+    const foeHq = b.buildings.getHQ(this.foe);
+    for (const [p, s] of this.posts) {
+      if (s.alive && this.role(s) === 'guard' && (p.owner === this.owner || p.claimant === this.owner || dist(s.center, p) < 500)) continue;
+      if (s.alive && this.role(s) === 'guard') s.role = 'army';
+      this.posts.delete(p);
+    }
+    const held = b.capture.points.filter((p) => p.owner === this.owner)
+      .sort((p, q) => (foeHq ? dist(p, foeHq) - dist(q, foeHq) : 0));
+    for (const p of held) {
+      if (this.posts.size >= this.skill.guards) break;
+      if (this.posts.has(p)) continue;
+      const free = this.squads.filter((s) => this.role(s) === 'army' && s.role === 'army' && !s.def.isHero && !s.def.repairRate && s.def.category === 'infantry'
+        && !this.healing.has(s) && !s.retreating).sort((x, y) => dist(x.center, p) - dist(y.center, p));
+      // The field army keeps at least two squads.
+      if (free.length < 3) break;
+      free[0].role = 'guard';
+      this.posts.set(p, free[0]);
+    }
+    for (const [p, s] of this.posts) {
+      if (s.engaged || s.retreating || this.healing.has(s) || s.isMoving()) continue;
+      if (dist(s.center, p) > 150) {
+        this.send(s, p.x + Phaser.Math.Between(-50, 50), p.y + Phaser.Math.Between(-50, 50), true);
+        s.holdOnArrival = true;
+      }
+    }
+  }
+
   /** Sends the nearest free army squads to held points under attack and to drop sites. */
   private defendPoints(): void {
-    if (!this.skill.reactive) return;
     const b = this.battle;
     const foes = this.visibleFoes();
     const spots: { x: number; y: number; need: number }[] = [];
@@ -382,7 +438,7 @@ export class AIController {
       const near = foes.filter((f) => dist(f.center, p) < 380);
       if (near.length) spots.push({ x: p.x, y: p.y, need: near.reduce((a, s) => a + power(s), 0) * 1.3 });
     }
-    for (const a of this.alerts) spots.push({ x: a.x, y: a.y, need: 4 });
+    if (this.skill.reactive) for (const a of this.alerts) spots.push({ x: a.x, y: a.y, need: 4 });
     for (const sp of spots) {
       const free = this.squads.filter((s) => this.role(s) === 'army' && !s.engaged && !this.healing.has(s) && !s.retreating)
         .sort((p, q) => dist(p.center, sp) - dist(q.center, sp));
@@ -397,6 +453,16 @@ export class AIController {
 
   private attackWaves(): void {
     const b = this.battle;
+    if (this.peace) {
+      this.wave = null;
+      this.maxedSince = b.elapsed;
+      return;
+    }
+    if (!this.warned) {
+      this.warned = true;
+      this.waveTimer = Math.min(this.waveTimer, 20);
+      if (this.owner === 'enemy') b.events.emit(EV.message, 'note.aiAttack');
+    }
     const army = this.squads.filter((s) => this.role(s) === 'army' && !this.healing.has(s));
     const supply = army.reduce((a, s) => a + power(s), 0);
     // Maxed out with money in the bank: losses are replaced at once, so it is time to siege.
@@ -468,6 +534,7 @@ export class AIController {
   /** Fast squads hit enemy points nobody has been seen guarding, and run when caught. */
   private harass(): void {
     const b = this.battle;
+    if (this.peace) return;
     for (const s of this.squads.filter((q) => this.role(q) === 'harass')) {
       if (this.healing.has(s) || s.retreating) continue;
       if (s.engaged && s.hp < s.maxHp * 0.55) {
@@ -508,7 +575,8 @@ export class AIController {
   /** Idle army squads walk to the nearest point the AI does not own. */
   private expand(): void {
     if (this.wave) return;
-    const free = this.battle.capture.points.filter((p) => p.owner !== this.owner);
+    // During the truce only unclaimed points on its own half; afterwards any point it does not hold.
+    const free = this.battle.capture.points.filter((p) => (this.peace ? p.owner === null && this.ownHalf(p) : p.owner !== this.owner));
     if (free.length === 0) return;
     for (const s of this.squads) {
       if (this.role(s) !== 'army' || s.isMoving() || s.engaged || s.order === 'attack' || this.healing.has(s) || !s.def.canCapture) continue;
@@ -542,7 +610,7 @@ export class AIController {
 
   /** Portal / Beacon drops onto undefended enemy points it can see. */
   private dropIn(): void {
-    if (!this.skill.drops) return;
+    if (!this.skill.drops || this.peace) return;
     const b = this.battle;
     const beacon = b.buildings.getOwned(this.owner).find((q) => q.def.role === 'beacon' && q.isReady && b.elapsed >= q.dropReady);
     if (!beacon) return;

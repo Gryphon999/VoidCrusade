@@ -36,6 +36,16 @@ const PRESETS: Record<string, AtmosPreset> = {
     id: 'night', sunDir: [0.7, 0.9, -0.8], sunColor: 0x9cb8ff, sunIntensity: 1.5,
     skyColor: 0x33406a, groundColor: 0x10141c, ambient: 0.85, exposure: 1.75, bloom: 0.8, haze: 0x0c1018, fogColor: 0x5a6a88, fog: 0.14, vignette: 0.5, grain: 0.045,
   },
+  // Mourngate: an overcast dawn over the fens; pale green-grey light from the east, heavy mist.
+  mourngate: {
+    id: 'dawn', sunDir: [0.9, 0.75, 0.3], sunColor: 0xdfe8c8, sunIntensity: 2.4,
+    skyColor: 0x8fa69a, groundColor: 0x2a3424, ambient: 1.3, exposure: 1.45, bloom: 0.45, haze: 0x1c241e, fogColor: 0x8aa08a, fog: 0.09, vignette: 0.4, grain: 0.035,
+  },
+  // Cinder Spires: the sun is gone behind the smoke; a deep red glow from the south-west.
+  cinder: {
+    id: 'ember', sunDir: [-0.8, 0.6, 0.5], sunColor: 0xffc090, sunIntensity: 3,
+    skyColor: 0x8a8690, groundColor: 0x2a2220, ambient: 1.45, exposure: 1.8, bloom: 0.75, haze: 0x1a0c0a, fogColor: 0x6a5450, fog: 0.08, vignette: 0.48, grain: 0.04,
+  },
   // Proving Grounds (tutorial): readable, gentle dusk.
   proving: {
     id: 'dusk-soft', sunDir: [-0.8, 0.9, -0.4], sunColor: 0xffc08a, sunIntensity: 2.6,

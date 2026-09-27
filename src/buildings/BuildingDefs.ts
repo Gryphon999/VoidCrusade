@@ -140,7 +140,7 @@ export const BUILDING_DEFS: Record<BuildingId, BuildingDef> = {
   },
   listening: {
     id: 'listening', name: 'Listening Post', faction: 'ironvoid', role: 'outpost', category: 'economy', tier: 1, cost: { scrip: 80, flux: 20 },
-    fluxGen: 0, hp: 600, buildTime: 10, size: 2, height: 64, buildRadius: 0, requires: [], produces: [], snap: 1,
+    fluxGen: 0, hp: 900, buildTime: 10, size: 2, height: 64, buildRadius: 0, requires: [], produces: [], snap: 1,
     fieldBuild: true, onPoint: true, incomeBonus: 10, attack: { damage: 10, range: 220, cooldown: 1, damageType: 'bullet' },
     description: 'Fortifies a captured Void-Nexus: +10 Scrip/s, a light gun, and the enemy captures it half as fast.',
   },

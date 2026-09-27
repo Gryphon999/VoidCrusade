@@ -18,7 +18,7 @@ export class SkirmishSetup {
   constructor(scene: Phaser.Scene, onStart: (data: BattleData) => void, onCancel: () => void) {
     const s = Settings.get();
     const state = {
-      map: 0,
+      map: Math.min(MAP_BUILDERS.length - 1, Math.max(0, s.skirmishMap ?? 0)),
       mode: (s.skirmishMode ?? 'annihilation') as WinMode,
       difficulty: s.difficulty as Difficulty,
       personality: s.skirmishPersonality ?? 'random',
@@ -50,8 +50,23 @@ export class SkirmishSetup {
         root.add(b.container);
       });
     };
-    const maps = MAP_BUILDERS.map((b) => b().id);
-    row(y + 100, 'skirmish.map', maps.map((_, i) => i), () => state.map, (v) => (state.map = v), (i) => mapName(maps[i]), 150);
+    // Map: step through the list; the line under the name gives its size and point count.
+    const maps = MAP_BUILDERS.map((b) => b());
+    label(y + 100, 'skirmish.map');
+    const mapTitle = scene.add.text(x + 250 + 235, y + 92, '', textStyle(17, '#f0e0b0')).setOrigin(0.5);
+    const mapInfo = scene.add.text(x + 250 + 235, y + 112, '', textStyle(11, '#9a9280')).setOrigin(0.5);
+    root.add([mapTitle, mapInfo]);
+    const step = (d: number): void => {
+      state.map = (state.map + d + maps.length) % maps.length;
+      for (const r of refresh) r();
+    };
+    root.add(new Button(scene, { x: x + 250 + 20, y: y + 100, w: 40, h: 34, label: '◀', onClick: () => step(-1) }).container);
+    root.add(new Button(scene, { x: x + 250 + 450, y: y + 100, w: 40, h: 34, label: '▶', onClick: () => step(1) }).container);
+    refresh.push(() => {
+      const m = maps[state.map];
+      mapTitle.setText(mapName(m.id));
+      mapInfo.setText(t('map.size', { w: m.w, h: m.h, n: m.capturePoints.length }));
+    });
     row(y + 150, 'skirmish.mode', MODES, () => state.mode, (v) => (state.mode = v), (m) => t(dyn(`mode.${m}`)), 150);
     const modeDesc = scene.add.text(x + 250, y + 180, '', { ...textStyle(12, '#9a9280'), wordWrap: { width: w - 290 } });
     root.add(modeDesc);
@@ -71,7 +86,7 @@ export class SkirmishSetup {
     for (const r of refresh) r();
     const start = new Button(scene, { x: GAME_WIDTH / 2 + 90, y: y + h - 46, w: 200, h: 46, label: t('skirmish.start'), onClick: () => {
       Settings.set({
-        difficulty: state.difficulty, skirmishMode: state.mode, skirmishPersonality: state.personality,
+        difficulty: state.difficulty, skirmishMode: state.mode, skirmishPersonality: state.personality, skirmishMap: state.map,
         skirmishStorms: state.storms, wargear: state.wargear,
       });
       root.destroy();

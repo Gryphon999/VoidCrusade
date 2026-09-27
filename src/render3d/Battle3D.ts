@@ -92,17 +92,17 @@ export class Battle3D implements BattleRenderer {
     this.sun.shadow.normalBias = 1.2;
     this.scene.add(this.sun, this.sun.target);
     this.renderer.shadowMap.enabled = tier.shadows;
-    this.terrain = new Terrain3D(battle.map, this.renderer.capabilities.getMaxAnisotropy());
+    this.terrain = new Terrain3D(battle.map, this.renderer.capabilities.getMaxAnisotropy(), this.tierName !== 'low');
     this.scene.add(this.terrain.mesh);
     const biome = biomeForMap(battle.map.def.id);
-    this.env = new Env3D(this.scene, (x, y) => this.terrain.heightAt(x, y), biome.cliffTop[1], battle.map.def.id.length * 131, tier.shadows);
+    this.env = new Env3D(this.scene, (x, y) => this.terrain.heightAt(x, y), biome.cliffTop[1], battle.map.def.id.length * 131, tier.shadows, battle.map.worldWidth, battle.map.worldHeight);
     this.units = new Units3D(this.scene, tier.modelDetail, tier.shadows);
     this.props = new Props3D(this.scene, tier.shadows);
     this.buildings = new Buildings3D(this.scene, tier.shadows);
     this.renderer.localClippingEnabled = true;
     this.lights = new Lights3D(this.scene, tier.pointLights);
     this.lights.budget = tier.pointLights;
-    this.fog = new Fog3D(this.scene, at.fogColor, at.fog);
+    this.fog = new Fog3D(this.scene, at.fogColor, at.fog, battle.map.worldWidth, battle.map.worldHeight);
     // Smoke is lit by the mix of sun and sky at this map's time of day.
     const smokeLight = new THREE.Color(at.sunColor).multiplyScalar(at.sunIntensity * 0.16).add(new THREE.Color(at.skyColor).multiplyScalar(at.ambient * 0.3));
     this.fx = new Fx3D(this.scene, (x, y) => this.terrain.heightAt(x, y), smokeLight, tier.modelDetail >= 1 ? 1 : 0.6);
@@ -279,7 +279,8 @@ export class Battle3D implements BattleRenderer {
     this.world.lightSpots(this.statics);
     this.lights.update(this.battle.effects.lights.sources(), this.statics, this.battle.cameras.main.worldView, hAt);
     this.fog.update(this.clock);
-    const mood = this.battle.map.def.id === 'veyra' ? 'dust' : this.battle.map.def.id === 'khorvan' ? 'night' : 'ash';
+    const id = this.battle.map.def.id;
+    const mood = id === 'veyra' ? 'dust' : id === 'khorvan' || id === 'mourngate' ? 'night' : 'ash';
     this.fx.ambient(dt, mood, this.battle.cameras.main.worldView, mood === 'dust' ? 5 : 22 * GFX3D[this.tierName].modelDetail);
     this.fx.update(dt);
     this.decalList.length = 0;

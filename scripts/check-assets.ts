@@ -6,10 +6,10 @@
  * projectile look and ability has a sound, and that every player-side unit and shouted ability
  * has a voice line. Exits non-zero on any gap.
  */
-import { spawn } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
+import { startServer, stopServer } from './devserver';
 
 const PORT = 5197;
 
@@ -23,19 +23,10 @@ function findChromium(): string | undefined {
 }
 
 async function main(): Promise<void> {
-  const server = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', shell: process.platform === 'win32', env: { ...process.env, VC_STATIC: '1' } });
-  const url = `http://localhost:${PORT}/`;
+  const { server, url } = await startServer(PORT);
   let failures: string[] = [];
   let checked = 0;
   try {
-    for (let i = 0; i < 120; i++) {
-      try {
-        if ((await fetch(url)).ok) break;
-      } catch {
-        /* not up yet */
-      }
-      await new Promise((r) => setTimeout(r, 500));
-    }
     const browser = await chromium.launch({ executablePath: findChromium(), args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--mute-audio'] });
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     await page.addInitScript('globalThis.__name = (f) => f;');
@@ -79,13 +70,37 @@ async function main(): Promise<void> {
         if (SHOUTS.includes(d.id)) need(voiced(`vo.ab.${d.id}`), `ability ${d.id}: voice line`);
       }
       for (const r of RESEARCH_DEFS as any[]) need(tex.exists(researchGlyph(r.id)), `research ${r.id}: icon`);
+      // Voice: a line must be answered by its recorded file, in both languages.
+      const { Voice } = await imp('/src/systems/VoiceSystem.ts');
+      const { setLanguage } = await imp('/src/i18n/index.ts');
+      const { Settings } = await imp('/src/systems/Settings.ts');
+      Settings.set({ voiceEnabled: true });
+      const played: string[] = [];
+      const play = HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play = function (this: HTMLMediaElement): Promise<void> {
+        played.push(this.src);
+        return play.call(this);
+      };
+      // Alerts share a cooldown and a line is not repeated for 15 s: wait, and use a line per language.
+      for (const [lang, key] of [['en', 'vo.victory'], ['ru', 'vo.defeat']]) {
+        setLanguage(lang);
+        Voice.stop();
+        await new Promise((r) => setTimeout(r, 6500));
+        const before = played.length;
+        const said = Voice.say(key, 'commander', 'alert');
+        await new Promise((r) => setTimeout(r, 1500));
+        const src = played[before] ?? '';
+        const ok = await fetch(src || 'voice/missing').then((r) => r.ok && (r.headers.get('content-type') ?? '').startsWith('audio')).catch(() => false);
+        need(said && src.includes(`voice/${lang}/commander/${key}.`) && ok, `voice ${lang}: recorded line did not play (said ${said}, pack ${Voice.hasRecordings()}, file ${src || 'none'})`);
+      }
+      HTMLMediaElement.prototype.play = play;
       return { fail, n };
     });
     failures = out.fail;
     checked = out.n;
     await browser.close();
   } finally {
-    server.kill();
+    stopServer(server);
   }
   console.log(`Checked ${checked} assets: ${failures.length} missing`);
   for (const f of failures) console.log(`  - ${f}`);

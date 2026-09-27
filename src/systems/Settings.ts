@@ -32,6 +32,7 @@ export interface GameSettings {
   /** UI language; undefined until chosen (then auto-detected). */
   language?: Lang;
   /** Last skirmish setup choices. */
+  skirmishMap?: number;
   skirmishMode?: string;
   skirmishPersonality?: string;
   skirmishStorms?: boolean;

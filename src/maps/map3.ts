@@ -1,9 +1,10 @@
 import { TILE } from '../config';
-import { MapBuilder, MapDef, mirrorPoint, mirrorTile } from './MapBuilder';
+import { MapBuilder, MapDef, PointKind } from './MapBuilder';
 
 /** "Khorvan Deep" — a mining canyon: cliffs everywhere, fighting funnels through three passes. */
 export function buildMap3(): MapDef {
-  const b = new MapBuilder(TILE.CLIFF);
+  // Drawn on a 64×48 sheet, built one and a half times larger.
+  const b = new MapBuilder(TILE.CLIFF, 96, 72, 1.5);
   const { ROAD, RUINS, GROUND } = TILE;
 
   // Carve the player's plateau and canyons out of solid rock.
@@ -16,6 +17,12 @@ export function buildMap3(): MapDef {
   b.ellipse(10, 14, 5, 4, GROUND);
   b.ellipse(28, 40, 4, 4, GROUND);
   b.line(18, 30, 26, 26, GROUND, 3);
+  // Side chambers for the outer points, each with one way in.
+  b.ellipse(12, 24, 4, 3.5, GROUND);
+  b.ellipse(5, 6, 3.5, 3.5, GROUND);
+  b.line(6, 8, 9, 12, GROUND, 3);
+  b.ellipse(44, 43, 4, 3, GROUND);
+  b.line(36, 40, 42, 42, GROUND, 3);
 
   // Mine tracks.
   b.line(8, 38, 26, 38, ROAD, 2);
@@ -24,21 +31,23 @@ export function buildMap3(): MapDef {
 
   // Collapsed mine buildings for cover.
   b.rect(20, 36, 2, 2, RUINS).rect(8, 22, 2, 2, RUINS).rect(28, 22, 2, 3, RUINS).rect(22, 27, 2, 2, RUINS).rect(35, 30, 2, 2, RUINS);
+  b.rect(14, 25, 1.5, 1.5, RUINS).rect(41, 41, 1.5, 1.5, RUINS);
 
   b.rect(3, 36, 9, 9, GROUND);
-  b.border(TILE.CLIFF).mirror();
 
-  const playerBase = { tx: 4, ty: 40 };
-  const side = [
-    { x: 28, y: 40 },
-    { x: 10, y: 14 },
-  ];
+  const centre: [number, number, PointKind?][] = [[32, 24]];
+  const half: [number, number, PointKind?][] = [[28, 40], [10, 14], [12, 24], [44, 43]];
+  b.pads(centre).pads(half).border(TILE.CLIFF).mirror();
+
+  const playerBase = b.tile(4, 40);
   return {
     id: 'khorvan',
     name: 'Khorvan Deep',
+    w: b.w,
+    h: b.h,
     tiles: b.build(),
     playerBase,
-    enemyBase: mirrorTile(playerBase, 4),
-    capturePoints: [{ x: 32, y: 24 }, ...side, ...side.map(mirrorPoint)],
+    enemyBase: b.mirrorTile(playerBase, 4),
+    capturePoints: b.points(centre, half),
   };
 }

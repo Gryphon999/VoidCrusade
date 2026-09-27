@@ -4,7 +4,8 @@ import { Personality } from './Personality';
 
 /**
  * How well the AI plays. No difficulty gets extra income: harder AIs think faster, queue more,
- * counter-pick, micro (retreat, focus fire, abilities), scout and harass.
+ * counter-pick, micro (retreat, focus fire, abilities), scout and harass. Easier ones also keep
+ * a smaller army and a longer truce before their first attack.
  */
 export interface SkillProfile {
   /** Seconds between decisions. */
@@ -32,26 +33,40 @@ export interface SkillProfile {
   waveEvery: number;
   /** Multiplier on the army size a wave waits for. */
   waveSize: number;
-  /** Seconds of idling before a construction decision (slow hands). */
+  /**
+   * Seconds between two construction orders (slow hands). A person places a building, looks at
+   * the field and comes back; these pauses keep the AI from out-building a human at the same level.
+   */
   buildDelay: number;
+  /**
+   * Seconds of truce at the start of a battle: until then the AI takes the free points on its own
+   * half, guards them and builds, but sends nothing at the enemy's points or stronghold.
+   */
+  peace: number;
+  /** Squads posted at its own points, nearest to the enemy first. */
+  guards: number;
+  /** Share of its supply the AI lets itself fill with troops. */
+  armyCap: number;
+  /** Seconds between two training orders. */
+  trainEvery: number;
 }
 
 export const SKILL: Record<Difficulty, SkillProfile> = {
   easy: {
     think: 2.5, queue: 1, abilityUse: 0.2, counter: 0, retreatHp: 0, focusFire: false, garrison: false, scout: false,
-    harass: false, reactive: false, research: false, drops: false, waveEvery: 110, waveSize: 0.8, buildDelay: 12,
+    harass: false, reactive: false, research: false, drops: false, waveEvery: 110, waveSize: 0.8, buildDelay: 16, peace: 720, guards: 2, armyCap: 0.55, trainEvery: 14,
   },
   normal: {
     think: 1.5, queue: 2, abilityUse: 0.55, counter: 0.5, retreatHp: 0.2, focusFire: false, garrison: true, scout: false,
-    harass: false, reactive: true, research: true, drops: false, waveEvery: 75, waveSize: 1, buildDelay: 5,
+    harass: false, reactive: true, research: true, drops: false, waveEvery: 75, waveSize: 1, buildDelay: 9, peace: 600, guards: 3, armyCap: 0.8, trainEvery: 7,
   },
   hard: {
     think: 0.9, queue: 3, abilityUse: 0.9, counter: 0.8, retreatHp: 0.3, focusFire: true, garrison: true, scout: true,
-    harass: true, reactive: true, research: true, drops: true, waveEvery: 55, waveSize: 1, buildDelay: 1.5,
+    harass: true, reactive: true, research: true, drops: true, waveEvery: 55, waveSize: 1, buildDelay: 4, peace: 420, guards: 3, armyCap: 1, trainEvery: 2,
   },
   brutal: {
     think: 0.6, queue: 4, abilityUse: 1, counter: 1, retreatHp: 0.32, focusFire: true, garrison: true, scout: true,
-    harass: true, reactive: true, research: true, drops: true, waveEvery: 40, waveSize: 0.85, buildDelay: 0,
+    harass: true, reactive: true, research: true, drops: true, waveEvery: 40, waveSize: 0.85, buildDelay: 1.5, peace: 240, guards: 4, armyCap: 1, trainEvery: 0,
   },
 };
 

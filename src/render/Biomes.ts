@@ -10,6 +10,10 @@ export interface Biome {
   /** Ember/ash specks sprinkled on the ground. */
   specks: number;
   minimap: { ground: number; cliff: number; road: number; ruins: number };
+  /** Standing water in the hollows of the ground, 0 (dry) to 1 (3D view only). */
+  wet?: number;
+  /** Colour of the glow inside the cracks of the ground, for volcanic fields (3D view only). */
+  lava?: number;
 }
 
 const ASH: Biome = {
@@ -45,7 +49,31 @@ const ROCK: Biome = {
   minimap: { ground: 0x34373c, cliff: 0x0b0c0e, road: 0x4e5258, ruins: 0x40434a },
 };
 
-const BY_MAP: Record<string, Biome> = { ashfall: ASH, veyra: DUST, khorvan: ROCK };
+const FEN: Biome = {
+  id: 'fen',
+  ground: [[0x232a22, 0x3f4a38], [0x1a211c, 0x2f3a30], [0x3a3a26, 0x5c5a3c]],
+  plating: [0x2c322e, 0x525a54],
+  rubble: [0x2a2e28, 0x525648],
+  cliffTop: [0x2a3028, 0x4c5444],
+  cliffFace: [0x0c100c, 0x2a3026],
+  specks: 0x9adf70,
+  wet: 0.7,
+  minimap: { ground: 0x343c30, cliff: 0x0a0d0a, road: 0x4c524c, ruins: 0x44483e },
+};
+
+const CINDER: Biome = {
+  id: 'cinder',
+  ground: [[0x201e1e, 0x3e3a38], [0x2a221e, 0x4a3e36], [0x161516, 0x2e2c2e]],
+  plating: [0x2a2a2e, 0x505058],
+  rubble: [0x241e1c, 0x4a403a],
+  cliffTop: [0x1a1718, 0x36302e],
+  cliffFace: [0x080606, 0x241a18],
+  specks: 0xff4a1a,
+  lava: 0xff5a1a,
+  minimap: { ground: 0x2c2624, cliff: 0x080606, road: 0x48484e, ruins: 0x3c3432 },
+};
+
+const BY_MAP: Record<string, Biome> = { ashfall: ASH, veyra: DUST, khorvan: ROCK, mourngate: FEN, cinder: CINDER };
 
 export function biomeForMap(mapId: string): Biome {
   return BY_MAP[mapId] ?? ASH;

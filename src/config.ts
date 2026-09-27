@@ -73,7 +73,10 @@ export const RESOURCES = {
   startFlux: 100,
   /** Trickle income from the Stronghold so a player is never fully stalled. */
   baseScripIncome: 4,
+  /** Scrip per second from one held point on a small map (up to five points). */
   captureScripPerSec: 25,
+  /** Scrip per second from all the points of a map together: maps with many points pay less for each. */
+  captureScripTotal: 125,
   /** Extra Flux from holding the relic. */
   relicFluxPerSec: 5,
   /** Build radius (tiles) around a held forward-base point. */
@@ -88,6 +91,17 @@ export const BUILD = {
   /** Fraction of max HP a building starts with while under construction. */
   startHpFraction: 0.25,
   refundOnCancel: 0.75,
+  /** Self-repairing structures only mend after this many seconds without being hit. */
+  regenDelay: 6,
+} as const;
+
+/** Long battles wear fortifications down, so a siege always ends: structures take more damage. */
+export const ATTRITION = {
+  /** Battle time (s) when the wear begins. */
+  start: 480,
+  /** Extra damage to structures per minute after that. */
+  perMinute: 0.12,
+  max: 1.2,
 } as const;
 
 export const UNITS = {
@@ -180,7 +194,7 @@ export const GFX = {
 /** 3D battlefield settings per quality tier (see docs/graphics-decision.md). */
 export const GFX3D = {
   low: { shadows: false, shadowMap: 1024, bloom: false, antialias: false, maxDpr: 1, modelDetail: 0.6, pointLights: 4 },
-  medium: { shadows: true, shadowMap: 2048, bloom: true, antialias: true, maxDpr: 1.5, modelDetail: 0.8, pointLights: 8 },
+  medium: { shadows: true, shadowMap: 2048, bloom: true, antialias: true, maxDpr: 1, modelDetail: 0.8, pointLights: 8 },
   high: { shadows: true, shadowMap: 2048, bloom: true, antialias: true, maxDpr: 2, modelDetail: 1, pointLights: 12 },
   ultra: { shadows: true, shadowMap: 4096, bloom: true, antialias: true, maxDpr: 3, modelDetail: 1.25, pointLights: 16 },
 } as const;
