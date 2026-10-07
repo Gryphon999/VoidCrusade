@@ -23,6 +23,8 @@ export interface BattleData {
   territoryId?: string;
   bonuses?: CampaignBonuses;
   enemyBonusScrip?: number;
+  /** Campaign: defending a held territory against a Horde counterattack. */
+  defense?: boolean;
 }
 
 export interface BattleStats {

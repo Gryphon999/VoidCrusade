@@ -189,6 +189,15 @@ point and the enemy stronghold. A map sets its own size (`MapBuilder`), so more 
 Control, Survival, Hold the Line, Burn the Nests, Evacuation; map, difficulty, AI personality, battle
 modifiers, wargear), Tutorial.
 
+**Campaign consequences** (`src/campaign/CampaignState.ts`, `CampaignEvents.ts`, `CampaignData.ts`):
+every territory fights by its own rules (battle modifiers and/or a mission objective, listed in the
+assault dialog; three territories use the new maps). After a victory and the boon pick, an event may
+appear (60 %): a situation with two answers whose effects (next-battle bonuses, a boon gained or lost,
+extra Horde Scrip, counterattack chance) are spelled out. After every battle the Horde may counterattack a
+held frontier territory (30 % + 5 % per battle won, capped at 60 %, tilted by events): the map pulses it
+red, it is the only battle available, the defence is Hold the Line on that map with the Horde +100 Scrip,
+and losing it loses the territory. Old saves load unchanged.
+
 **Mission objectives** (`src/battle/Objectives.ts` holds the rules, `VictorySystem` wires them):
 *Hold the Line* — own the centre point for 4:00 in all; the meter drains twice as fast while the Horde
 holds it. *Burn the Nests* — no Horde base; four Brood Nests (2000 HP) on the Horde side spawn ever
