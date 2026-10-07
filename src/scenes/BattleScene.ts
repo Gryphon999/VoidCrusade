@@ -38,6 +38,7 @@ import { Unit } from '../units/Unit';
 import { Squad } from '../units/Squad';
 import { ATTRITION, RESOURCES, SUPPLY } from '../config';
 import { applyModifiers, defaultBattleParams } from '../battle/BattleModifiers';
+import { canSeeAcrossLevels, sightMultAt } from '../battle/Elevation';
 import { BattleData, BattleResult, BattleStats } from './BattleTypes';
 import { EV } from '../events';
 import { Building } from '../buildings/Building';
@@ -286,10 +287,18 @@ export class BattleScene extends Phaser.Scene {
   fogVisibleFor(owner: Owner, x: number, y: number): boolean {
     if (owner === 'player') return this.fog ? this.fog.isVisibleWorld(x, y) : true;
     const mult = (this.world?.visionMult ?? 1) * this.modifiers[owner].sightMult;
-    return this.units.squads.some((s) => s.owner === owner && s.alive
-      && Math.hypot(s.center.x - x, s.center.y - y) <= s.def.sight * mult)
-      || this.buildings.buildings.some((b) => b.owner === owner && b.alive
-        && Math.hypot(b.x - x, b.y - y) <= (b.def.vision ?? 200) + b.radius);
+    // High ground: a viewer below only sees the point when standing right next to it.
+    const level = this.map.levelAt(x, y);
+    return this.units.squads.some((s) => {
+      if (s.owner !== owner || !s.alive || s.embarked) return false;
+      const d = Math.hypot(s.center.x - x, s.center.y - y);
+      return d <= s.def.sight * mult * sightMultAt(s.level) && canSeeAcrossLevels(s.level, level, d);
+    })
+      || this.buildings.buildings.some((b) => {
+        if (b.owner !== owner || !b.alive) return false;
+        const d = Math.hypot(b.x - x, b.y - y);
+        return d <= (b.def.vision ?? 200) + b.radius && canSeeAcrossLevels(this.map.levelAt(b.x, b.y), level, d);
+      });
   }
 
   get ended(): boolean {

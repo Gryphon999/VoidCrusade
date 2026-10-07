@@ -182,6 +182,7 @@ point and the enemy stronghold. A map sets its own size (`MapBuilder`), so more 
 - **Vehicles** — wide pathing, crushing, wrecks that block paths, give cover and can be salvaged.
 - **Stealth and detection**, **cover and line of sight**, **fog of war**, **map events** (explosive barrels, derelict turrets, ash storms).
 - **Terrain** (`TERRAIN` in `config.ts`, one rule per tile): shallows (infantry wades at 60 %, vehicles cannot enter, no building), magma fields (8 % of max HP per second, routes avoid them), thickets (cover, block shots across them, hide squads inside until they fire or an enemy walks up), ice (25 % faster, never any cover). Systems read the table, never the tile ids.
+- **High ground** (`src/battle/Elevation.ts`, `MapDef.levels`): plateaus see 25 % further and shoot 40 further, and are invisible from below unless the viewer has eyes up top or stands at contact range; the only way between levels is a **ramp** tile (vehicles need one two tiles wide), so ramps are bottlenecks. Ashfall Ridge, Veyra Wastes, Khorvan Deep and Frostmark have plateaus; `MapBuilder.raise / raiseEllipse / ramp` author them.
 - **Stances** — hold, defend, aggressive, plus retreat.
 
 **Modes** — Campaign (ten hex territories with bonuses and upgrade cards), Skirmish (Annihilation,

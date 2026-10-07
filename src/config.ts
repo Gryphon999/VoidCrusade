@@ -37,6 +37,8 @@ export const TILE = {
   SCRUB: 6,
   /** Frozen lake: fast, open ground that gives no cover at all. */
   ICE: 7,
+  /** Ramp: the only way between low and high ground (counts as high ground). */
+  RAMP: 8,
 } as const;
 export type TileType = (typeof TILE)[keyof typeof TILE];
 
@@ -70,6 +72,7 @@ export const TERRAIN: Record<TileType, TerrainRule> = {
   [TILE.LAVA]: { speed: 0.8, vehicles: true, buildable: false, cover: 'none', conceals: false, losBlock: false, damage: 0.08, pathCost: 6 },
   [TILE.SCRUB]: { speed: 0.8, vehicles: true, buildable: false, cover: 'cover', conceals: true, losBlock: true, damage: 0, pathCost: 1.25 },
   [TILE.ICE]: { speed: 1.25, vehicles: true, buildable: true, cover: 'none', conceals: false, losBlock: false, damage: 0, pathCost: 0.9 },
+  [TILE.RAMP]: { ...PLAIN, buildable: false, pathCost: 1.1 },
 };
 
 /** Seconds after its last shot before a squad in a thicket is hidden again. */

@@ -86,10 +86,14 @@ export class Pathfinder {
     // Vehicles also need driveable terrain (no shallows).
     const p = (x: number, y: number): boolean => m.isPassable(x, y, owner) && m.isVehicleTerrain(x, y);
     if (!p(tx, ty)) return false;
+    // On a ramp the whole 2x2 block must be ramp: vehicles need a ramp two tiles wide.
+    const ramp = m.isRamp(tx, ty);
     for (const [ox, oy] of [[0, 0], [-1, 0], [0, -1], [-1, -1]]) {
       const x = tx + ox;
       const y = ty + oy;
-      if (p(x, y) && p(x + 1, y) && p(x, y + 1) && p(x + 1, y + 1)) return true;
+      if (!(p(x, y) && p(x + 1, y) && p(x, y + 1) && p(x + 1, y + 1))) continue;
+      if (ramp && !(m.isRamp(x, y) && m.isRamp(x + 1, y) && m.isRamp(x, y + 1) && m.isRamp(x + 1, y + 1))) continue;
+      return true;
     }
     return false;
   }
@@ -148,6 +152,8 @@ export class Pathfinder {
         const ny = cy + dy;
         if (!pass(nx, ny)) continue;
         if (dx !== 0 && dy !== 0 && (!pass(cx + dx, cy) || !pass(cx, cy + dy))) continue;
+        // Between low and high ground only over a ramp.
+        if (!m.canStep(cx, cy, nx, ny)) continue;
         const ni = ny * W + nx;
         if (this.closed[ni] === this.run) continue;
         // Stepping onto slow or dangerous ground costs more, so routes go round it when they can.
@@ -195,6 +201,7 @@ export class Pathfinder {
     const steps = Math.ceil(d / (TILE_SIZE / 4));
     const nx = d > 0 ? (-(y1 - y0) / d) * clearance : 0;
     const ny = d > 0 ? ((x1 - x0) / d) * clearance : 0;
+    let prev = this.map.worldToTile(x0, y0);
     for (let s = 0; s <= steps; s++) {
       const t = steps === 0 ? 0 : s / steps;
       const x = x0 + (x1 - x0) * t;
@@ -204,6 +211,9 @@ export class Pathfinder {
       // A straight shortcut never crosses ground the search itself would avoid (lava).
       if (this.map.rule(c.tx, c.ty).pathCost >= AVOID_COST) return false;
       if (wide && !this.map.isVehicleTerrain(c.tx, c.ty)) return false;
+      // Nor does it climb between levels anywhere but on a ramp.
+      if ((c.tx !== prev.tx || c.ty !== prev.ty) && !this.map.canStep(prev.tx, prev.ty, c.tx, c.ty)) return false;
+      prev = c;
     }
     return true;
   }

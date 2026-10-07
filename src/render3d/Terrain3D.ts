@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { TILE, TILE_SIZE } from '../config';
 import { TILE_COLORS, biomeForMap } from '../render/Biomes';
+import { ELEVATION } from '../battle/Elevation';
 import { createTerrainTextures } from '../render/TerrainTextures';
 import { ValueNoise } from '../render/Noise';
 import { detailTexture, groundMaterials, platingCanvas, rockTexture } from './Materials3D';
@@ -34,6 +35,8 @@ export class Terrain3D {
   readonly mesh = new THREE.Group();
   private material!: THREE.Material;
   private cliff: Float32Array;
+  /** Smoothed 0..1 high-ground coverage at vertex resolution (plateaus with steep sides, ramps sloped). */
+  private plateau: Float32Array;
   /** Shell craters on open ground: dents with raised rims (visual only). */
   readonly craters: { x: number; y: number; r: number }[] = [];
   private noise: ValueNoise;
@@ -55,6 +58,7 @@ export class Terrain3D {
     for (const ch of map.def.id) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
     this.noise = new ValueNoise(seed + 3);
     this.cliff = this.cliffField();
+    this.plateau = this.levelField();
     this.craters = this.placeCraters(seed);
     const biome = biomeForMap(map.def.id);
     const albedo = this.bakeAlbedo(seed);
@@ -331,6 +335,46 @@ float gIce;`)
     return f;
   }
 
+  /** Smoothed 0..1 high-ground coverage at vertex resolution; a ramp tile counts half, so the slope lies on it. */
+  private levelField(): Float32Array {
+    const f = new Float32Array(this.vw * this.vh);
+    if (!this.map.hasLevels) return f;
+    const lv = (tx: number, ty: number): number => (this.map.isRamp(tx, ty) ? 0.5 : this.map.level(tx, ty));
+    for (let j = 0; j < this.vh; j++) {
+      for (let i = 0; i < this.vw; i++) {
+        const x = i / this.sub - MARGIN;
+        const y = j / this.sub - MARGIN;
+        let s = 0;
+        let n = 0;
+        for (let dy = -0.5; dy <= 0.51; dy += 0.5) {
+          for (let dx = -0.5; dx <= 0.51; dx += 0.5) {
+            s += lv(Math.floor(x + dx - 0.01), Math.floor(y + dy - 0.01));
+            n++;
+          }
+        }
+        f[j * this.vw + i] = s / n;
+      }
+    }
+    return f;
+  }
+
+  /** Plateau height (px) at a logical point: steep sides, a ramp's gentle slope kept. */
+  private plateauAt(x: number, y: number): number {
+    if (!this.map.hasLevels) return 0;
+    const fx = Math.min(this.vw - 1.001, Math.max(0, (x / TILE_SIZE + MARGIN) * this.sub));
+    const fy = Math.min(this.vh - 1.001, Math.max(0, (y / TILE_SIZE + MARGIN) * this.sub));
+    const i = Math.floor(fx);
+    const j = Math.floor(fy);
+    const u = fx - i;
+    const v = fy - j;
+    const p = this.plateau;
+    const W = this.vw;
+    const k = p[j * W + i] * (1 - u) * (1 - v) + p[j * W + i + 1] * u * (1 - v) + p[(j + 1) * W + i] * (1 - u) * v + p[(j + 1) * W + i + 1] * u * v;
+    // Sharpen the edge into a wall, but keep the middle band (ramps sit at 0.5) as a slope.
+    const t = k <= 0.2 ? 0 : k >= 0.8 ? 1 : (k - 0.2) / 0.6;
+    return ELEVATION.plateau3d * t;
+  }
+
   /** Distance (tiles) outside the playable rectangle, 0 inside. */
   private outside(x: number, y: number): number {
     const tx = x / TILE_SIZE;
@@ -366,6 +410,8 @@ float gIce;`)
     // Rough, terraced tops: a second, lower shelf in places.
     const shelf = this.noise.fbm(x / 160 + 3, y / 160, 3) > 0.58 ? 0.72 : 1;
     let h = ground + s * (CLIFF_3D * shelf + rough * 42);
+    // High ground: plateaus with steep sides and sloped ramps.
+    h += this.plateauAt(x, y);
     // Shallows and magma lie in hollows (smoothed over the tile edge so banks slope).
     const dip = this.lowField(x, y);
     if (dip > 0) h -= dip;
