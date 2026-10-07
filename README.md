@@ -185,7 +185,15 @@ point and the enemy stronghold. A map sets its own size (`MapBuilder`), so more 
 - **Stances** — hold, defend, aggressive, plus retreat.
 
 **Modes** — Campaign (ten hex territories with bonuses and upgrade cards), Skirmish (Annihilation,
-Control, Survival; map, difficulty, AI personality, battle modifiers, wargear), Tutorial.
+Control, Survival, Hold the Line, Burn the Nests, Evacuation; map, difficulty, AI personality, battle
+modifiers, wargear), Tutorial.
+
+**Mission objectives** (`src/battle/Objectives.ts` holds the rules, `VictorySystem` wires them):
+*Hold the Line* — own the centre point for 4:00 in all; the meter drains twice as fast while the Horde
+holds it. *Burn the Nests* — no Horde base; four Brood Nests (2000 HP) on the Horde side spawn ever
+nastier broods every 40 s; destroy them all before 15:00. *Evacuation* — hold out until the transport
+lands at 5:00, then keep the Commander and three squads in the centre zone for 10 s; the Commander's
+death loses the mission.
 
 **Battle modifiers** — optional rules picked in the skirmish setup, each for both sides: Ash storms,
 Night (vision −40 %, night lighting), Plenty / Scarcity (income ×2 / ×½), No fortifications (the

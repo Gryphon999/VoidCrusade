@@ -38,6 +38,7 @@ export function showEndScreen(scene: Phaser.Scene, battle: BattleScene, result: 
     lines.unshift(mods.length ? t('end.survivalMod', p) : t('end.survival', p));
   }
   if (battle.victory?.mode === 'control' && win) lines.unshift(t('end.control'));
+  if (win && (battle.victory?.mode === 'hold' || battle.victory?.mode === 'nests' || battle.victory?.mode === 'evac')) lines.unshift(t(dyn(`end.${battle.victory.mode}`)));
   const stats = scene.add.text(cx, cy + 40, lines.join('\n'), { ...textStyle(18, '#aab'), align: 'center', lineSpacing: 8 });
   stats.setOrigin(0.5).setAlpha(0);
   scene.tweens.add({ targets: [subtitle, stats], alpha: 1, duration: 600, delay: 900 });

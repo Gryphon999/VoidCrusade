@@ -4,7 +4,9 @@ import { Owner } from '../types';
 import type { WargearPick } from '../campaign/Wargear';
 import type { ModifierId } from '../battle/BattleModifiers';
 
-export type WinMode = 'annihilation' | 'control' | 'survival';
+export type WinMode = 'annihilation' | 'control' | 'survival' | 'hold' | 'nests' | 'evac';
+/** Every skirmish victory condition, in menu order. */
+export const WIN_MODES: readonly WinMode[] = ['annihilation', 'control', 'survival', 'hold', 'nests', 'evac'];
 
 export interface BattleData {
   mapIndex?: number;

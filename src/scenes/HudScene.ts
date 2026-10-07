@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import type { BattleScene } from './BattleScene';
 import { TopBar, TOP_BAR_H } from '../ui/TopBar';
 import { normalizeModifiers } from '../battle/BattleModifiers';
+import { EVAC_LOAD, EVAC_SQUADS, HOLD_TIME, NEST_COUNT } from '../battle/Objectives';
 import { SelectionPanel } from '../ui/SelectionPanel';
 import { MiniMap } from '../ui/MiniMap';
 import { CommandGrid } from '../ui/CommandGrid';
@@ -250,6 +251,17 @@ export class HudScene extends Phaser.Scene {
       return t('obj.control', { n: v.needed, max: this.battle.capture.points.length });
     }
     if (v.mode === 'survival') return t('obj.wave', { n: v.wave, max: SURVIVAL_WAVES, t: formatTime(v.waveIn) });
+    if (v.mode === 'hold') {
+      const left = formatTime(HOLD_TIME - v.holdProgress);
+      const o = v.centre.owner;
+      return o === 'player' ? t('obj.hold', { t: left }) : o === 'enemy' ? t('obj.holdEnemy', { t: left }) : t('obj.holdNeutral', { t: left });
+    }
+    if (v.mode === 'nests') return t('obj.nests', { n: v.nestsLeft, max: NEST_COUNT, t: formatTime(v.nestTimeLeft) });
+    if (v.mode === 'evac') {
+      if (!v.evacArrived) return t('obj.evacWait', { t: formatTime(v.evacIn) });
+      const party = v.evacParty();
+      return t('obj.evacGo', { c: party.commander ? '✓' : '✗', n: Math.min(party.others, EVAC_SQUADS), max: EVAC_SQUADS, t: formatTime(EVAC_LOAD - v.evacLoad) });
+    }
     return '';
   }
 

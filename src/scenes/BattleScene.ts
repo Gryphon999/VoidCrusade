@@ -200,21 +200,22 @@ export class BattleScene extends Phaser.Scene {
     const { playerBase, enemyBase } = this.map.def;
     const hq = this.buildings.spawn('stronghold', 'player', playerBase.tx, playerBase.ty, true);
     this.victory = new VictorySystem(this, data.winMode);
-    const survival = this.victory.mode === 'survival';
     hq.rally = { x: hq.x + 230, y: hq.y - 80 };
     this.production.spawnFrom(hq, 'commander');
     this.production.spawnFrom(hq, 'rifleman');
     if (tutorial) this.production.spawnFrom(hq, 'rifleman');
-    // Survival has no Horde base: waves come from its corner instead; the tutorial has a small outpost.
+    // Survival and the nests mission have no Horde base: waves or nests come instead; the tutorial has a small outpost.
     if (tutorial) {
       TutorialDirector.setupOutpost(this);
-    } else if (!survival) {
+    } else if (!this.victory.noEnemyBase) {
       const hive = this.buildings.spawn('hive', 'enemy', enemyBase.tx, enemyBase.ty, true);
       hive.rally = { x: hive.x - 120, y: hive.y + 160 };
       this.production.spawnFrom(hive, 'overlord');
       this.production.spawnFrom(hive, 'crawler');
     }
     this.ai = new AIController(this, data.difficulty ?? 'normal', data.personality);
+    // Mission objectives that need the world standing (nests, the Commander watch).
+    this.victory.start();
     this.tutorial = null;
     if (tutorial) {
       this.ai.enabled = false;
