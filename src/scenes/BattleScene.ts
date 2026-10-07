@@ -39,6 +39,7 @@ import { Squad } from '../units/Squad';
 import { ATTRITION, RESOURCES, SUPPLY } from '../config';
 import { applyModifiers, defaultBattleParams } from '../battle/BattleModifiers';
 import { canSeeAcrossLevels, sightMultAt } from '../battle/Elevation';
+import { opponentFaction, startKitFor } from '../battle/Factions';
 import { BattleData, BattleResult, BattleStats } from './BattleTypes';
 import { EV } from '../events';
 import { Building } from '../buildings/Building';
@@ -131,6 +132,9 @@ export class BattleScene extends Phaser.Scene {
     this.elapsed = 0;
     this.battleData = data;
     this.result = null;
+    // The player's faction (skirmish choice; the campaign and the tutorial are Iron Void), the AI gets the other.
+    const faction = data.mode === 'skirmish' ? data.faction ?? 'ironvoid' : 'ironvoid';
+    this.factions = { player: faction, enemy: opponentFaction(faction) };
     this.stats = { kills: 0, losses: 0, buildingsLost: 0, buildingsDestroyed: 0 };
     this.modifiers = { player: defaultModifiers(), enemy: defaultModifiers() };
     // The scene object is reused between battles: parameters a modifier set last time must reset.
@@ -199,20 +203,23 @@ export class BattleScene extends Phaser.Scene {
     this.buildings.buildSpeed.enemy = this.modifiers.enemy.buildSpeedMult;
 
     const { playerBase, enemyBase } = this.map.def;
-    const hq = this.buildings.spawn('stronghold', 'player', playerBase.tx, playerBase.ty, true);
+    // Each side starts with its faction's headquarters, hero and first squad.
+    const mine = startKitFor(this.factions.player);
+    const theirs = startKitFor(this.factions.enemy);
+    const hq = this.buildings.spawn(mine.hq, 'player', playerBase.tx, playerBase.ty, true);
     this.victory = new VictorySystem(this, data.winMode);
     hq.rally = { x: hq.x + 230, y: hq.y - 80 };
-    this.production.spawnFrom(hq, 'commander');
-    this.production.spawnFrom(hq, 'rifleman');
-    if (tutorial) this.production.spawnFrom(hq, 'rifleman');
-    // Survival and the nests mission have no Horde base: waves or nests come instead; the tutorial has a small outpost.
+    this.production.spawnFrom(hq, mine.hero);
+    this.production.spawnFrom(hq, mine.squad);
+    if (tutorial) this.production.spawnFrom(hq, mine.squad);
+    // Survival and the nests mission have no enemy base: waves or nests come instead; the tutorial has a small outpost.
     if (tutorial) {
       TutorialDirector.setupOutpost(this);
     } else if (!this.victory.noEnemyBase) {
-      const hive = this.buildings.spawn('hive', 'enemy', enemyBase.tx, enemyBase.ty, true);
+      const hive = this.buildings.spawn(theirs.hq, 'enemy', enemyBase.tx, enemyBase.ty, true);
       hive.rally = { x: hive.x - 120, y: hive.y + 160 };
-      this.production.spawnFrom(hive, 'overlord');
-      this.production.spawnFrom(hive, 'crawler');
+      this.production.spawnFrom(hive, theirs.hero);
+      this.production.spawnFrom(hive, theirs.squad);
     }
     this.ai = new AIController(this, data.difficulty ?? 'normal', data.personality);
     // Mission objectives that need the world standing (nests, the Commander watch).

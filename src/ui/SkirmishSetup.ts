@@ -11,6 +11,8 @@ import { Button } from './Button';
 import { WargearPicker } from './WargearPicker';
 import { ModifierPicker } from './ModifierPicker';
 import { ModifierId, normalizeModifiers } from '../battle/BattleModifiers';
+import { FACTIONS } from '../battle/Factions';
+import type { Faction } from '../units/UnitDefs';
 import { drawPanel, textStyle } from './uiStyle';
 
 /** Skirmish setup: map, victory condition, difficulty, AI personality, battle modifiers, commander wargear. */
@@ -23,7 +25,8 @@ export class SkirmishSetup {
       difficulty: s.difficulty as Difficulty,
       personality: s.skirmishPersonality ?? 'random',
       modifiers: normalizeModifiers(s.skirmishModifiers ?? []) as ModifierId[],
-      wargear: s.wargear ?? defaultPick('ironvoid'),
+      faction: (s.skirmishFaction === 'nullhorde' ? 'nullhorde' : 'ironvoid') as Faction,
+      wargear: s.wargear ?? defaultPick(s.skirmishFaction === 'nullhorde' ? 'nullhorde' : 'ironvoid'),
     };
     const root = scene.add.container(0, 0).setDepth(200);
     const dim = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.6).setOrigin(0).setInteractive();
@@ -81,29 +84,34 @@ export class SkirmishSetup {
     root.add(aiDesc);
     refresh.push(() => aiDesc.setText(state.personality === 'random' ? t('skirmish.randomHint') : t(dyn(`ai.${state.personality}.desc`))));
     // Battle modifiers: a picker window, the button says how many are on.
+    // Modifiers and the hero's wargear share a row; the wargear follows the chosen faction.
     label(y + 408, 'skirmish.modifiers');
     const modsLabel = (): string => (state.modifiers.length ? t('skirmish.modifiers.choose', { n: state.modifiers.length }) : t('skirmish.modifiers.none'));
-    const mods = new Button(scene, { x: x + 330, y: y + 408, w: 310, h: 34, label: modsLabel(), onClick: () => {
+    const mods = new Button(scene, { x: x + 365, y: y + 408, w: 230, h: 34, label: modsLabel(), onClick: () => {
       new ModifierPicker(scene, state.modifiers, (ids) => {
         state.modifiers = ids;
         mods.setLabel(modsLabel());
       });
     } });
     root.add(mods.container);
-    label(y + 456, 'skirmish.wargear');
-    const wg = new Button(scene, { x: x + 330, y: y + 456, w: 310, h: 34, label: t('wargear.choose'), onClick: () => {
-      new WargearPicker(scene, 'ironvoid', state.wargear, (p) => (state.wargear = p));
+    const wg = new Button(scene, { x: x + 615, y: y + 408, w: 230, h: 34, label: t('wargear.choose'), onClick: () => {
+      new WargearPicker(scene, state.faction, state.wargear, (p) => (state.wargear = p));
     } });
     root.add(wg.container);
+    // Faction: the Iron Void or the Null Horde; a change resets the wargear to that faction's default.
+    row(y + 456, 'skirmish.faction', [...FACTIONS], () => state.faction, (v) => {
+      if (v !== state.faction) state.wargear = defaultPick(v);
+      state.faction = v;
+    }, (f) => t(dyn(`faction.${f}`)), 230);
     for (const r of refresh) r();
     const start = new Button(scene, { x: GAME_WIDTH / 2 + 90, y: y + h - 46, w: 200, h: 46, label: t('skirmish.start'), onClick: () => {
       Settings.set({
         difficulty: state.difficulty, skirmishMode: state.mode, skirmishPersonality: state.personality, skirmishMap: state.map,
-        skirmishModifiers: state.modifiers, wargear: state.wargear,
+        skirmishModifiers: state.modifiers, skirmishFaction: state.faction, wargear: state.wargear,
       });
       root.destroy();
       onStart({
-        mode: 'skirmish', mapIndex: state.map, difficulty: state.difficulty, winMode: state.mode, modifiers: state.modifiers,
+        mode: 'skirmish', faction: state.faction, mapIndex: state.map, difficulty: state.difficulty, winMode: state.mode, modifiers: state.modifiers,
         wargear: state.wargear, personality: state.personality === 'random' ? undefined : state.personality,
       });
     } });

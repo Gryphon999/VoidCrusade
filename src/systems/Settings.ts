@@ -40,6 +40,8 @@ export interface GameSettings {
   skirmishStorms?: boolean;
   /** Last battle modifiers picked in the skirmish setup. */
   skirmishModifiers?: ModifierId[];
+  /** Last faction picked in the skirmish setup. */
+  skirmishFaction?: 'ironvoid' | 'nullhorde';
   /** Last commander wargear loadout. */
   wargear?: WargearPick;
   /** Contextual hint toasts (C5). */

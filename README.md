@@ -199,6 +199,13 @@ held frontier territory (30 % + 5 % per battle won, capped at 60 %, tilted by ev
 red, it is the only battle available, the defence is Hold the Line on that map with the Horde +100 Scrip,
 and losing it loses the territory. Old saves load unchanged.
 
+**Playable Null Horde** — the skirmish setup has a **Faction** row: play the Iron Void or the Null Horde
+(the AI takes the other side). Each side starts with its own headquarters, hero and first squad
+(`src/battle/Factions.ts`); Survival waves and Burn the Nests use the enemy's faction (Iron Void waves,
+Barracks as "nests"). The Horde has no recorded voice lines, so its squads keep silent; the announcer still
+speaks for the player. The campaign and the tutorial stay Iron Void. `npm run simulate -- --faction=nullhorde`
+plays the Horde as the player-side AI.
+
 **Survival records and King of the Hill** — Survival is endless (wave 15 is a milestone, not the end);
 every run goes into a top-10 table per battlefield, difficulty and modifier set (`src/battle/Records.ts`,
 `localStorage`, also sent to a Yandex Games leaderboard named `survival` when the SDK is present). The end

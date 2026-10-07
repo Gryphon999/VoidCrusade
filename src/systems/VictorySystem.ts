@@ -10,6 +10,7 @@ import {
   EVAC_ARRIVAL, EVAC_LOAD, EVAC_ZONE, HOLD_TIME, KOTH_GOAL, NEST_FIRST_SPAWN, NEST_HP, NEST_SPAWN_EVERY, NEST_TIME_LIMIT, SURVIVAL_MILESTONE,
   evacReady, evacStep, holdStep, kothStep, nestPool, pickNestPoints,
 } from '../battle/Objectives';
+import { bossFor, nestBuildingFor, wavePool } from '../battle/Factions';
 import type { BattleScene } from '../scenes/BattleScene';
 
 /** Control Points: hold two thirds of the points for this long. */
@@ -91,7 +92,7 @@ export class VictorySystem {
     if (this.mode === 'nests') {
       const corner = { x: b.map.def.enemyBase.tx + 2, y: b.map.def.enemyBase.ty + 2 };
       for (const p of pickNestPoints(b.map.def.capturePoints, corner)) {
-        const nest = b.buildings.spawn('nest', 'enemy', Math.round(p.x) - 1, Math.round(p.y) - 1, true);
+        const nest = b.buildings.spawn(nestBuildingFor(b.factions.enemy), 'enemy', Math.round(p.x) - 1, Math.round(p.y) - 1, true);
         nest.maxHp = NEST_HP;
         nest.hp = NEST_HP;
         this.nests.push(nest);
@@ -168,10 +169,7 @@ export class VictorySystem {
     if (this.wave === SURVIVAL_MILESTONE + 1) b.events.emit(EV.message, 'note.tide');
     const owner: Owner = 'enemy';
     const n = this.wave;
-    const pool: UnitId[] = ['crawler', 'crawler', 'spitter'];
-    if (n >= 3) pool.push('leaper', 'shaman');
-    if (n >= 5) pool.push('behemoth', 'burrower', 'skimmer');
-    if (n >= 8) pool.push('carrier', 'siegebeast');
+    const pool: UnitId[] = wavePool(b.factions.enemy, n);
     const count = 2 + Math.floor(n * 0.8);
     const base = b.map.def.enemyBase;
     const hq = b.buildings.getHQ(opponent(owner));
@@ -184,7 +182,7 @@ export class VictorySystem {
       if (hq) s.moveTo(hq.x + Phaser.Math.Between(-150, 150), hq.y + Phaser.Math.Between(-150, 150), true);
     }
     if (n % 12 === 0) {
-      const s = b.units.spawnSquad('titan', owner, (base.tx + 2) * 64, (base.ty + 2) * 64);
+      const s = b.units.spawnSquad(bossFor(b.factions.enemy), owner, (base.tx + 2) * 64, (base.ty + 2) * 64);
       if (hq) s.moveTo(hq.x, hq.y, true);
     }
     b.events.emit(EV.message, 'note.wave', { n });
@@ -194,7 +192,7 @@ export class VictorySystem {
   private spawnBroods(): void {
     const b = this.battle;
     this.nextNestSpawn = b.elapsed + NEST_SPAWN_EVERY;
-    const pool = nestPool(b.elapsed);
+    const pool = nestPool(b.elapsed, b.factions.enemy);
     const hq = b.buildings.getHQ('player');
     for (const nest of this.nests) {
       if (!nest.alive) continue;
