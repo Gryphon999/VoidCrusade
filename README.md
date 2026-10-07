@@ -58,6 +58,7 @@ this in 13 interactive steps. **F1** opens the Encyclopedia everywhere.
 | **Ctrl/Alt + 1–9** · **1–9** · **Shift + 1–9** | Bind group · recall (twice centres) · add to group |
 | **Ctrl + A** · **.** | Select whole army · cycle idle squads |
 | **Space** | Centre camera on selection |
+| Squad roster (left edge) | One card per squad with its health: click selects, **Shift**+click adds, clicking the selected squad centres the camera; a card flashes red while the squad is under fire |
 | **Esc** | Cancel order / placement, close a build page |
 | **P** / F10 | Pause menu (Resume, Settings, Encyclopedia, Tutorial, Leave) |
 | **F1** | Encyclopedia (pauses the battle) |

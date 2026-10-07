@@ -162,6 +162,7 @@ export const ru: Record<MessageKey, string> = {
   'camp.won.title': 'Трон ваш',
   'camp.won.sub': 'Орда Ничто изгнана с этого мира.\nВ пустоте между звёздами выживает лишь железо.',
   'camp.won.menu': 'В главное меню',
+  'roster.hint': '{n}/{max} бойцов · клик: выбрать · Shift+клик: добавить · ещё клик: камера к отряду',
   'camp.rules': 'Правила: {list}',
   'camp.rules.none': 'Правила: обычный бой',
   'camp.status.underAttack': 'Атака Орды — нажмите, чтобы защищать',

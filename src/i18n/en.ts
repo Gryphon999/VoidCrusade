@@ -171,6 +171,7 @@ export const en = {
   'camp.won.title': 'The Throne Is Yours',
   'camp.won.sub': 'The Null Horde is purged from this world.\nIn the void between stars, only iron survives.',
   'camp.won.menu': 'Return to Menu',
+  'roster.hint': '{n}/{max} soldiers · click: select · Shift+click: add · click again: centre camera',
   'camp.rules': 'Rules: {list}',
   'camp.rules.none': 'Rules: standard battle',
   'camp.status.underAttack': 'Under Horde attack — click to defend',

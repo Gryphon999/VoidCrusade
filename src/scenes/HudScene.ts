@@ -3,6 +3,7 @@ import type { BattleScene } from './BattleScene';
 import { TopBar, TOP_BAR_H } from '../ui/TopBar';
 import { normalizeModifiers } from '../battle/BattleModifiers';
 import { EVAC_LOAD, EVAC_SQUADS, HOLD_TIME, NEST_COUNT } from '../battle/Objectives';
+import { SquadRoster } from '../ui/SquadRoster';
 import { SelectionPanel } from '../ui/SelectionPanel';
 import { MiniMap } from '../ui/MiniMap';
 import { CommandGrid } from '../ui/CommandGrid';
@@ -53,6 +54,7 @@ export class HudScene extends Phaser.Scene {
   private hints!: HintToast;
   private treeTick = 0;
   private tooltip!: Tooltip;
+  private roster!: SquadRoster;
   private notes!: Notifications;
   private blockers: Blocker[] = [];
   private ended = false;
@@ -87,6 +89,14 @@ export class HudScene extends Phaser.Scene {
     this.addBlocker(new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, TOP_BAR_H));
     this.tooltip = new Tooltip(this);
     this.topBar.onHover = (title, body, x, y) => (title ? this.tooltip.show(title, body, x, y) : this.tooltip.hide());
+    // Squad roster down the left edge; it blocks battlefield input only where its cards are.
+    this.roster = new SquadRoster(this, this.battle, this.tooltip);
+    const rosterRect = new Phaser.Geom.Rectangle(0, 0, 0, 0);
+    this.addBlocker(rosterRect, () => {
+      const r = this.roster.rect;
+      rosterRect.setTo(r.x, r.y, r.width, r.height);
+      return this.roster.rect.width > 8;
+    });
     this.panel = new SelectionPanel(this, this.battle);
     this.grid = new CommandGrid(this, this.tooltip);
     this.minimap = new MiniMap(this, this.battle);
@@ -271,6 +281,7 @@ export class HudScene extends Phaser.Scene {
     this.grain?.setTilePosition(Math.random() * 256, Math.random() * 256);
     this.notes.update();
     if (this.ended) return;
+    this.roster.update(delta / 1000);
     this.topBar.update(formatTime(this.battle.elapsed));
     this.objective.setText(this.objectiveText());
     const u = this.battle.units;
