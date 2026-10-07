@@ -1,6 +1,7 @@
 import { Difficulty, PROJECTION } from '../config';
 import type { Lang } from '../i18n';
 import type { WargearPick } from '../campaign/Wargear';
+import { ModifierId, normalizeModifiers } from '../battle/BattleModifiers';
 
 const KEY = 'voidcrusade.settings.v1';
 
@@ -35,7 +36,10 @@ export interface GameSettings {
   skirmishMap?: number;
   skirmishMode?: string;
   skirmishPersonality?: string;
+  /** Older saves: ash storms on/off (migrated into skirmishModifiers on load). */
   skirmishStorms?: boolean;
+  /** Last battle modifiers picked in the skirmish setup. */
+  skirmishModifiers?: ModifierId[];
   /** Last commander wargear loadout. */
   wargear?: WargearPick;
   /** Contextual hint toasts (C5). */
@@ -67,6 +71,10 @@ export const Settings = {
     if (current.language !== undefined && current.language !== 'en' && current.language !== 'ru') current.language = undefined;
     if (!['low', 'medium', 'high', 'ultra'].includes(current.graphics)) current.graphics = 'medium';
     if (typeof current.tilt !== 'number' || !Number.isFinite(current.tilt)) current.tilt = PROJECTION.defaultTilt;
+    // Modifiers: keep only known ids; an old "ash storms" switch becomes the storms modifier.
+    const mods = Array.isArray(current.skirmishModifiers) ? current.skirmishModifiers : [];
+    current.skirmishModifiers = normalizeModifiers(current.skirmishStorms && !current.skirmishModifiers ? ['storms', ...mods] : mods);
+    delete current.skirmishStorms;
     return current;
   },
 

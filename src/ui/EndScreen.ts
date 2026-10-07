@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
-import { headingFont, t } from '../i18n';
+import { dyn, headingFont, t } from '../i18n';
+import { normalizeModifiers } from '../battle/BattleModifiers';
 import { BattleResult } from '../scenes/BattleTypes';
 import type { BattleScene } from '../scenes/BattleScene';
 import { Button } from './Button';
@@ -29,7 +30,13 @@ export function showEndScreen(scene: Phaser.Scene, battle: BattleScene, result: 
     t('end.kills', { k: s.kills, l: s.losses }),
     t('end.structures', { d: s.buildingsDestroyed, l: s.buildingsLost }),
   ];
-  if (battle.victory?.mode === 'survival') lines.unshift(t('end.survival', { w: Math.min(battle.victory.wave, SURVIVAL_WAVES), score: battle.victory.score }));
+  const mods = normalizeModifiers(result.data.modifiers ?? []);
+  if (mods.length) lines.push(t('end.modifiers', { list: mods.map((m) => t(dyn(`mod.${m}`))).join(', ') }));
+  if (battle.victory?.mode === 'survival') {
+    // A modified run keeps its own line, so plain survival records stay comparable.
+    const p = { w: Math.min(battle.victory.wave, SURVIVAL_WAVES), score: battle.victory.score };
+    lines.unshift(mods.length ? t('end.survivalMod', p) : t('end.survival', p));
+  }
   if (battle.victory?.mode === 'control' && win) lines.unshift(t('end.control'));
   const stats = scene.add.text(cx, cy + 40, lines.join('\n'), { ...textStyle(18, '#aab'), align: 'center', lineSpacing: 8 });
   stats.setOrigin(0.5).setAlpha(0);

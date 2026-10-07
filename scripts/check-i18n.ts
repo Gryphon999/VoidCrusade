@@ -17,6 +17,7 @@ import { MAP_BUILDERS } from '../src/maps';
 import { ABILITIES } from '../src/units/Abilities';
 import { WARGEAR } from '../src/campaign/Wargear';
 import { PERSONALITIES } from '../src/ai/Personality';
+import { MODIFIER_IDS } from '../src/battle/BattleModifiers';
 import { ENC_TRAITS, HINT_IDS, MECHANICS, TUTORIAL_STEP_IDS } from '../src/tutorial/data';
 
 const files: string[] = [];
@@ -55,6 +56,7 @@ for (const d of ['easy', 'normal', 'hard', 'brutal']) dyn.push(`diff.${d}`, `dif
 for (const a of Object.keys(ABILITIES)) dyn.push(`ab.${a}`, `ab.${a}.desc`);
 for (const w of WARGEAR) dyn.push(`wg.${w.id}`, `wg.${w.id}.desc`);
 for (const m of ['annihilation', 'control', 'survival']) dyn.push(`mode.${m}`, `mode.${m}.desc`);
+for (const m of MODIFIER_IDS) dyn.push(`mod.${m}`, `mod.${m}.desc`);
 for (const p of ['random', ...PERSONALITIES]) dyn.push(`ai.${p}`);
 for (const p of PERSONALITIES) dyn.push(`ai.${p}.desc`);
 for (const s of ['weapon', 'armor', 'relic']) dyn.push(`wargear.slot.${s}`);

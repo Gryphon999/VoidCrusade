@@ -2,6 +2,7 @@ import { Difficulty } from '../config';
 import { CampaignBonuses } from '../campaign/CampaignState';
 import { Owner } from '../types';
 import type { WargearPick } from '../campaign/Wargear';
+import type { ModifierId } from '../battle/BattleModifiers';
 
 export type WinMode = 'annihilation' | 'control' | 'survival';
 
@@ -11,8 +12,8 @@ export interface BattleData {
   mode?: 'skirmish' | 'campaign' | 'tutorial';
   /** Skirmish victory condition. */
   winMode?: WinMode;
-  /** Optional ash storms map modifier. */
-  ashStorms?: boolean;
+  /** Battle modifiers switched on in the skirmish setup (see BattleModifiers). */
+  modifiers?: ModifierId[];
   /** Commander wargear picked before the battle. */
   wargear?: WargearPick;
   /** AI personality (skirmish setup; random if omitted). */

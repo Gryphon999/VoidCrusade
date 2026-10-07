@@ -36,7 +36,8 @@ import { buildTutorialMap } from '../maps/tutorialMap';
 import { applyWargear, defaultPick, randomPick } from '../campaign/Wargear';
 import { Unit } from '../units/Unit';
 import { Squad } from '../units/Squad';
-import { RESOURCES, SUPPLY } from '../config';
+import { ATTRITION, RESOURCES, SUPPLY } from '../config';
+import { applyModifiers, defaultBattleParams } from '../battle/BattleModifiers';
 import { BattleData, BattleResult, BattleStats } from './BattleTypes';
 import { EV } from '../events';
 import { Building } from '../buildings/Building';
@@ -111,6 +112,15 @@ export class BattleScene extends Phaser.Scene {
   battleData!: BattleData;
   stats!: BattleStats;
   result: BattleResult | null = null;
+  // Parameters battle modifiers may change (see BattleModifiers); systems read these, never the modifier list.
+  /** Population cap for both sides. */
+  supplyHardMax: number = SUPPLY.hardMax;
+  /** Rank every new squad starts with. */
+  spawnRank = 0;
+  /** Battle second when fortification attrition begins. */
+  attritionStart: number = ATTRITION.start;
+  /** Which map's lighting, grading and ambient mood to render (normally the map's own id). */
+  lookId = '';
 
   constructor() {
     super('BattleScene');
@@ -122,6 +132,8 @@ export class BattleScene extends Phaser.Scene {
     this.result = null;
     this.stats = { kills: 0, losses: 0, buildingsLost: 0, buildingsDestroyed: 0 };
     this.modifiers = { player: defaultModifiers(), enemy: defaultModifiers() };
+    // The scene object is reused between battles: parameters a modifier set last time must reset.
+    Object.assign(this, defaultBattleParams());
     const bonus = data.bonuses;
     if (bonus) {
       Object.assign(this.modifiers.player, {
@@ -146,6 +158,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     this.map = new MapSystem(tutorial ? buildTutorialMap() : getMap(data.mapIndex ?? 0));
+    this.lookId = this.map.def.id;
     this.cameras.main.setBackgroundColor(this.render3d ? 'rgba(0,0,0,0)' : 0x07060a);
     this.map.render(this);
     this.pathfinder = new Pathfinder(this.map);
@@ -168,7 +181,7 @@ export class BattleScene extends Phaser.Scene {
     this.buildings.tierOf = (o) => this.tech.tierOf(o);
     this.capture = new CapturePointSystem(this);
     this.props = new PropSystem(this, this.map.def.id.length * 7919 + (data.mapIndex ?? 0));
-    this.world = new WorldSystem(this, this.map.def.id.length * 131 + (data.mapIndex ?? 0), !!data.ashStorms);
+    this.world = new WorldSystem(this, this.map.def.id.length * 131 + (data.mapIndex ?? 0));
     this.selection = new SelectionSystem(this);
     this.effects = new EffectsSystem(this);
     this.wrecks = new WreckSystem(this);
@@ -179,6 +192,10 @@ export class BattleScene extends Phaser.Scene {
     this.buildings.pointAt = (x, y) => this.capture.points.find((p) => p.contains(x, y)) ?? null;
     this.buildings.forwardBases = (o) => this.capture.points.filter((p) => p.kind === 'forward' && p.owner === o);
     this.placement = new BuildingPlacementUI(this, this.buildings, (x, y) => this.cameraSystem.screenToWorld(x, y));
+    // Battle modifiers set their parameters now: every system exists, nothing has spawned yet.
+    if (!tutorial) applyModifiers(this, data.modifiers);
+    this.buildings.buildSpeed.player = this.modifiers.player.buildSpeedMult;
+    this.buildings.buildSpeed.enemy = this.modifiers.enemy.buildSpeedMult;
 
     const { playerBase, enemyBase } = this.map.def;
     const hq = this.buildings.spawn('stronghold', 'player', playerBase.tx, playerBase.ty, true);
@@ -267,7 +284,7 @@ export class BattleScene extends Phaser.Scene {
   /** Can `owner` see a logical point? The player uses the fog; the AI sees only what its own units and buildings see. */
   fogVisibleFor(owner: Owner, x: number, y: number): boolean {
     if (owner === 'player') return this.fog ? this.fog.isVisibleWorld(x, y) : true;
-    const mult = this.world?.visionMult ?? 1;
+    const mult = (this.world?.visionMult ?? 1) * this.modifiers[owner].sightMult;
     return this.units.squads.some((s) => s.owner === owner && s.alive
       && Math.hypot(s.center.x - x, s.center.y - y) <= s.def.sight * mult)
       || this.buildings.buildings.some((b) => b.owner === owner && b.alive

@@ -9,11 +9,13 @@ import { defaultPick } from '../campaign/Wargear';
 import { PERSONALITIES } from '../ai/Personality';
 import { Button } from './Button';
 import { WargearPicker } from './WargearPicker';
+import { ModifierPicker } from './ModifierPicker';
+import { ModifierId, normalizeModifiers } from '../battle/BattleModifiers';
 import { drawPanel, textStyle } from './uiStyle';
 
 const MODES: WinMode[] = ['annihilation', 'control', 'survival'];
 
-/** Skirmish setup: map, victory condition, difficulty, AI personality, ash storms, commander wargear. */
+/** Skirmish setup: map, victory condition, difficulty, AI personality, battle modifiers, commander wargear. */
 export class SkirmishSetup {
   constructor(scene: Phaser.Scene, onStart: (data: BattleData) => void, onCancel: () => void) {
     const s = Settings.get();
@@ -22,7 +24,7 @@ export class SkirmishSetup {
       mode: (s.skirmishMode ?? 'annihilation') as WinMode,
       difficulty: s.difficulty as Difficulty,
       personality: s.skirmishPersonality ?? 'random',
-      storms: !!s.skirmishStorms,
+      modifiers: normalizeModifiers(s.skirmishModifiers ?? []) as ModifierId[],
       wargear: s.wargear ?? defaultPick('ironvoid'),
     };
     const root = scene.add.container(0, 0).setDepth(200);
@@ -77,7 +79,16 @@ export class SkirmishSetup {
     const aiDesc = scene.add.text(x + 250, y + 300, '', textStyle(11, '#9a9280'));
     root.add(aiDesc);
     refresh.push(() => aiDesc.setText(state.personality === 'random' ? t('skirmish.randomHint') : t(dyn(`ai.${state.personality}.desc`))));
-    row(y + 330, 'skirmish.storms', [false, true], () => state.storms, (v) => (state.storms = v), (v) => t(v ? 'common.on' : 'common.off'), 110);
+    // Battle modifiers: a picker window, the button says how many are on.
+    label(y + 330, 'skirmish.modifiers');
+    const modsLabel = (): string => (state.modifiers.length ? t('skirmish.modifiers.choose', { n: state.modifiers.length }) : t('skirmish.modifiers.none'));
+    const mods = new Button(scene, { x: x + 330, y: y + 330, w: 310, h: 34, label: modsLabel(), onClick: () => {
+      new ModifierPicker(scene, state.modifiers, (ids) => {
+        state.modifiers = ids;
+        mods.setLabel(modsLabel());
+      });
+    } });
+    root.add(mods.container);
     label(y + 380, 'skirmish.wargear');
     const wg = new Button(scene, { x: x + 330, y: y + 380, w: 310, h: 34, label: t('wargear.choose'), onClick: () => {
       new WargearPicker(scene, 'ironvoid', state.wargear, (p) => (state.wargear = p));
@@ -87,11 +98,11 @@ export class SkirmishSetup {
     const start = new Button(scene, { x: GAME_WIDTH / 2 + 90, y: y + h - 46, w: 200, h: 46, label: t('skirmish.start'), onClick: () => {
       Settings.set({
         difficulty: state.difficulty, skirmishMode: state.mode, skirmishPersonality: state.personality, skirmishMap: state.map,
-        skirmishStorms: state.storms, wargear: state.wargear,
+        skirmishModifiers: state.modifiers, wargear: state.wargear,
       });
       root.destroy();
       onStart({
-        mode: 'skirmish', mapIndex: state.map, difficulty: state.difficulty, winMode: state.mode, ashStorms: state.storms,
+        mode: 'skirmish', mapIndex: state.map, difficulty: state.difficulty, winMode: state.mode, modifiers: state.modifiers,
         wargear: state.wargear, personality: state.personality === 'random' ? undefined : state.personality,
       });
     } });

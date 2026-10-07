@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { DEPTH, SUPPLY, TILE, TILE_SIZE, UNITS } from '../config';
+import { DEPTH, TILE, TILE_SIZE, UNITS } from '../config';
 import { Projection } from '../render/Projection';
 import { EV } from '../events';
 import { Owner, opponent } from '../types';
@@ -28,6 +28,7 @@ export class UnitSystem {
     const max = def.squadSize + bonus;
     const p = this.findOpenSpot(x, y);
     const squad = new Squad(this.battle, def, owner, p.x, p.y, size ?? max, max);
+    squad.rank = this.battle.spawnRank;
     this.squads.push(squad);
     this.battle.events.emit(EV.squadSpawned, squad);
     return squad;
@@ -61,7 +62,7 @@ export class UnitSystem {
   supplyCap(owner: Owner): number {
     let n = this.battle.modifiers[owner].supplyBonus;
     for (const b of this.battle.buildings.buildings) if (b.owner === owner && b.isReady) n += b.def.supply ?? 0;
-    return Math.min(SUPPLY.hardMax, n);
+    return Math.min(this.battle.supplyHardMax, n);
   }
 
   squadAt(wx: number, wy: number, owner?: Owner): Squad | undefined {

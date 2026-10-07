@@ -181,7 +181,16 @@ point and the enemy stronghold. A map sets its own size (`MapBuilder`), so more 
 - **Stances** — hold, defend, aggressive, plus retreat.
 
 **Modes** — Campaign (ten hex territories with bonuses and upgrade cards), Skirmish (Annihilation,
-Control, Survival; map, difficulty, AI personality, ash storms, wargear), Tutorial.
+Control, Survival; map, difficulty, AI personality, battle modifiers, wargear), Tutorial.
+
+**Battle modifiers** — optional rules picked in the skirmish setup, each for both sides: Ash storms,
+Night (vision −40 %, night lighting), Plenty / Scarcity (income ×2 / ×½), No fortifications (the
+Defense category is closed), Small war / Big war (army cap 20 / 60), Veterans (squads spawn at rank 2),
+Glass cannon (damage ×2, HP ×½), Blitzkrieg (build speed ×2, attrition from 5:00). They combine freely
+(the two pairs are exclusive); active ones show in the top bar and on the end screen, and a modified
+Survival score is reported separately. The registry is `src/battle/BattleModifiers.ts`: a modifier sets
+system parameters once at battle start, no system checks "is X on". `npm run simulate -- --mods=night,scarcity`
+runs AI-vs-AI matches under modifiers.
 
 **AI** — Easy, Normal, Hard, Brutal scale *skill*, never income: think rate, queue depth, counter-picks
 from what it has actually scouted, ability use, retreats, focus fire, garrisons, harassment, point and

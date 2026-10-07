@@ -51,7 +51,10 @@ export class WorldSystem {
   private warned = false;
   private tick = 0;
 
-  constructor(private battle: BattleScene, seed: number, private storms: boolean) {
+  /** Periodic ash storms (the "storms" battle modifier switches this on). */
+  storms = false;
+
+  constructor(private battle: BattleScene, seed: number) {
     this.makeTextures();
     const rnd = makeRng(seed * 31 + 7);
     const map = battle.map;

@@ -64,7 +64,7 @@ export class VictorySystem {
   /** After a long fight every structure takes more and more damage, so no siege lasts forever. */
   private attrition(): void {
     const b = this.battle;
-    const over = b.elapsed - ATTRITION.start;
+    const over = b.elapsed - b.attritionStart;
     if (over < 0) return;
     if (b.buildings.wear === 1) b.events.emit(EV.message, 'note.attrition');
     b.buildings.wear = 1 + Math.min(ATTRITION.max, ATTRITION.perMinute * (1 + over / 60));

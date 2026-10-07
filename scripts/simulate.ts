@@ -23,6 +23,8 @@ const DIFF = opt('diff', 'hard');
 const PDIFF = opt('pdiff', DIFF);
 const PARALLEL = Number(opt('parallel', '3'));
 const JSON_OUT = opt('json', '');
+/** Battle modifiers for every match, e.g. --mods=night,scarcity (see src/battle/BattleModifiers). */
+const MODS = opt('mods', '').split(',').filter(Boolean);
 const PORT = 5198;
 const PERSONALITIES = ['balanced', 'rusher', 'turtler'];
 /** Number of battle maps (src/maps/index.ts). */
@@ -75,7 +77,7 @@ async function playMatch(browser: Browser, url: string, m: { seed: number; map: 
   await page.goto(url);
   await page.waitForFunction(() => !!(window as never as { game?: { scene: { getScene(k: string): unknown } } }).game?.scene.getScene('MenuScene'), null, { timeout: 90000 });
   await page.waitForTimeout(1500);
-  const data = { mode: 'skirmish', mapIndex: m.map, difficulty: DIFF, personality: m.personality };
+  const data = { mode: 'skirmish', mapIndex: m.map, difficulty: DIFF, personality: m.personality, modifiers: MODS };
   await page.evaluate((d) => {
     const g = (window as never as { game: { scene: { getScenes(a: boolean): { scene: { key: string; stop(): void } }[]; start(k: string, d: object): void } } }).game;
     g.scene.getScenes(true).forEach((s) => s.scene.key !== 'SubtitleScene' && s.scene.stop());

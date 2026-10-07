@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { BattleScene } from './BattleScene';
 import { TopBar, TOP_BAR_H } from '../ui/TopBar';
+import { normalizeModifiers } from '../battle/BattleModifiers';
 import { SelectionPanel } from '../ui/SelectionPanel';
 import { MiniMap } from '../ui/MiniMap';
 import { CommandGrid } from '../ui/CommandGrid';
@@ -81,9 +82,10 @@ export class HudScene extends Phaser.Scene {
     this.addBlocker(new Phaser.Geom.Rectangle(0, GAME_HEIGHT - HUD.bottomH, GAME_WIDTH, HUD.bottomH));
     // The crest plate pokes above the frame.
     this.addBlocker(new Phaser.Geom.Rectangle(780, GAME_HEIGHT - HUD.bottomH - 26, 70, 26));
-    this.topBar = new TopBar(this, this.battle.resources);
+    this.topBar = new TopBar(this, this.battle.resources, normalizeModifiers(this.battle.battleData.modifiers ?? []));
     this.addBlocker(new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, TOP_BAR_H));
     this.tooltip = new Tooltip(this);
+    this.topBar.onHover = (title, body, x, y) => (title ? this.tooltip.show(title, body, x, y) : this.tooltip.hide());
     this.panel = new SelectionPanel(this, this.battle);
     this.grid = new CommandGrid(this, this.tooltip);
     this.minimap = new MiniMap(this, this.battle);
