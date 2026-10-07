@@ -40,6 +40,8 @@ export interface UnitDef {
   trainTime: number;
   /** Visual radius of one soldier in px. */
   size: number;
+  /** Model scale (vehicles are drawn larger than the soldiers they were modelled next to). */
+  modelScale?: number;
   projectile: ProjectileLook;
   isHero?: boolean;
   /** Vehicles and monsters-as-machines cannot hold capture points. */
@@ -145,28 +147,28 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
   buggy: {
     id: 'buggy', name: 'Scout Buggy', faction: 'ironvoid', category: 'vehicle', tier: 2, requires: [], supply: 3,
     damageType: 'bullet', armor: 'vehicle', sight: 480, canCapture: false, squadSize: 1, hp: 340, damage: 16, range: 240,
-    speed: 190, cost: { scrip: 140, flux: 40 }, cooldown: 0.35, trainTime: 12, size: 16, projectile: 'bullet',
+    speed: 190, cost: { scrip: 140, flux: 40 }, cooldown: 0.35, trainTime: 12, size: 20, modelScale: 1.7, projectile: 'bullet',
     detector: 260,
     description: 'Fast raider with twin autoguns. Scouts the map and hunts infantry in the open.',
   },
   apc: {
-    id: 'apc', name: 'Rhino APC', faction: 'ironvoid', category: 'vehicle', tier: 2, requires: [], supply: 3,
+    id: 'apc', name: 'Warden APC', faction: 'ironvoid', category: 'vehicle', tier: 2, requires: [], supply: 3,
     damageType: 'bullet', armor: 'vehicle', sight: 320, canCapture: false, squadSize: 1, hp: 850, damage: 14, range: 220,
-    speed: 125, cost: { scrip: 180, flux: 60 }, cooldown: 0.5, trainTime: 16, size: 20, projectile: 'bullet',
+    speed: 125, cost: { scrip: 180, flux: 60 }, cooldown: 0.5, trainTime: 16, size: 26, modelScale: 1.9, projectile: 'bullet',
     transport: 1,
     description: 'Armoured transport. Carries one infantry squad safely and patches up its wounded.',
   },
   tank: {
     id: 'tank', name: 'Iron Tyrant Tank', faction: 'ironvoid', category: 'vehicle', tier: 3, requires: [], supply: 5,
     damageType: 'explosive', armor: 'vehicle', sight: 340, canCapture: false, squadSize: 1, hp: 1250, damage: 95, range: 300,
-    speed: 70, cost: { scrip: 300, flux: 150 }, cooldown: 2.6, trainTime: 24, size: 24, projectile: 'cannon',
+    speed: 70, cost: { scrip: 300, flux: 150 }, cooldown: 2.6, trainTime: 24, size: 32, modelScale: 2, projectile: 'cannon',
     turret: true, crush: 45, splash: 40,
     description: 'Main battle tank. Heavy cannon on a rotating turret; crushes infantry under its treads.',
   },
   artillery: {
     id: 'artillery', name: 'Thunder Mortar', faction: 'ironvoid', category: 'vehicle', tier: 3, requires: [], supply: 5,
     damageType: 'explosive', armor: 'vehicle', sight: 300, canCapture: false, squadSize: 1, hp: 520, damage: 120, range: 560,
-    speed: 55, cost: { scrip: 280, flux: 180 }, cooldown: 5.0, trainTime: 26, size: 22, projectile: 'lob',
+    speed: 55, cost: { scrip: 280, flux: 180 }, cooldown: 5.0, trainTime: 26, size: 28, modelScale: 1.9, projectile: 'lob',
     indirect: true, minRange: 200, splash: 80, deploy: { time: 3, rangeBonus: 140 },
     description: 'Siege walker. Must deploy to fire; lobs shells over walls and cliffs at extreme range.',
   },
@@ -218,21 +220,21 @@ export const UNIT_DEFS: Record<UnitId, UnitDef> = {
   skimmer: {
     id: 'skimmer', name: 'Void Skimmer', faction: 'nullhorde', category: 'vehicle', tier: 2, requires: [], supply: 3,
     damageType: 'acid', armor: 'monster', sight: 420, canCapture: false, squadSize: 1, hp: 290, damage: 12, range: 200,
-    speed: 210, cost: { scrip: 130, flux: 40 }, cooldown: 0.4, trainTime: 11, size: 16, projectile: 'spit',
+    speed: 210, cost: { scrip: 130, flux: 40 }, cooldown: 0.4, trainTime: 11, size: 22, modelScale: 1.5, projectile: 'spit',
     flying: true, regen: 2,
     description: 'Winged hunter that glides over cliffs and walls. Hit-and-run raider.',
   },
   carrier: {
     id: 'carrier', name: 'Carrier Beast', faction: 'nullhorde', category: 'vehicle', tier: 2, requires: [], supply: 3,
     damageType: 'melee', armor: 'monster', sight: 300, canCapture: false, squadSize: 1, hp: 820, damage: 22, range: 60,
-    speed: 115, cost: { scrip: 170, flux: 60 }, cooldown: 1.2, trainTime: 16, size: 22, projectile: 'melee',
+    speed: 115, cost: { scrip: 170, flux: 60 }, cooldown: 1.2, trainTime: 16, size: 28, modelScale: 1.6, projectile: 'melee',
     transport: 1, regen: 6,
     description: 'Armoured brood-mother. Carries one swarm squad in its belly and regenerates.',
   },
   siegebeast: {
     id: 'siegebeast', name: 'Siege Beast', faction: 'nullhorde', category: 'vehicle', tier: 3, requires: [], supply: 5,
     damageType: 'acid', armor: 'monster', sight: 300, canCapture: false, squadSize: 1, hp: 760, damage: 105, range: 620,
-    speed: 45, cost: { scrip: 260, flux: 160 }, cooldown: 4.5, trainTime: 24, size: 24, projectile: 'acidlob',
+    speed: 45, cost: { scrip: 260, flux: 160 }, cooldown: 4.5, trainTime: 24, size: 30, modelScale: 1.7, projectile: 'acidlob',
     indirect: true, minRange: 180, splash: 70, regen: 4,
     description: 'Lumbering artillery beast that hurls sacs of acid over any obstacle.',
   },

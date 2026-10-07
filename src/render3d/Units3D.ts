@@ -24,7 +24,7 @@ interface Batch {
 export class Units3D {
   private geos = new Map<string, ModelGeometry>();
   private batches = new Map<string, Batch>();
-  // Iron Void armour: painted ceramite plates; Horde: wet chitin. Bodies: dulled and dusty.
+  // Iron Void armour: painted composite plates; Horde: wet chitin. Bodies: dulled and dusty.
   private ironMat = surfaceMaterial(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.55 }), 'metal', 5, 0.35, new THREE.Color(0.32, 0.38, 0.5));
   private hordeMat = surfaceMaterial(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.1 }), 'organic', 18, 0.5, new THREE.Color(0.42, 0.22, 0.48));
   private deadMat = surfaceMaterial(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0.1, color: 0x6a625c }), 'stone');
@@ -116,6 +116,7 @@ export class Units3D {
       const batch = this.batch(key, this.geometry(b.id, 'death', f), want.get(key) ?? 1, f === lastDeath ? this.deadMat : this.matFor(b.id));
       this.p.set(b.x, heightAt(b.x, b.y) - (1 - b.img.alpha) * 12, b.y);
       this.q.setFromAxisAngle(this.up, -b.angle);
+      this.s.setScalar(UNIT_DEFS[b.id].modelScale ?? 1);
       this.m4.compose(this.p, this.q, this.s);
       batch.solid.setMatrixAt(batch.used, this.m4);
       batch.glow?.setMatrixAt(batch.used, this.m4);
@@ -128,6 +129,8 @@ export class Units3D {
       const h = heightAt(u.x, u.y) + u.lift * HEIGHT_SCALE.value;
       this.p.set(u.x, h, u.y);
       this.q.setFromAxisAngle(this.up, -u.angle);
+      // Vehicles are drawn larger than the soldiers they were modelled beside.
+      this.s.setScalar(u.def.modelScale ?? 1);
       this.m4.compose(this.p, this.q, this.s);
       b.solid.setMatrixAt(b.used, this.m4);
       b.glow?.setMatrixAt(b.used, this.m4);

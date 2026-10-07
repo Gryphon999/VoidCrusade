@@ -50,6 +50,8 @@ export interface BuildingDef {
   vision?: number;
   /** Placement grid in tiles (defaults to BUILD.snap). */
   snap?: number;
+  /** Most of these one owner may have standing or under construction at once. */
+  limit?: number;
   /** Engineers can raise it anywhere (no build radius); it then needs a builder standing by to progress. */
   fieldBuild?: boolean;
   /** Must be placed inside a capture zone the owner holds (one per point). */
@@ -84,7 +86,7 @@ const Z: Resources = { scrip: 0, flux: 0 };
 export const BUILDING_DEFS: Record<BuildingId, BuildingDef> = {
   stronghold: {
     id: 'stronghold', name: 'Command Bastion', faction: 'ironvoid', role: 'hq', category: 'economy', tier: 1, cost: Z, fluxGen: 0, hp: 3000,
-    buildTime: 0, size: 4, height: 96, buildRadius: 12, requires: [], produces: ['commander', 'engineer'], supply: 10,
+    buildTime: 0, size: 4, height: 96, buildRadius: 12, requires: [], produces: ['commander', 'engineer'], supply: 20,
     description: 'Starting HQ. If it falls, the crusade is lost.',
   },
   generator: {
@@ -94,7 +96,7 @@ export const BUILDING_DEFS: Record<BuildingId, BuildingDef> = {
   },
   depot: {
     id: 'depot', name: 'Supply Depot', faction: 'ironvoid', role: 'supply', category: 'economy', tier: 1, cost: { scrip: 100, flux: 0 },
-    fluxGen: 0, hp: 500, buildTime: 12, size: 2, height: 46, buildRadius: 6, requires: [], produces: [], supply: 8,
+    fluxGen: 0, hp: 500, buildTime: 12, size: 2, height: 46, buildRadius: 6, requires: [], produces: [], supply: 10,
     description: 'Stores rations and munitions. +8 supply.',
   },
   barracks: {
@@ -113,7 +115,7 @@ export const BUILDING_DEFS: Record<BuildingId, BuildingDef> = {
     produces: ['buggy', 'apc', 'tank', 'artillery'], description: 'Assembles buggies, transports, tanks and siege walkers.',
   },
   turret: {
-    id: 'turret', name: 'Void Turret', faction: 'ironvoid', role: 'defense', category: 'defense', tier: 1, cost: { scrip: 75, flux: 50 },
+    id: 'turret', limit: 10, name: 'Void Turret', faction: 'ironvoid', role: 'defense', category: 'defense', tier: 1, cost: { scrip: 75, flux: 50 },
     fluxGen: 0, hp: 700, buildTime: 10, size: 2, height: 40, buildRadius: 6, requires: ['power'], produces: [],
     attack: { damage: 22, range: 280, cooldown: 0.9, damageType: 'bullet' },
     description: 'Static defense. Auto-attacks enemies in range.',
@@ -191,7 +193,7 @@ export const BUILDING_DEFS: Record<BuildingId, BuildingDef> = {
   },
   hive: {
     id: 'hive', name: 'Null Hive', faction: 'nullhorde', role: 'hq', category: 'economy', tier: 1, cost: Z, fluxGen: 0, hp: 3000, buildTime: 0,
-    size: 4, height: 84, buildRadius: 12, requires: [], produces: ['overlord', 'shaman'], supply: 10, regen: 4, description: 'Heart of the swarm.',
+    size: 4, height: 84, buildRadius: 12, requires: [], produces: ['overlord', 'shaman'], supply: 20, regen: 4, description: 'Heart of the swarm.',
   },
   spire: {
     id: 'spire', name: 'Flux Spire', faction: 'nullhorde', role: 'power', category: 'economy', tier: 1, cost: { scrip: 100, flux: 0 }, fluxGen: 10,
@@ -200,7 +202,7 @@ export const BUILDING_DEFS: Record<BuildingId, BuildingDef> = {
   },
   nest: {
     id: 'nest', name: 'Brood Nest', faction: 'nullhorde', role: 'supply', category: 'economy', tier: 1, cost: { scrip: 100, flux: 0 },
-    fluxGen: 0, hp: 450, buildTime: 12, size: 2, height: 40, buildRadius: 6, requires: [], produces: [], supply: 8, regen: 2,
+    fluxGen: 0, hp: 450, buildTime: 12, size: 2, height: 40, buildRadius: 6, requires: [], produces: [], supply: 10, regen: 2,
     description: 'A pulsing egg-clutch. +8 supply.',
   },
   brood: {
@@ -219,7 +221,7 @@ export const BUILDING_DEFS: Record<BuildingId, BuildingDef> = {
     produces: ['skimmer', 'carrier', 'siegebeast', 'titan'], regen: 4, description: 'A womb-pool that grows skimmers, carriers, siege beasts and titans.',
   },
   spine: {
-    id: 'spine', name: 'Spine Tower', faction: 'nullhorde', role: 'defense', category: 'defense', tier: 1, cost: { scrip: 75, flux: 50 },
+    id: 'spine', limit: 10, name: 'Spine Tower', faction: 'nullhorde', role: 'defense', category: 'defense', tier: 1, cost: { scrip: 75, flux: 50 },
     fluxGen: 0, hp: 650, buildTime: 10, size: 2, height: 54, buildRadius: 6, requires: ['power'], produces: [],
     attack: { damage: 20, range: 260, cooldown: 0.9, damageType: 'bullet' }, regen: 2, description: 'Hurls bone spines.',
   },

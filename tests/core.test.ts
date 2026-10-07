@@ -77,12 +77,12 @@ test('queue rejects units a building cannot train, locked tiers and missing mone
 });
 
 test('supply cap counts queued units and never exceeds the hard maximum', () => {
-  // HQ alone: 10 supply; five riflemen (2 each) fill it exactly.
-  const { prod, barracks } = fakeBattle({ squads: ['rifleman', 'rifleman', 'rifleman'] });
-  assert.equal(prod.supplyUsed('player'), 6);
+  // HQ alone: 20 supply; ten riflemen (2 each) fill it exactly.
+  const { prod, barracks } = fakeBattle({ squads: Array<UnitId>(8).fill('rifleman') });
+  assert.equal(prod.supplyUsed('player'), 16);
   assert.equal(prod.enqueue(barracks, 'rifleman'), true);
   assert.equal(prod.enqueue(barracks, 'rifleman'), true);
-  assert.equal(prod.supplyUsed('player'), 10);
+  assert.equal(prod.supplyUsed('player'), 20);
   assert.equal(prod.checkEnqueue(barracks, 'rifleman'), 'err.supply');
   const rich = fakeBattle({ depots: 20 });
   assert.equal(rich.prod.checkEnqueue(rich.barracks, 'rifleman'), null);

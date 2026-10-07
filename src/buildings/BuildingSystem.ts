@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BUILD, RESOURCES, TILE, TILE_SIZE } from '../config';
+import { BUILD, RESOURCES, TILE_SIZE } from '../config';
 import { EV } from '../events';
 import type { MessageKey } from '../i18n';
 import { roleName } from '../i18n/names';
@@ -39,9 +39,9 @@ export class BuildingSystem {
   ) {}
 
   /** Creates a building without cost checks (used for starting HQs and by tryPlace). */
-  spawn(id: BuildingId, owner: Owner, tx: number, ty: number, instant = false): Building {
+  spawn(id: BuildingId, owner: Owner, tx: number, ty: number, instant = false, rot = 0): Building {
     const def = BUILDING_DEFS[id];
-    const b = new Building(this.scene, def, owner, tx, ty, instant);
+    const b = new Building(this.scene, def, owner, tx, ty, instant, rot);
     this.buildings.push(b);
     this.map.setOccupied(tx, ty, def.size, def.size, true, def.gate ? owner : undefined);
     if (b.isReady) this.onComplete(b, false);
@@ -53,7 +53,7 @@ export class BuildingSystem {
   snap(wx: number, wy: number, id: BuildingId): { tx: number; ty: number } {
     const def = BUILDING_DEFS[id];
     const size = def.size;
-    const grid = def.snap ?? BUILD.snap;
+    const grid = def.snap ?? BUILD.grid;
     if (grid < size) {
       // Fine grid: centre the footprint on the cursor.
       return { tx: Math.round(wx / TILE_SIZE - size / 2), ty: Math.round(wy / TILE_SIZE - size / 2) };
@@ -76,6 +76,10 @@ export class BuildingSystem {
         if (this.map.isOccupied(x, y)) return { ok: false, reason: 'err.occupied' };
         if (!def.onPoint && this.reserved.has(y * this.map.width + x)) return { ok: false, reason: 'err.nexus' };
       }
+    }
+    if (this.crowded(def, tx, ty)) return { ok: false, reason: 'err.tooClose' };
+    if (def.limit && this.buildings.filter((b) => b.alive && b.owner === owner && b.def.id === id).length >= def.limit) {
+      return { ok: false, reason: 'err.maxCount', params: { n: `${def.limit}` } };
     }
     if (this.tierOf(owner) < def.tier) return { ok: false, reason: 'err.tier', params: { n: `${def.tier}` } };
     const missing = def.requires.find((r) => !this.hasRole(owner, r));
@@ -100,11 +104,25 @@ export class BuildingSystem {
     return { ok: true };
   }
 
+  /** Small structures (walls, gates, mines) may touch anything; other buildings keep a lane between them. */
+  private static hugs(def: { size: number; wall?: boolean; mine?: unknown }): boolean {
+    return !!def.wall || !!def.mine || def.size <= 1;
+  }
+
+  /** True when a building would stand closer than BUILD.gap tiles to another one (troops need a way out). */
+  private crowded(def: (typeof BUILDING_DEFS)[BuildingId], tx: number, ty: number): boolean {
+    if (BuildingSystem.hugs(def)) return false;
+    const g = BUILD.gap;
+    return this.buildings.some((b) => b.alive && !BuildingSystem.hugs(b.def)
+      && tx < b.tx + b.def.size + g && b.tx < tx + def.size + g
+      && ty < b.ty + b.def.size + g && b.ty < ty + def.size + g);
+  }
+
   /** Validates, pays for and starts constructing a building. */
-  tryPlace(owner: Owner, id: BuildingId, tx: number, ty: number, field = false): Building | null {
+  tryPlace(owner: Owner, id: BuildingId, tx: number, ty: number, field = false, rot = 0): Building | null {
     if (!this.validate(owner, id, tx, ty, field).ok) return null;
     this.resources.spend(owner, BUILDING_DEFS[id].cost);
-    const b = this.spawn(id, owner, tx, ty, false);
+    const b = this.spawn(id, owner, tx, ty, false, rot);
     // Outside the base, construction only advances while engineers work on it.
     if (field) b.needsBuilder = true;
     return b;
@@ -139,10 +157,8 @@ export class BuildingSystem {
     this.scene.events.emit(EV.buildingDamaged, b, amount);
     if (!b.takeDamage(amount * this.wear)) return;
     if (wasReady && b.def.fluxGen > 0) this.resources.removeIncome(b.owner, 'flux', b.def.fluxGen);
+    // The ground stays as it was: the rubble heap burns out and clears away (WreckSystem).
     this.map.setOccupied(b.tx, b.ty, b.def.size, b.def.size, false);
-    for (let y = b.ty; y < b.ty + b.def.size; y++) {
-      for (let x = b.tx; x < b.tx + b.def.size; x++) this.map.setTile(x, y, TILE.RUINS);
-    }
     this.scene.events.emit(EV.buildingDestroyed, b);
     b.destroy();
     const idx = this.buildings.indexOf(b);

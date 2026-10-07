@@ -217,6 +217,12 @@ export class BattleScene extends Phaser.Scene {
     new VoiceBridge(this);
 
     this.cameraSystem = new CameraSystem(this, this.map.worldWidth, this.map.worldHeight);
+    // While a fortification is being placed the wheel turns it instead of zooming.
+    this.cameraSystem.wheelOverride = (dy) => {
+      if (!this.placement.rotatable) return false;
+      this.placement.rotate(dy > 0 ? 1 : -1);
+      return true;
+    };
     this.cameraSystem.centerOn(hq.x + 200, hq.y - 100);
     // Opening shot: from high over the battlefield down to the base (not in the tutorial,
     // whose first lesson is moving the camera).

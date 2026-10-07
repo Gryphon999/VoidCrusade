@@ -48,13 +48,17 @@ export class Building {
   /** Beacon / portal drop cooldown (battle s). */
   dropReady = 0;
 
+  /** Facing in quarter turns (0–3). Footprints are square, so it only turns the model. */
+  rot: number;
+
   readonly view: BuildingView;
 
-  constructor(scene: Phaser.Scene, def: BuildingDef, owner: Owner, tx: number, ty: number, instant: boolean) {
+  constructor(scene: Phaser.Scene, def: BuildingDef, owner: Owner, tx: number, ty: number, instant: boolean, rot = 0) {
     this.def = def;
     this.owner = owner;
     this.tx = tx;
     this.ty = ty;
+    this.rot = ((rot % 4) + 4) % 4;
     const px = def.size * TILE_SIZE;
     this.x = tx * TILE_SIZE + px / 2;
     this.y = ty * TILE_SIZE + px / 2;
@@ -66,6 +70,11 @@ export class Building {
 
     this.view = new BuildingView(scene, this);
     this.refreshVisual();
+  }
+
+  /** Fortifications can be turned when placed (and afterwards). */
+  get rotatable(): boolean {
+    return this.def.category === 'defense';
   }
 
   get radius(): number {

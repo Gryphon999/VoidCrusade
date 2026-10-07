@@ -5,6 +5,7 @@ import { BUILDING_DEFS, BuildingId } from './BuildingDefs';
 import { buildingArt } from '../render/buildings/BuildingArt';
 import { Projection } from '../render/Projection';
 import { EV } from '../events';
+import { t } from '../i18n';
 import type { Squad } from '../units/Squad';
 
 /** Ghost preview + click-to-place for player construction. Positions are logical world coords. */
@@ -15,12 +16,32 @@ export class BuildingPlacementUI {
   private tile = { tx: 0, ty: 0 };
   /** Engineers raising this structure in the field (no build radius; they walk over to build it). */
   private builders: Squad[] = [];
+  /** Facing of the next structure in quarter turns (fortifications only). */
+  private rot = 0;
+  private hint: Phaser.GameObjects.Text;
 
   constructor(private scene: Phaser.Scene, private buildings: BuildingSystem, private toWorld: (px: number, py: number) => Phaser.Math.Vector2) {
     this.ghost = scene.add.image(0, 0, buildingArt(scene, 'generator', Projection.tilt).body).setVisible(false).setAlpha(0.6);
     this.ghost.setDepth(DEPTH.overlay);
     this.overlay = scene.add.graphics().setDepth(DEPTH.overlay - 1);
+    this.hint = scene.add.text(0, 0, '', { fontFamily: 'sans-serif', fontSize: '13px', color: '#e8f0ff', backgroundColor: '#0b1220cc', padding: { x: 5, y: 2 } })
+      .setDepth(DEPTH.overlay + 1).setOrigin(0.5, 0).setVisible(false);
     scene.input.keyboard?.on('keydown-ESC', () => this.cancel());
+    scene.input.keyboard?.on('keydown-V', () => this.rotate(1));
+  }
+
+  /** True when the structure being placed can be turned (fortifications). */
+  get rotatable(): boolean {
+    return !!this.active && BUILDING_DEFS[this.active].category === 'defense';
+  }
+
+  /** Turns the ghost a quarter turn (V key or mouse wheel while placing). */
+  rotate(dir: number): void {
+    if (!this.rotatable) return;
+    this.rot = (this.rot + (dir < 0 ? 3 : 1)) % 4;
+    const p = this.scene.input.activePointer;
+    const w = this.toWorld(p.x, p.y);
+    this.updatePointer(w.x, w.y);
   }
 
   get isActive(): boolean {
@@ -44,6 +65,7 @@ export class BuildingPlacementUI {
   cancel(): void {
     this.active = null;
     this.ghost.setVisible(false);
+    this.hint.setVisible(false);
     this.overlay.clear();
   }
 
@@ -69,6 +91,22 @@ export class BuildingPlacementUI {
     }
     g.fillStyle(color, 0.25).fillRect(x, Projection.vy(y), px, px * k);
     g.lineStyle(2, color, 0.9).strokeRect(x, Projection.vy(y), px, px * k);
+    if (this.rotatable) {
+      // Facing marker: a bar along a wall's length, or an arrow to the front of other defences.
+      const cx = x + px / 2;
+      const cy = y + px / 2;
+      const a = (-this.rot * Math.PI) / 2;
+      const fx = Math.sin(a);
+      const fy = Math.cos(a);
+      const L = Math.max(px * 0.45, 14);
+      g.lineStyle(4, 0xffe070, 0.95);
+      if (def.wall) g.lineBetween(cx - fy * L, Projection.vy(cy - fx * L), cx + fy * L, Projection.vy(cy + fx * L));
+      else {
+        g.lineBetween(cx, Projection.vy(cy), cx + fx * L, Projection.vy(cy + fy * L));
+        g.fillStyle(0xffe070, 0.95).fillCircle(cx + fx * L, Projection.vy(cy + fy * L), 4);
+      }
+      this.hint.setText(t('hint.rotate')).setPosition(cx, Projection.vy(y + px) + 6).setVisible(true);
+    } else this.hint.setVisible(false);
   }
 
   /** Attempts to place at the current ghost position. Returns true if placed. */
@@ -86,6 +124,8 @@ export class BuildingPlacementUI {
     const a = this.buildings.snap(x0, y0, id);
     const b = this.buildings.snap(x1, y1, id);
     const n = Math.max(Math.abs(b.tx - a.tx), Math.abs(b.ty - a.ty));
+    // Segments line up with the drag: along it for a horizontal line, turned for a vertical one.
+    if (n > 0) this.rot = Math.abs(b.tx - a.tx) >= Math.abs(b.ty - a.ty) ? 0 : 1;
     let placed = 0;
     for (let i = 0; i <= n; i++) {
       const tx = Math.round(a.tx + ((b.tx - a.tx) * i) / Math.max(1, n));
@@ -104,7 +144,7 @@ export class BuildingPlacementUI {
       if (report) this.scene.events.emit(EV.message, check.reason ?? 'err.cannotBuild', check.params);
       return false;
     }
-    const b = this.buildings.tryPlace('player', id, tx, ty, field);
+    const b = this.buildings.tryPlace('player', id, tx, ty, field, this.rotatable ? this.rot : 0);
     if (b && field) {
       // Sites queue up for the engineers who ordered them.
       for (const s of this.builders) if (s.alive && (!s.repairTarget || !s.repairTarget.alive)) s.repair(b);

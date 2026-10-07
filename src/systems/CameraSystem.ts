@@ -148,8 +148,12 @@ export class CameraSystem {
     this.cam.scrollY += this.vel.y * dtSec;
   }
 
+  /** Lets another system take the wheel (e.g. turning a structure while placing it); returns true when used. */
+  wheelOverride?: (dy: number) => boolean;
+
   private onWheel(pointer: Phaser.Input.Pointer, _objs: unknown, _dx: number, dy: number): void {
     if (!this.enabled || this.fly) return;
+    if (this.wheelOverride?.(dy)) return;
     const step = dy > 0 ? -CAMERA.zoomStep : CAMERA.zoomStep;
     this.targetZoom = Phaser.Math.Clamp(this.targetZoom + step, CAMERA.minZoom, CAMERA.maxZoom);
     this.zoomAnchor = { x: pointer.x, y: pointer.y };

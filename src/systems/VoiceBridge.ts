@@ -38,7 +38,19 @@ export class VoiceBridge {
       else if (old === 'player') Voice.say('vo.pointLost', 'announcer', 'alert');
     });
     ev.on(EV.buildingComplete, (b: Building) => b.owner === 'player' && Voice.say('vo.buildDone', 'announcer', 'event'));
-    ev.on(EV.unitHit, (_x: number, _y: number, u: Unit) => u.owner === 'player' && this.alarm());
+    ev.on(EV.unitHit, (_x: number, _y: number, u: Unit) => {
+      if (u.owner !== 'player') return;
+      this.alarm();
+      // Soldiers shout when they come under fire (vehicle crews keep it to the intercom).
+      if (u.squad.alive && u.def.category !== 'vehicle' && Math.random() < 0.25) Voice.say('vo.underFire', speakerFor(u.squad), 'chatter', false);
+    });
+    ev.on(EV.unitDied, (_x: number, _y: number, u: Unit, from: Squad | null) => {
+      if (u.owner === 'player') {
+        if (u.squad.units.some((m) => m.alive && m !== u)) Voice.say('vo.manDown', speakerFor(u.squad), 'chatter', false);
+      } else if (from && from.owner === 'player' && from.alive && !u.squad.units.some((m) => m.alive && m !== u)) {
+        Voice.say('vo.enemyDown', speakerFor(from), 'chatter', false);
+      }
+    });
     ev.on(EV.buildingDamaged, (b: Building) => b.owner === 'player' && this.alarm());
     ev.on(EV.message, (key: MessageKey) => {
       if (key === 'err.resources') Voice.say('vo.noResources', 'announcer', 'event');

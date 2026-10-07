@@ -84,8 +84,12 @@ export const RESOURCES = {
 } as const;
 
 export const BUILD = {
-  /** Buildings snap to a grid of this many tiles. */
+  /** Step (tiles) between the candidate sites the AI tries when it picks where to build. */
   snap: 4,
+  /** Buildings snap to a grid of this many tiles (1 = any tile, centred on the cursor). */
+  grid: 1,
+  /** Free tiles kept between two buildings so troops can walk out (walls, gates and mines may touch). */
+  gap: 1,
   /** Default distance (tiles) from a friendly building within which new ones may be placed. */
   radius: 10,
   /** Fraction of max HP a building starts with while under construction. */

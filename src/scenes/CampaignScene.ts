@@ -16,7 +16,7 @@ import { Ambience } from '../systems/Ambience';
 import { headingFont, onLanguageChange, t } from '../i18n';
 import { bonusText, cardName, territoryName } from '../i18n/names';
 
-/** Dark Crusade-style strategic layer: conquer territories one battle at a time. */
+/** Territory-conquest strategic layer: conquer territories one battle at a time. */
 export class CampaignScene extends Phaser.Scene {
   private save!: CampaignSave;
   private view!: CampaignMapView;

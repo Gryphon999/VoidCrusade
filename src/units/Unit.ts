@@ -94,10 +94,10 @@ export class Unit {
     }
     const key = atlasKey(this.def.id);
     this.sprite = scene.add.image(x, Projection.vy(y), key, frameName('idle', 0, 2)).setDepth(Projection.depth(y));
-    this.sprite.setOrigin(m.anchorX / m.cellW, m.anchorY / m.cellH);
+    this.sprite.setOrigin(m.anchorX / m.cellW, m.anchorY / m.cellH).setScale(this.def.modelScale ?? 1);
     if (this.def.turret) {
       this.turret = scene.add.image(x, Projection.vy(y), turretKey(this.def.id), 'turret0_2').setDepth(Projection.depth(y) + 0.5);
-      this.turret.setOrigin(this.sprite.originX, this.sprite.originY);
+      this.turret.setOrigin(this.sprite.originX, this.sprite.originY).setScale(this.def.modelScale ?? 1);
     }
     this.silhouette = scene.add.image(x, y, key, frameName('idle', 0, 2)).setDepth(DEPTH.silhouettes);
     this.silhouette.setOrigin(this.sprite.originX, this.sprite.originY).setTintFill(0x9ad0ff).setAlpha(0.35).setVisible(false);
@@ -107,7 +107,7 @@ export class Unit {
 
   /** On-screen height of the model (px at zoom 1). */
   get height(): number {
-    return MODEL_HEIGHT[this.def.id];
+    return MODEL_HEIGHT[this.def.id] * (this.def.modelScale ?? 1);
   }
 
   /** Current 8-way facing index (0 = east, 2 = south). */
