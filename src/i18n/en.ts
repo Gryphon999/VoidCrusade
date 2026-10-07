@@ -215,6 +215,9 @@ export const en = {
   'map.khorvan': 'Khorvan Deep',
   'map.mourngate': 'Mourngate Fens',
   'map.cinder': 'Cinder Spires',
+  'map.delta': 'Sunken Delta',
+  'map.ignis': 'Ignis Flats',
+  'map.frost': 'Frostmark',
   'map.size': '{w}×{h} · {n} points',
   // Units
   'unit.rifleman': 'Void Riflemen',

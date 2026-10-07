@@ -29,8 +29,53 @@ export const TILE = {
   CLIFF: 1,
   ROAD: 2,
   RUINS: 3,
+  /** Shallows: infantry wade slowly, vehicles cannot enter, nothing can be built. */
+  WATER: 4,
+  /** Magma field: burns every unit standing on it; paths avoid it unless the shortcut pays. */
+  LAVA: 5,
+  /** Fungal thicket: cover, hides squads inside, blocks shots across it. */
+  SCRUB: 6,
+  /** Frozen lake: fast, open ground that gives no cover at all. */
+  ICE: 7,
 } as const;
 export type TileType = (typeof TILE)[keyof typeof TILE];
+
+/** What a tile does to the units on it; systems read this table, never the tile ids. */
+export interface TerrainRule {
+  /** Movement speed factor for everything on the tile. */
+  speed: number;
+  /** Vehicles (wide bodies) may enter. Cliffs stop everyone regardless. */
+  vehicles: boolean;
+  buildable: boolean;
+  /** 'cover': the tile itself shelters; 'normal': cover comes from neighbours as usual; 'none': never cover. */
+  cover: 'cover' | 'normal' | 'none';
+  /** Squads standing here are invisible to enemies without a detector (or at close range). */
+  conceals: boolean;
+  /** Shots crossing the tile are stopped (shots into or out of it still pass). */
+  losBlock: boolean;
+  /** Fraction of max HP every unit on the tile loses per second. */
+  damage: number;
+  /** Pathfinding cost factor for stepping onto the tile. */
+  pathCost: number;
+}
+
+const PLAIN: TerrainRule = { speed: 1, vehicles: true, buildable: true, cover: 'normal', conceals: false, losBlock: false, damage: 0, pathCost: 1 };
+
+export const TERRAIN: Record<TileType, TerrainRule> = {
+  [TILE.GROUND]: PLAIN,
+  [TILE.CLIFF]: { ...PLAIN, vehicles: false, buildable: false, losBlock: true, pathCost: 1 },
+  [TILE.ROAD]: PLAIN,
+  [TILE.RUINS]: { ...PLAIN, cover: 'cover' },
+  [TILE.WATER]: { speed: 0.6, vehicles: false, buildable: false, cover: 'none', conceals: false, losBlock: false, damage: 0, pathCost: 1.7 },
+  [TILE.LAVA]: { speed: 0.8, vehicles: true, buildable: false, cover: 'none', conceals: false, losBlock: false, damage: 0.08, pathCost: 6 },
+  [TILE.SCRUB]: { speed: 0.8, vehicles: true, buildable: false, cover: 'cover', conceals: true, losBlock: true, damage: 0, pathCost: 1.25 },
+  [TILE.ICE]: { speed: 1.25, vehicles: true, buildable: true, cover: 'none', conceals: false, losBlock: false, damage: 0, pathCost: 0.9 },
+};
+
+/** Seconds after its last shot before a squad in a thicket is hidden again. */
+export const CONCEAL_AFTER_SHOT = 1.5;
+/** An enemy this close (px) sees a concealed squad without a detector. */
+export const CONCEAL_REVEAL_RANGE = 110;
 
 export const CAMERA = {
   scrollSpeed: 900, // px/sec at zoom 1

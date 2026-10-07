@@ -28,7 +28,7 @@ const MODS = opt('mods', '').split(',').filter(Boolean);
 const PORT = 5198;
 const PERSONALITIES = ['balanced', 'rusher', 'turtler'];
 /** Number of battle maps (src/maps/index.ts). */
-const MAPS = 5;
+const MAPS = 8;
 
 function findChromium(): string | undefined {
   if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;

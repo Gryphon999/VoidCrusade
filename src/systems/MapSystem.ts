@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { TILE, TILE_SIZE, TileType } from '../config';
+import { TERRAIN, TILE, TILE_SIZE, TerrainRule, TileType } from '../config';
 import { MapDef } from '../maps/MapBuilder';
 import { TerrainRenderer } from '../render/TerrainRenderer';
 import { Owner } from '../types';
@@ -59,6 +59,33 @@ export class MapSystem {
   /** Terrain-only passability: cliffs are impassable. */
   isTerrainPassable(tx: number, ty: number): boolean {
     return this.inBounds(tx, ty) && this.tiles[ty][tx] !== TILE.CLIFF;
+  }
+
+  /** The gameplay rule of a tile (cliff outside the map). */
+  rule(tx: number, ty: number): TerrainRule {
+    return TERRAIN[this.getTile(tx, ty)];
+  }
+
+  /** Vehicles may drive here (open ground that is not water). */
+  isVehicleTerrain(tx: number, ty: number): boolean {
+    return this.isTerrainPassable(tx, ty) && this.rule(tx, ty).vehicles;
+  }
+
+  /** Structures may stand here. */
+  isBuildable(tx: number, ty: number): boolean {
+    return this.isTerrainPassable(tx, ty) && this.rule(tx, ty).buildable;
+  }
+
+  /** Movement speed factor of the terrain under a world point. */
+  speedAt(wx: number, wy: number): number {
+    const t = this.worldToTile(wx, wy);
+    return this.rule(t.tx, t.ty).speed;
+  }
+
+  /** Rule of the terrain under a world point. */
+  ruleAt(wx: number, wy: number): TerrainRule {
+    const t = this.worldToTile(wx, wy);
+    return this.rule(t.tx, t.ty);
   }
 
   /** Passable for units: not a cliff and not covered by a building (own gates are open to `owner`). */

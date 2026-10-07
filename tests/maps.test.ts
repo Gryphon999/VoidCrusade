@@ -8,7 +8,7 @@ import { MAP_BUILDERS } from '../src/maps';
 import { buildTutorialMap } from '../src/maps/tutorialMap';
 import { MapDef } from '../src/maps/MapBuilder';
 import { Pathfinder } from '../src/systems/Pathfinder';
-import { CAPTURE, TILE, TILE_SIZE } from '../src/config';
+import { CAPTURE, TERRAIN, TILE, TILE_SIZE, TerrainRule, TileType } from '../src/config';
 
 const HQ = 4;
 
@@ -17,11 +17,14 @@ function mapOf(def: MapDef) {
   const inHq = (x: number, y: number): boolean => [def.playerBase, def.enemyBase].some((b) => x >= b.tx && x < b.tx + HQ && y >= b.ty && y < b.ty + HQ);
   const open = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < def.w && y < def.h && def.tiles[y][x] !== TILE.CLIFF;
   const isPassable = (x: number, y: number): boolean => open(x, y) && !inHq(x, y);
+  const rule = (x: number, y: number): TerrainRule => TERRAIN[(open(x, y) ? def.tiles[y][x] : TILE.CLIFF) as TileType];
   return {
     width: def.w,
     height: def.h,
     open,
     isPassable,
+    rule,
+    isVehicleTerrain: (x: number, y: number) => open(x, y) && rule(x, y).vehicles,
     isPassableWorld: (wx: number, wy: number) => isPassable(Math.floor(wx / TILE_SIZE), Math.floor(wy / TILE_SIZE)),
     worldToTile: (wx: number, wy: number) => ({ tx: Math.floor(wx / TILE_SIZE), ty: Math.floor(wy / TILE_SIZE) }),
     tileToWorld: (tx: number, ty: number) => ({ x: (tx + 0.5) * TILE_SIZE, y: (ty + 0.5) * TILE_SIZE }),
@@ -30,9 +33,9 @@ function mapOf(def: MapDef) {
 
 const battleMaps = MAP_BUILDERS.map((b) => b());
 
-test('there are five battle maps, each larger than the old 64×48 field', () => {
-  assert.equal(battleMaps.length, 5);
-  assert.equal(new Set(battleMaps.map((m) => m.id)).size, 5);
+test('there are eight battle maps, each larger than the old 64×48 field', () => {
+  assert.equal(battleMaps.length, 8);
+  assert.equal(new Set(battleMaps.map((m) => m.id)).size, 8);
   for (const m of battleMaps) {
     assert.ok(m.w >= 96 && m.h >= 72, `${m.id} is ${m.w}×${m.h}`);
     assert.equal(m.tiles.length, m.h);

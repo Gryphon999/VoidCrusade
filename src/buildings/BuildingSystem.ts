@@ -72,7 +72,7 @@ export class BuildingSystem {
     const def = BUILDING_DEFS[id];
     for (let y = ty; y < ty + def.size; y++) {
       for (let x = tx; x < tx + def.size; x++) {
-        if (!this.map.isTerrainPassable(x, y)) return { ok: false, reason: 'err.blocked' };
+        if (!this.map.isBuildable(x, y)) return { ok: false, reason: 'err.blocked' };
         if (this.map.isOccupied(x, y)) return { ok: false, reason: 'err.occupied' };
         if (!def.onPoint && this.reserved.has(y * this.map.width + x)) return { ok: false, reason: 'err.nexus' };
       }

@@ -450,6 +450,7 @@ export const enContent = {
   'hint.garrison': 'Infantry can enter bunkers and ruins: right-click the structure. Garrisons get heavy cover.',
   'hint.drop': 'A drop is incoming! Drop pods land after a few seconds; watch the marker.',
   'hint.storm': 'An ash storm cuts sight range for everyone until it passes.',
+  'hint.lava': 'Your troops are crossing a magma field: it burns a share of their health every second. Move them off, or accept the price of the shortcut.',
   'settings.hints': 'Tips: {v}',
   'settings.hintsReset': 'Show all tips again',
   // C5: encyclopedia
@@ -535,6 +536,8 @@ export const enContent = {
   'enc.m.stealth.text': 'Burrowed units and mines cannot be seen or targeted unless a detector is nearby. Detectors: Void Rangers, Scout Buggies, the Sensor Array and the Horde\'s Sensory Organ.',
   'enc.m.events.title': 'Map events',
   'enc.m.events.text': 'Explosive barrels, derelict turrets that can be woken, and ash storms that shrink sight range make every map change during a battle.',
+  'enc.m.terrain.title': 'Terrain',
+  'enc.m.terrain.text': 'Besides open ground, roads, ruins (cover) and cliffs (impassable, block shots), some battlefields have special ground. Shallows: infantry wades at 60% speed, vehicles cannot enter at all, so fords and bridges are the only crossings; nothing can be built in water. Magma fields: anyone standing on them loses 8% of their health every second; routes avoid them, but a determined squad can take the shortcut. Thickets: cover like ruins, shots cannot cross them, and a squad inside is invisible to the enemy until it fires, an enemy walks right up to it, or a detector finds it. Ice: everyone moves 25% faster and there is no cover anywhere on it.',
   'enc.m.modes.title': 'Game modes',
   'enc.m.modes.text': 'Annihilation: destroy the enemy HQ. Control: hold the majority of points for the timer. Survival: outlast waves of attackers. Choose the mode, map, difficulty and AI personality in skirmish setup.',
   'note.aiStyle': 'Enemy commander: {p}',

@@ -65,6 +65,28 @@ export class UnitSystem {
     return Math.min(this.battle.supplyHardMax, n);
   }
 
+  private lastBurnHint = -99;
+
+  /** Damaging ground (lava): every unit standing on it loses a share of its health each second. */
+  private burn(dt: number): void {
+    const map = this.battle.map;
+    let playerBurnt = false;
+    for (const s of this.squads) {
+      if (s.embarked || !s.alive || s.def.flying) continue;
+      for (const u of s.units) {
+        if (!u.alive) continue;
+        const r = map.ruleAt(u.x, u.y);
+        if (r.damage <= 0) continue;
+        this.battle.combat.applyDamage(u, r.damage * u.maxHp * dt, null);
+        if (s.owner === 'player') playerBurnt = true;
+      }
+    }
+    if (playerBurnt && this.battle.elapsed - this.lastBurnHint > 12) {
+      this.lastBurnHint = this.battle.elapsed;
+      this.battle.events.emit(EV.mapEvent, 'lava', true);
+    }
+  }
+
   squadAt(wx: number, wy: number, owner?: Owner): Squad | undefined {
     return this.squads.find((s) => s.alive && (!owner || s.owner === owner) && s.containsPoint(wx, wy));
   }
@@ -152,6 +174,7 @@ export class UnitSystem {
       if (s.embarked) continue;
       for (const u of s.units) this.steer(u, dt);
     }
+    this.burn(dt);
     this.drawBars();
     this.occlusionTimer -= dt;
     if (this.occlusionTimer <= 0) {

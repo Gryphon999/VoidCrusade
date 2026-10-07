@@ -63,6 +63,7 @@ export class MiniMap {
     const pal = biomeForMap(this.battle.map.def.id).minimap;
     const TERRAIN_COLORS: Record<number, number> = {
       [TILE.GROUND]: pal.ground, [TILE.CLIFF]: pal.cliff, [TILE.ROAD]: pal.road, [TILE.RUINS]: pal.ruins,
+      [TILE.WATER]: pal.water, [TILE.LAVA]: pal.lava, [TILE.SCRUB]: pal.scrub, [TILE.ICE]: pal.ice,
     };
     const tw = TILE_SIZE * this.sx;
     const th = TILE_SIZE * this.sy;

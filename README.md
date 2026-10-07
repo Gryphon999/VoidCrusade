@@ -159,6 +159,9 @@ numbers live in data definitions (`UnitDefs`, `BuildingDefs`, `Abilities`, `Rese
 | Khorvan Deep | 96×72 | 9 | night in a mining canyon, three passes |
 | Mourngate Fens | 112×84 | 11 | overcast dawn, rock islands and causeways, standing water |
 | Cinder Spires | 128×96 | 13 | ember dusk, two lava-rock walls with gates, glowing ground |
+| Sunken Delta | 112×84 | 11 | humid morning, two river arms (shallows) crossed by fords and plated bridges |
+| Ignis Flats | 96×72 | 9 | furnace glow, lava rivers and lakes between basalt spires, causeways and a cooled ford |
+| Frostmark | 112×84 | 11 | winter noon, a frozen lake (fast, no cover) ringed by thickets that hide squads |
 
 Every map is point-symmetric. `npm test` checks that, and that infantry and vehicles can reach every
 point and the enemy stronghold. A map sets its own size (`MapBuilder`), so more can be added.
@@ -178,6 +181,7 @@ point and the enemy stronghold. A map sets its own size (`MapBuilder`), so more 
 - **Research tree** and **commander wargear** (weapon, armour, relic).
 - **Vehicles** — wide pathing, crushing, wrecks that block paths, give cover and can be salvaged.
 - **Stealth and detection**, **cover and line of sight**, **fog of war**, **map events** (explosive barrels, derelict turrets, ash storms).
+- **Terrain** (`TERRAIN` in `config.ts`, one rule per tile): shallows (infantry wades at 60 %, vehicles cannot enter, no building), magma fields (8 % of max HP per second, routes avoid them), thickets (cover, block shots across them, hide squads inside until they fire or an enemy walks up), ice (25 % faster, never any cover). Systems read the table, never the tile ids.
 - **Stances** — hold, defend, aggressive, plus retreat.
 
 **Modes** — Campaign (ten hex territories with bonuses and upgrade cards), Skirmish (Annihilation,

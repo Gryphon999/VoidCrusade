@@ -118,6 +118,10 @@ export class TerrainPainter {
         const t = this.map.getTile(tx, ty);
         if (t === TILE.ROAD) this.surface(ctx, tx, ty, TILE.ROAD, this.tex.plating);
         else if (t === TILE.RUINS) this.surface(ctx, tx, ty, TILE.RUINS, this.tex.rubble);
+        else if (t === TILE.WATER) this.surface(ctx, tx, ty, TILE.WATER, this.tex.water);
+        else if (t === TILE.LAVA) this.surface(ctx, tx, ty, TILE.LAVA, this.tex.lava);
+        else if (t === TILE.SCRUB) this.surface(ctx, tx, ty, TILE.SCRUB, this.tex.scrub);
+        else if (t === TILE.ICE) this.surface(ctx, tx, ty, TILE.ICE, this.tex.ice);
       }
     }
     for (let ty = ty0 - 1; ty <= ty1 + 1; ty++) {
