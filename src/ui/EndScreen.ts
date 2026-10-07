@@ -6,7 +6,8 @@ import { BattleResult } from '../scenes/BattleTypes';
 import type { BattleScene } from '../scenes/BattleScene';
 import { Button } from './Button';
 import { formatTime, textStyle } from './uiStyle';
-import { SURVIVAL_WAVES } from '../systems/VictorySystem';
+import { recordRun } from '../battle/Records';
+import { mapName } from '../i18n/names';
 
 /** Animated Victory/Defeat overlay with battle stats. */
 export function showEndScreen(scene: Phaser.Scene, battle: BattleScene, result: BattleResult): Phaser.GameObjects.Container {
@@ -33,14 +34,22 @@ export function showEndScreen(scene: Phaser.Scene, battle: BattleScene, result: 
   const mods = normalizeModifiers(result.data.modifiers ?? []);
   if (mods.length) lines.push(t('end.modifiers', { list: mods.map((m) => t(dyn(`mod.${m}`))).join(', ') }));
   if (battle.victory?.mode === 'survival') {
-    // A modified run keeps its own line, so plain survival records stay comparable.
-    const p = { w: Math.min(battle.victory.wave, SURVIVAL_WAVES), score: battle.victory.score };
+    // Waves survived = full waves beaten before the fall. The run goes into the records table of
+    // this map, difficulty and modifier set (a modified run never mixes with plain ones).
+    const waves = Math.max(0, battle.victory.wave - 1);
+    const p = { w: waves, score: battle.victory.score };
     lines.unshift(mods.length ? t('end.survivalMod', p) : t('end.survival', p));
+    const { rank, table } = recordRun(battle.map.def.id, result.data.difficulty ?? 'normal', mods, { score: battle.victory.score, waves, time: result.time });
+    if (rank) lines.unshift(t('end.record', { n: rank }));
+    const top = table.slice(0, 5).map((e, i) => t('end.recordRow', { n: i + 1, score: e.score, w: e.waves, d: e.date }));
+    if (top.length) lines.push('', t('end.recordTop', { map: mapName(battle.map.def.id) }), ...top);
   }
   if (battle.victory?.mode === 'control' && win) lines.unshift(t('end.control'));
-  if (win && (battle.victory?.mode === 'hold' || battle.victory?.mode === 'nests' || battle.victory?.mode === 'evac')) lines.unshift(t(dyn(`end.${battle.victory.mode}`)));
-  const stats = scene.add.text(cx, cy + 40, lines.join('\n'), { ...textStyle(18, '#aab'), align: 'center', lineSpacing: 8 });
-  stats.setOrigin(0.5).setAlpha(0);
+  if (win && (battle.victory?.mode === 'hold' || battle.victory?.mode === 'nests' || battle.victory?.mode === 'evac' || battle.victory?.mode === 'koth')) lines.unshift(t(dyn(`end.${battle.victory.mode}`)));
+  // The block grows with records lines: it hangs from under the subtitle and pushes the buttons down.
+  const stats = scene.add.text(cx, cy, lines.join('\n'), { ...textStyle(lines.length > 6 ? 16 : 18, '#aab'), align: 'center', lineSpacing: lines.length > 6 ? 4 : 8 });
+  stats.setOrigin(0.5, 0).setAlpha(0);
+  const buttonY = Math.min(GAME_HEIGHT - 56, Math.max(cy + 150, cy + stats.height + 44));
   scene.tweens.add({ targets: [subtitle, stats], alpha: 1, duration: 600, delay: 900 });
   root.add([dim, title, subtitle, stats]);
   // Pulsing glow behind title.
@@ -55,7 +64,7 @@ export function showEndScreen(scene: Phaser.Scene, battle: BattleScene, result: 
       ];
   buttons.forEach((b, i) => {
     const x = cx + (i - (buttons.length - 1) / 2) * 220;
-    const btn = new Button(scene, { x, y: cy + 150, w: 200, h: 48, label: b.label, onClick: b.action });
+    const btn = new Button(scene, { x, y: buttonY, w: 200, h: 48, label: b.label, onClick: b.action });
     btn.container.setAlpha(0);
     scene.tweens.add({ targets: btn.container, alpha: 1, duration: 400, delay: 1400 });
     root.add(btn.container);

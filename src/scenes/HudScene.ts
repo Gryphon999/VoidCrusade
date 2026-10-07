@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { BattleScene } from './BattleScene';
 import { TopBar, TOP_BAR_H } from '../ui/TopBar';
 import { normalizeModifiers } from '../battle/BattleModifiers';
-import { EVAC_LOAD, EVAC_SQUADS, HOLD_TIME, NEST_COUNT } from '../battle/Objectives';
+import { EVAC_LOAD, EVAC_SQUADS, HOLD_TIME, KOTH_GOAL, NEST_COUNT } from '../battle/Objectives';
 import { SquadRoster } from '../ui/SquadRoster';
 import { SelectionPanel } from '../ui/SelectionPanel';
 import { MiniMap } from '../ui/MiniMap';
@@ -16,7 +16,7 @@ import { PauseMenu } from '../ui/PauseMenu';
 import { ResearchTree } from '../ui/ResearchTree';
 import { HintToast } from '../ui/HintToast';
 import { TutorialOverlay } from '../tutorial/TutorialOverlay';
-import { CONTROL_HOLD, SURVIVAL_WAVES } from '../systems/VictorySystem';
+import { CONTROL_HOLD } from '../systems/VictorySystem';
 import { textStyle } from '../ui/uiStyle';
 import { CursorKind, getCursors } from '../assets/Cursors';
 import { GAME_HEIGHT, GAME_WIDTH, GFX } from '../config';
@@ -260,7 +260,12 @@ export class HudScene extends Phaser.Scene {
       if (me > 0) return t('obj.holding', { t: formatTime(CONTROL_HOLD - me) });
       return t('obj.control', { n: v.needed, max: this.battle.capture.points.length });
     }
-    if (v.mode === 'survival') return t('obj.wave', { n: v.wave, max: SURVIVAL_WAVES, t: formatTime(v.waveIn) });
+    if (v.mode === 'survival') return t('obj.waveEndless', { n: v.wave, t: formatTime(v.waveIn) });
+    if (v.mode === 'koth') {
+      const o = v.centre.owner;
+      const who = t(o === 'player' ? 'obj.hillYours' : o === 'enemy' ? 'obj.hillTheirs' : 'obj.hillEmpty');
+      return t('obj.koth', { p: Math.floor(v.koth.player), e: Math.floor(v.koth.enemy), goal: KOTH_GOAL, who });
+    }
     if (v.mode === 'hold') {
       const left = formatTime(HOLD_TIME - v.holdProgress);
       const o = v.centre.owner;

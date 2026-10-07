@@ -67,30 +67,31 @@ export class SkirmishSetup {
       mapTitle.setText(mapName(m.id));
       mapInfo.setText(t('map.size', { w: m.w, h: m.h, n: m.capturePoints.length }));
     });
-    // Six victory conditions in two rows of three (the second row has no label).
+    // Seven victory conditions in rows of three (only the first row has the label).
     row(y + 150, 'skirmish.mode', WIN_MODES.slice(0, 3), () => state.mode, (v) => (state.mode = v), (m) => t(dyn(`mode.${m}`)), 150);
-    row(y + 190, '', WIN_MODES.slice(3), () => state.mode, (v) => (state.mode = v), (m) => t(dyn(`mode.${m}`)), 150);
-    const modeDesc = scene.add.text(x + 250, y + 218, '', { ...textStyle(12, '#9a9280'), wordWrap: { width: w - 290 } });
+    row(y + 190, '', WIN_MODES.slice(3, 6), () => state.mode, (v) => (state.mode = v), (m) => t(dyn(`mode.${m}`)), 150);
+    row(y + 230, '', WIN_MODES.slice(6), () => state.mode, (v) => (state.mode = v), (m) => t(dyn(`mode.${m}`)), 150);
+    const modeDesc = scene.add.text(x + 250, y + 258, '', { ...textStyle(12, '#9a9280'), wordWrap: { width: w - 290 } });
     root.add(modeDesc);
     refresh.push(() => modeDesc.setText(t(dyn(`mode.${state.mode}.desc`))));
-    row(y + 274, 'settings.difficulty', DIFFICULTIES, () => state.difficulty, (v) => (state.difficulty = v), (d) => t(dyn(`diff.${d}`)), 110);
-    row(y + 318, 'skirmish.personality', ['random', ...PERSONALITIES], () => state.personality, (v) => (state.personality = v),
+    row(y + 314, 'settings.difficulty', DIFFICULTIES, () => state.difficulty, (v) => (state.difficulty = v), (d) => t(dyn(`diff.${d}`)), 110);
+    row(y + 358, 'skirmish.personality', ['random', ...PERSONALITIES], () => state.personality, (v) => (state.personality = v),
       (p) => t(dyn(`ai.${p}`)), 110);
-    const aiDesc = scene.add.text(x + 250, y + 338, '', textStyle(11, '#9a9280'));
+    const aiDesc = scene.add.text(x + 250, y + 378, '', textStyle(11, '#9a9280'));
     root.add(aiDesc);
     refresh.push(() => aiDesc.setText(state.personality === 'random' ? t('skirmish.randomHint') : t(dyn(`ai.${state.personality}.desc`))));
     // Battle modifiers: a picker window, the button says how many are on.
-    label(y + 368, 'skirmish.modifiers');
+    label(y + 408, 'skirmish.modifiers');
     const modsLabel = (): string => (state.modifiers.length ? t('skirmish.modifiers.choose', { n: state.modifiers.length }) : t('skirmish.modifiers.none'));
-    const mods = new Button(scene, { x: x + 330, y: y + 368, w: 310, h: 34, label: modsLabel(), onClick: () => {
+    const mods = new Button(scene, { x: x + 330, y: y + 408, w: 310, h: 34, label: modsLabel(), onClick: () => {
       new ModifierPicker(scene, state.modifiers, (ids) => {
         state.modifiers = ids;
         mods.setLabel(modsLabel());
       });
     } });
     root.add(mods.container);
-    label(y + 416, 'skirmish.wargear');
-    const wg = new Button(scene, { x: x + 330, y: y + 416, w: 310, h: 34, label: t('wargear.choose'), onClick: () => {
+    label(y + 456, 'skirmish.wargear');
+    const wg = new Button(scene, { x: x + 330, y: y + 456, w: 310, h: 34, label: t('wargear.choose'), onClick: () => {
       new WargearPicker(scene, 'ironvoid', state.wargear, (p) => (state.wargear = p));
     } });
     root.add(wg.container);

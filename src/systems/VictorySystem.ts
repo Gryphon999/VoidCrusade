@@ -7,8 +7,8 @@ import { WinMode } from '../scenes/BattleTypes';
 import { Building } from '../buildings/Building';
 import type { Squad } from '../units/Squad';
 import {
-  EVAC_ARRIVAL, EVAC_LOAD, EVAC_ZONE, HOLD_TIME, NEST_FIRST_SPAWN, NEST_HP, NEST_SPAWN_EVERY, NEST_TIME_LIMIT,
-  evacReady, evacStep, holdStep, nestPool, pickNestPoints,
+  EVAC_ARRIVAL, EVAC_LOAD, EVAC_ZONE, HOLD_TIME, KOTH_GOAL, NEST_FIRST_SPAWN, NEST_HP, NEST_SPAWN_EVERY, NEST_TIME_LIMIT, SURVIVAL_MILESTONE,
+  evacReady, evacStep, holdStep, kothStep, nestPool, pickNestPoints,
 } from '../battle/Objectives';
 import type { BattleScene } from '../scenes/BattleScene';
 
@@ -44,6 +44,8 @@ export class VictorySystem {
   evacLoad = 0;
   evacArrived = false;
   private commanderLost = false;
+  /** King of the Hill: points scored by each side. */
+  koth: { player: number; enemy: number } = { player: 0, enemy: 0 };
 
   constructor(private battle: BattleScene, mode: WinMode | undefined) {
     this.mode = mode ?? 'annihilation';
@@ -141,6 +143,10 @@ export class VictorySystem {
       }
     } else if (this.mode === 'evac') {
       this.evacuation(dt);
+    } else if (this.mode === 'koth') {
+      this.koth = kothStep(this.koth, this.centre.owner, dt);
+      if (this.koth.player >= KOTH_GOAL) b.endBattle('player');
+      else if (this.koth.enemy >= KOTH_GOAL) b.endBattle('enemy');
     }
   }
 
@@ -158,10 +164,8 @@ export class VictorySystem {
     const b = this.battle;
     this.wave++;
     this.nextWave = b.elapsed + WAVE_EVERY;
-    if (this.wave > SURVIVAL_WAVES) {
-      b.endBattle('player');
-      return;
-    }
+    // Survival is endless: the first tide is a milestone, the score is the record.
+    if (this.wave === SURVIVAL_MILESTONE + 1) b.events.emit(EV.message, 'note.tide');
     const owner: Owner = 'enemy';
     const n = this.wave;
     const pool: UnitId[] = ['crawler', 'crawler', 'spitter'];
@@ -179,7 +183,7 @@ export class VictorySystem {
       s.stance = 'aggressive';
       if (hq) s.moveTo(hq.x + Phaser.Math.Between(-150, 150), hq.y + Phaser.Math.Between(-150, 150), true);
     }
-    if (n === 12) {
+    if (n % 12 === 0) {
       const s = b.units.spawnSquad('titan', owner, (base.tx + 2) * 64, (base.ty + 2) * 64);
       if (hq) s.moveTo(hq.x, hq.y, true);
     }

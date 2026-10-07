@@ -69,3 +69,20 @@ export function evacStep(load: number, boarding: boolean, dt: number): number {
 export function evacReady(commanderInZone: boolean, othersInZone: number): boolean {
   return commanderInZone && othersInZone >= EVAC_SQUADS;
 }
+
+// ---- King of the Hill ---------------------------------------------------------------------
+
+/** Points a side needs to win, and points per second for owning the hill. */
+export const KOTH_GOAL = 300;
+export const KOTH_RATE = 1;
+
+/** One tick of the hill: the owner scores, a neutral hill scores for nobody. */
+export function kothStep(score: { player: number; enemy: number }, owner: 'player' | 'enemy' | null, dt: number): { player: number; enemy: number } {
+  if (!owner) return score;
+  return { ...score, [owner]: Math.min(KOTH_GOAL, score[owner] + KOTH_RATE * dt) };
+}
+
+// ---- Survival -----------------------------------------------------------------------------
+
+/** Wave at which the first tide is declared broken (a milestone, not the end: survival is endless). */
+export const SURVIVAL_MILESTONE = 15;

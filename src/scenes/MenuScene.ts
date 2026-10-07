@@ -7,6 +7,7 @@ import { Button } from '../ui/Button';
 import { drawPanel, textStyle } from '../ui/uiStyle';
 import { Settings } from '../systems/Settings';
 import { SkirmishSetup } from '../ui/SkirmishSetup';
+import { RecordsPanel } from '../ui/RecordsPanel';
 import { Ambience } from '../systems/Ambience';
 
 export class MenuScene extends Phaser.Scene {
@@ -46,6 +47,7 @@ export class MenuScene extends Phaser.Scene {
       [t('menu.newCampaign'), () => this.go('CampaignScene', { fresh: true })],
       ...(hasSave ? [[t('menu.continue'), () => this.go('CampaignScene', {})] as [string, () => void]] : []),
       [t('menu.skirmish'), () => this.openSkirmish()],
+      [t('menu.records'), () => this.openRecords()],
       [t('menu.tutorial'), () => this.go('BattleScene', { mode: 'tutorial', difficulty: 'easy' })],
       [t('menu.encyclopedia'), () => this.openEncyclopedia()],
       [t('menu.settings'), () => this.openSettings()],
@@ -106,6 +108,11 @@ export class MenuScene extends Phaser.Scene {
     this.busy = true;
     new SkirmishSetup(this, (data) => this.go('BattleScene', data),
       () => (this.busy = false));
+  }
+
+  private openRecords(): void {
+    this.busy = true;
+    new RecordsPanel(this, () => (this.busy = false));
   }
 
   update(_t: number, delta: number): void {

@@ -187,7 +187,7 @@ point and the enemy stronghold. A map sets its own size (`MapBuilder`), so more 
 - **Stances** — hold, defend, aggressive, plus retreat.
 
 **Modes** — Campaign (ten hex territories with bonuses and upgrade cards), Skirmish (Annihilation,
-Control, Survival, Hold the Line, Burn the Nests, Evacuation; map, difficulty, AI personality, battle
+Control, Survival, Hold the Line, Burn the Nests, Evacuation, King of the Hill; map, difficulty, AI personality, battle
 modifiers, wargear), Tutorial.
 
 **Campaign consequences** (`src/campaign/CampaignState.ts`, `CampaignEvents.ts`, `CampaignData.ts`):
@@ -198,6 +198,12 @@ extra Horde Scrip, counterattack chance) are spelled out. After every battle the
 held frontier territory (30 % + 5 % per battle won, capped at 60 %, tilted by events): the map pulses it
 red, it is the only battle available, the defence is Hold the Line on that map with the Horde +100 Scrip,
 and losing it loses the territory. Old saves load unchanged.
+
+**Survival records and King of the Hill** — Survival is endless (wave 15 is a milestone, not the end);
+every run goes into a top-10 table per battlefield, difficulty and modifier set (`src/battle/Records.ts`,
+`localStorage`, also sent to a Yandex Games leaderboard named `survival` when the SDK is present). The end
+screen shows the rank and the top five; **Records** in the main menu lists the best run of every table.
+*King of the Hill*: the centre point scores a point per second for its owner, first to 300 wins.
 
 **Mission objectives** (`src/battle/Objectives.ts` holds the rules, `VictorySystem` wires them):
 *Hold the Line* — own the centre point for 4:00 in all; the meter drains twice as fast while the Horde
