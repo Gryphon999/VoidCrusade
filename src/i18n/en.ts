@@ -232,6 +232,12 @@ export const en = {
   'ev.pilgrims.text': 'A column of armed pilgrims asks to join the crusade. They fight well — and the Horde follows their trail.',
   'ev.pilgrims.a': 'Welcome them',
   'ev.pilgrims.b': 'Take their tithe and send them on',
+  'menu.records': 'Records',
+  'records.title': 'Survival Records',
+  'records.sub': 'Best runs per battlefield, difficulty and modifiers (kept on this device)',
+  'records.empty': 'No runs yet. Play Survival in a Skirmish.',
+  'records.row': '{map} · {diff}{mods}: {score} pts · {w} waves · {t} · {d}',
+  'records.mods': ' · {list}',
   'cards.title': 'Spoils of War',
   'cards.sub': 'Choose one boon for the crusade',
   // Territories

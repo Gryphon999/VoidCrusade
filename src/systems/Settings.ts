@@ -2,6 +2,7 @@ import { Difficulty, PROJECTION } from '../config';
 import type { Lang } from '../i18n';
 import type { WargearPick } from '../campaign/Wargear';
 import { ModifierId, normalizeModifiers } from '../battle/BattleModifiers';
+import { Platform } from '../platform/Platform';
 
 const KEY = 'voidcrusade.settings.v1';
 
@@ -40,6 +41,8 @@ export interface GameSettings {
   skirmishStorms?: boolean;
   /** Last battle modifiers picked in the skirmish setup. */
   skirmishModifiers?: ModifierId[];
+  /** Last faction picked in the skirmish setup. */
+  skirmishFaction?: 'ironvoid' | 'nullhorde';
   /** Last commander wargear loadout. */
   wargear?: WargearPick;
   /** Contextual hint toasts (C5). */
@@ -82,10 +85,16 @@ export const Settings = {
     current = { ...Settings.get(), ...patch };
     try {
       window.localStorage.setItem(KEY, JSON.stringify(current));
+      Platform.saved();
     } catch {
       /* storage unavailable */
     }
     for (const l of listeners) l(current);
+  },
+
+  /** Forgets the cached copy so the next get() re-reads storage (after the cloud save was pulled in). */
+  reload(): void {
+    current = null;
   },
 
   onChange(fn: (s: GameSettings) => void): void {
