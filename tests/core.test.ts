@@ -10,7 +10,7 @@ import { BUILDING_DEFS } from '../src/buildings/BuildingDefs';
 import { ProductionSystem } from '../src/systems/ProductionSystem';
 import { ResourceSystem } from '../src/systems/ResourceSystem';
 import { Pathfinder } from '../src/systems/Pathfinder';
-import { SUPPLY, TILE_SIZE, UNITS } from '../src/config';
+import { SUPPLY, TERRAIN, TILE, TILE_SIZE, UNITS } from '../src/config';
 
 test('damage table covers every pair with sane multipliers', () => {
   for (const d of DAMAGE_TYPES) {
@@ -77,12 +77,12 @@ test('queue rejects units a building cannot train, locked tiers and missing mone
 });
 
 test('supply cap counts queued units and never exceeds the hard maximum', () => {
-  // HQ alone: 10 supply; five riflemen (2 each) fill it exactly.
-  const { prod, barracks } = fakeBattle({ squads: ['rifleman', 'rifleman', 'rifleman'] });
-  assert.equal(prod.supplyUsed('player'), 6);
+  // HQ alone: 20 supply; ten riflemen (2 each) fill it exactly.
+  const { prod, barracks } = fakeBattle({ squads: Array<UnitId>(8).fill('rifleman') });
+  assert.equal(prod.supplyUsed('player'), 16);
   assert.equal(prod.enqueue(barracks, 'rifleman'), true);
   assert.equal(prod.enqueue(barracks, 'rifleman'), true);
-  assert.equal(prod.supplyUsed('player'), 10);
+  assert.equal(prod.supplyUsed('player'), 20);
   assert.equal(prod.checkEnqueue(barracks, 'rifleman'), 'err.supply');
   const rich = fakeBattle({ depots: 20 });
   assert.equal(rich.prod.checkEnqueue(rich.barracks, 'rifleman'), null);
@@ -98,6 +98,10 @@ function fakeMap(w: number, h: number, blocked: (x: number, y: number) => boolea
     width: w,
     height: h,
     isPassable,
+    rule: () => TERRAIN[TILE.GROUND],
+    isVehicleTerrain: isPassable,
+    isRamp: () => false,
+    canStep: () => true,
     isPassableWorld: (wx: number, wy: number) => isPassable(Math.floor(wx / TILE_SIZE), Math.floor(wy / TILE_SIZE)),
     worldToTile: (wx: number, wy: number) => ({ tx: Math.floor(wx / TILE_SIZE), ty: Math.floor(wy / TILE_SIZE) }),
     tileToWorld: (tx: number, ty: number) => ({ x: (tx + 0.5) * TILE_SIZE, y: (ty + 0.5) * TILE_SIZE }),

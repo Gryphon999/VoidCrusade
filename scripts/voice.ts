@@ -16,6 +16,8 @@
  *   - VOICE_ENGINE=edge (default): the `edge-tts` command. Set VOICE_TTS_CMD when it lives
  *     elsewhere, e.g. `wsl -e /home/me/.local/bin/edge-tts`.
  *   - VOICE_ENGINE=elevenlabs: needs ELEVENLABS_API_KEY and the voice ids in ELEVEN_VOICES below.
+ *   - VOICE_ENGINE=azure: Azure Speech (licensed for commercial use, native Russian voice). Needs
+ *     AZURE_SPEECH_KEY and AZURE_SPEECH_REGION (e.g. westeurope) from a Speech resource.
  *
  * Raw takes are cached in `.voice-cache/`, so changing an effect chain does not record again.
  */
@@ -26,6 +28,14 @@ import { dirname, join } from 'node:path';
 import { en } from '../src/i18n/en';
 import { ru } from '../src/i18n/ru';
 import { Speaker, VoiceLang, VoiceManifest, isVoiceKey, speakersFor, voiceFile, voiceHash, voiceId } from '../src/systems/VoiceCast';
+
+// Optional local secrets (AZURE_SPEECH_KEY=..., one per line); the file is git-ignored.
+if (existsSync('.env.voice')) {
+  for (const line of readFileSync('.env.voice', 'utf8').split(/\r?\n/)) {
+    const m = /^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/.exec(line);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
+  }
+}
 
 const OUT = 'public';
 const CACHE = '.voice-cache';
@@ -63,6 +73,27 @@ const CAST: Record<Speaker, Actor> = {
   crew: { voice: { en: 'en-US-AndrewNeural', ru: 'en-US-AndrewMultilingualNeural' }, rate: 4, pitch: -2, shift: 0.94, fx: 'intercom', drive: 5 },
 };
 
+/**
+ * Azure Speech voices. English keeps the cast above (Azure serves the same neural voices). Russian
+ * has three native male voices; speakers who share one are told apart by rate, pitch, post-shift
+ * and effect chain.
+ */
+const AZURE_RU_VOICES: Record<Speaker, string> = {
+  commander: 'ru-RU-Lev:MAI-Voice-2.1-Flash',
+  announcer: 'ru-RU-DmitryNeural',
+  rifleman: 'ru-RU-DmitryNeural',
+  heavy: 'ru-RU-Grant:MAI-Voice-2.1-Flash',
+  ranger: 'ru-RU-Lev:MAI-Voice-2.1-Flash',
+  breacher: 'ru-RU-Grant:MAI-Voice-2.1-Flash',
+  marksman: 'ru-RU-Lev:MAI-Voice-2.1-Flash',
+  engineer: 'ru-RU-DmitryNeural',
+  crew: 'ru-RU-Grant:MAI-Voice-2.1-Flash',
+};
+/** Extra pitch (Hz) per speaker for the Russian voices, on top of the actor's own. */
+const AZURE_RU_PITCH: Record<Speaker, number> = {
+  commander: -8, announcer: -2, rifleman: 4, heavy: -10, ranger: 8, breacher: -4, marksman: -2, engineer: -6, crew: 4,
+};
+
 /** ElevenLabs voice ids per speaker (fill in to use VOICE_ENGINE=elevenlabs). */
 const ELEVEN_VOICES: Partial<Record<Speaker, string>> = {};
 
@@ -84,6 +115,18 @@ interface Take {
   key: string;
   variant: number;
   text: string;
+}
+
+/**
+ * Russian speakers whose edge-tts recordings sounded better than the Azure ones (reviewed by ear on
+ * 07.10.2026): they keep the edge engine even when VOICE_ENGINE=azure.
+ */
+const RU_KEEP_EDGE: ReadonlySet<Speaker> = new Set<Speaker>(['heavy', 'crew', 'breacher']);
+
+/** The engine that records a given take: the global one, except for the Russian edge keepers. */
+function engineFor(t: Take): string {
+  const engine = process.env.VOICE_ENGINE ?? 'edge';
+  return engine === 'azure' && t.lang === 'ru' && RU_KEEP_EDGE.has(t.speaker) ? 'edge' : engine;
 }
 
 function collect(): Take[] {
@@ -124,11 +167,12 @@ const signed = (n: number, unit: string): string => `${n < 0 ? '-' : '+'}${Math.
 async function record(t: Take): Promise<string> {
   const a = CAST[t.speaker];
   const m = MOOD[moodOf(t.text)];
-  const engine = process.env.VOICE_ENGINE ?? 'edge';
-  const voice = engine === 'elevenlabs' ? ELEVEN_VOICES[t.speaker] : a.voice[t.lang];
+  const engine = engineFor(t);
+  const azureRu = engine === 'azure' && t.lang === 'ru';
+  const voice = engine === 'elevenlabs' ? ELEVEN_VOICES[t.speaker] : azureRu ? AZURE_RU_VOICES[t.speaker] : a.voice[t.lang];
   if (!voice) throw new Error(`No ${engine} voice for ${t.speaker}`);
   const rate = a.rate + m.rate;
-  const pitch = a.pitch + m.pitch;
+  const pitch = a.pitch + m.pitch + (azureRu ? AZURE_RU_PITCH[t.speaker] : 0);
   const id = createHash('sha1').update([engine, voice, rate, pitch, m.volume, t.text].join('|')).digest('hex').slice(0, 20);
   const file = join(CACHE, `${id}.mp3`);
   if (existsSync(file) && statSync(file).size > 0) return file;
@@ -136,7 +180,9 @@ async function record(t: Take): Promise<string> {
   let audio: Buffer | null = null;
   for (let attempt = 1; attempt <= 4 && !audio; attempt++) {
     try {
-      audio = await (engine === 'elevenlabs' ? elevenLabs(voice, t) : edge(voice, rate, pitch, m.volume, t.text));
+      audio = await (engine === 'elevenlabs' ? elevenLabs(voice, t)
+        : engine === 'azure' ? azure(voice, t.lang, rate, pitch, m.volume, t.text)
+          : edge(voice, rate, pitch, m.volume, t.text));
       if (audio.length < 1000) audio = null;
     } catch (e) {
       if (attempt === 4) throw e;
@@ -151,6 +197,28 @@ async function record(t: Take): Promise<string> {
 function edge(voice: string, rate: number, pitch: number, volume: number, text: string): Promise<Buffer> {
   const [cmd, ...pre] = (process.env.VOICE_TTS_CMD ?? 'edge-tts').split(' ');
   return run(cmd, [...pre, '--voice', voice, `--rate=${signed(rate, '%')}`, `--pitch=${signed(pitch, 'Hz')}`, `--volume=${signed(volume, '%')}`, '--file', '/dev/stdin'], Buffer.from(text, 'utf8'));
+}
+
+const xml = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+
+/** The free Azure tier allows about 20 requests a minute: requests are spaced across all workers. */
+const AZURE_GAP_MS = Number(process.env.AZURE_GAP_MS ?? 3200);
+let azureNext = 0;
+
+async function azure(voice: string, lang: VoiceLang, rate: number, pitch: number, volume: number, text: string): Promise<Buffer> {
+  const key = process.env.AZURE_SPEECH_KEY;
+  const region = process.env.AZURE_SPEECH_REGION;
+  if (!key || !region) throw new Error('AZURE_SPEECH_KEY and AZURE_SPEECH_REGION must be set');
+  const slot = Math.max(Date.now(), azureNext);
+  azureNext = slot + AZURE_GAP_MS;
+  await sleep(slot - Date.now());
+  const locale = lang === 'ru' ? 'ru-RU' : 'en-US';
+  const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${locale}"><voice name="${voice}">`
+    + `<prosody rate="${signed(rate, '%')}" pitch="${signed(pitch, 'Hz')}" volume="${signed(volume, '%')}">${xml(text)}</prosody></voice></speak>`;
+  return run('curl', ['-sS', '--fail', '-X', 'POST', `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
+    '-H', `Ocp-Apim-Subscription-Key: ${key}`, '-H', 'Content-Type: application/ssml+xml',
+    '-H', 'X-Microsoft-OutputFormat: audio-24khz-96kbitrate-mono-mp3', '-H', 'User-Agent: voidcrusade-voice',
+    '--data-binary', '@-'], Buffer.from(ssml, 'utf8'));
 }
 
 function elevenLabs(voice: string, t: Take): Promise<Buffer> {
@@ -250,7 +318,7 @@ function walk(dir: string): string[] {
 
 /** Signature of everything that shapes a finished file, so a changed chain re-processes it. */
 function signature(t: Take): string {
-  return createHash('sha1').update(JSON.stringify([CAST[t.speaker], MOOD, t.text, graph(CAST[t.speaker], moodOf(t.text), 1), process.env.VOICE_ENGINE ?? 'edge'])).digest('hex').slice(0, 12);
+  return createHash('sha1').update(JSON.stringify([CAST[t.speaker], MOOD, t.text, graph(CAST[t.speaker], moodOf(t.text), 1), engineFor(t)])).digest('hex').slice(0, 12);
 }
 
 /** A page for listening to the whole pack: open docs/voice-preview.html in a browser. */

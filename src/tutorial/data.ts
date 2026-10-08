@@ -5,11 +5,11 @@ export const TUTORIAL_STEP_IDS = [
 
 export const MECHANICS = [
   'controls', 'tiers', 'supply', 'damage', 'stances', 'groups', 'cover', 'suppression', 'morale', 'veterancy',
-  'garrison', 'points', 'abilities', 'research', 'wargear', 'drops', 'vehicles', 'stealth', 'events', 'modes',
+  'garrison', 'points', 'abilities', 'research', 'wargear', 'drops', 'vehicles', 'stealth', 'events', 'modes', 'terrain',
 ] as const;
 
 export const HINT_IDS = [
-  'suppression', 'broken', 'vehicle', 'supply', 'power', 'burrowed', 'wreck', 'tier', 'rank', 'garrison', 'drop', 'storm',
+  'suppression', 'broken', 'vehicle', 'supply', 'power', 'burrowed', 'wreck', 'tier', 'rank', 'garrison', 'drop', 'storm', 'lava',
 ] as const;
 export type HintId = (typeof HINT_IDS)[number];
 

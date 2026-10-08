@@ -14,7 +14,7 @@ const UNIT_SPEAKERS: Partial<Record<UnitId, Speaker>> = {
 export const SHOUTS = ['frag', 'smoke', 'rally', 'barrage', 'sprint', 'smite', 'overcharge'];
 
 /** Acknowledgements any squad can give. */
-const SQUAD_LINES = ['vo.move', 'vo.attack', 'vo.capture', 'vo.retreat', 'vo.repair', 'vo.broken'];
+const SQUAD_LINES = ['vo.move', 'vo.attack', 'vo.capture', 'vo.retreat', 'vo.repair', 'vo.broken', 'vo.underFire', 'vo.manDown', 'vo.enemyDown'];
 /** Lines spoken by the Commander rather than the announcer. */
 const COMMANDER_LINES = ['vo.battleStart', 'vo.victory', 'vo.defeat', 'vo.territory', 'vo.test'];
 

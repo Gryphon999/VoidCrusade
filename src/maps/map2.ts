@@ -31,6 +31,15 @@ export function buildMap2(): MapDef {
 
   b.rect(3, 36, 9, 9, GROUND);
 
+  // Mesas: the point at 8,18 and the point at 26,36 each stand on a flat-topped rise with two ramps,
+  // so whoever holds the top overlooks the caravan roads below.
+  b.raiseEllipse(8, 18, 5, 3.5);
+  b.ramp(7, 21.5, 3, 2);
+  b.ramp(12.5, 17, 2, 3);
+  b.raiseEllipse(26, 36, 4, 3);
+  b.ramp(22, 35, 2, 3);
+  b.ramp(29.5, 37, 2, 3);
+
   const centre: [number, number, PointKind?][] = [[32, 24]];
   const half: [number, number, PointKind?][] = [[26, 36], [8, 18], [5, 7], [40, 44]];
   b.pads(centre).pads(half).border(CLIFF).mirror();
@@ -42,6 +51,7 @@ export function buildMap2(): MapDef {
     w: b.w,
     h: b.h,
     tiles: b.build(),
+    levels: b.buildLevels(),
     playerBase,
     enemyBase: b.mirrorTile(playerBase, 4),
     capturePoints: b.points(centre, half),

@@ -77,7 +77,7 @@ export class Battle3D implements BattleRenderer {
     this.renderer = Stage3D.attach(battle.game, this);
     this.tierName = Settings.get().graphics;
     const tier = GFX3D[this.tierName];
-    this.atmos = atmosFor(battle.map.def.id);
+    this.atmos = atmosFor(battle.lookId);
     const at = this.atmos;
     this.renderer.toneMappingExposure = at.exposure;
     this.scene.background = new THREE.Color(at.haze);
@@ -132,7 +132,7 @@ export class Battle3D implements BattleRenderer {
     this.bloom.enabled = tier.bloom;
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
-    this.finish = gradeFinishPass(battle.map.def.id, at.vignette, at.grain);
+    this.finish = gradeFinishPass(battle.lookId, at.vignette, at.grain);
     this.composer.addPass(this.finish);
     this.fps = new FpsOverlay();
     battle.game.events.on(Phaser.Core.Events.POST_RENDER, this.onPost);
@@ -279,7 +279,7 @@ export class Battle3D implements BattleRenderer {
     this.world.lightSpots(this.statics);
     this.lights.update(this.battle.effects.lights.sources(), this.statics, this.battle.cameras.main.worldView, hAt);
     this.fog.update(this.clock);
-    const id = this.battle.map.def.id;
+    const id = this.battle.lookId;
     const mood = id === 'veyra' ? 'dust' : id === 'khorvan' || id === 'mourngate' ? 'night' : 'ash';
     this.fx.ambient(dt, mood, this.battle.cameras.main.worldView, mood === 'dust' ? 5 : 22 * GFX3D[this.tierName].modelDetail);
     this.fx.update(dt);

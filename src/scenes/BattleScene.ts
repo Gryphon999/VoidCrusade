@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Platform } from '../platform/Platform';
 import { getMap } from '../maps';
 import { MapSystem } from '../systems/MapSystem';
 import { CameraSystem } from '../systems/CameraSystem';
@@ -36,7 +37,10 @@ import { buildTutorialMap } from '../maps/tutorialMap';
 import { applyWargear, defaultPick, randomPick } from '../campaign/Wargear';
 import { Unit } from '../units/Unit';
 import { Squad } from '../units/Squad';
-import { RESOURCES, SUPPLY } from '../config';
+import { ATTRITION, RESOURCES, SUPPLY } from '../config';
+import { applyModifiers, defaultBattleParams } from '../battle/BattleModifiers';
+import { canSeeAcrossLevels, sightMultAt } from '../battle/Elevation';
+import { opponentFaction, startKitFor } from '../battle/Factions';
 import { BattleData, BattleResult, BattleStats } from './BattleTypes';
 import { EV } from '../events';
 import { Building } from '../buildings/Building';
@@ -111,6 +115,15 @@ export class BattleScene extends Phaser.Scene {
   battleData!: BattleData;
   stats!: BattleStats;
   result: BattleResult | null = null;
+  // Parameters battle modifiers may change (see BattleModifiers); systems read these, never the modifier list.
+  /** Population cap for both sides. */
+  supplyHardMax: number = SUPPLY.hardMax;
+  /** Rank every new squad starts with. */
+  spawnRank = 0;
+  /** Battle second when fortification attrition begins. */
+  attritionStart: number = ATTRITION.start;
+  /** Which map's lighting, grading and ambient mood to render (normally the map's own id). */
+  lookId = '';
 
   constructor() {
     super('BattleScene');
@@ -120,8 +133,13 @@ export class BattleScene extends Phaser.Scene {
     this.elapsed = 0;
     this.battleData = data;
     this.result = null;
+    // The player's faction (skirmish choice; the campaign and the tutorial are Iron Void), the AI gets the other.
+    const faction = data.mode === 'skirmish' ? data.faction ?? 'ironvoid' : 'ironvoid';
+    this.factions = { player: faction, enemy: opponentFaction(faction) };
     this.stats = { kills: 0, losses: 0, buildingsLost: 0, buildingsDestroyed: 0 };
     this.modifiers = { player: defaultModifiers(), enemy: defaultModifiers() };
+    // The scene object is reused between battles: parameters a modifier set last time must reset.
+    Object.assign(this, defaultBattleParams());
     const bonus = data.bonuses;
     if (bonus) {
       Object.assign(this.modifiers.player, {
@@ -146,6 +164,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     this.map = new MapSystem(tutorial ? buildTutorialMap() : getMap(data.mapIndex ?? 0));
+    this.lookId = this.map.def.id;
     this.cameras.main.setBackgroundColor(this.render3d ? 'rgba(0,0,0,0)' : 0x07060a);
     this.map.render(this);
     this.pathfinder = new Pathfinder(this.map);
@@ -168,7 +187,7 @@ export class BattleScene extends Phaser.Scene {
     this.buildings.tierOf = (o) => this.tech.tierOf(o);
     this.capture = new CapturePointSystem(this);
     this.props = new PropSystem(this, this.map.def.id.length * 7919 + (data.mapIndex ?? 0));
-    this.world = new WorldSystem(this, this.map.def.id.length * 131 + (data.mapIndex ?? 0), !!data.ashStorms);
+    this.world = new WorldSystem(this, this.map.def.id.length * 131 + (data.mapIndex ?? 0));
     this.selection = new SelectionSystem(this);
     this.effects = new EffectsSystem(this);
     this.wrecks = new WreckSystem(this);
@@ -179,25 +198,33 @@ export class BattleScene extends Phaser.Scene {
     this.buildings.pointAt = (x, y) => this.capture.points.find((p) => p.contains(x, y)) ?? null;
     this.buildings.forwardBases = (o) => this.capture.points.filter((p) => p.kind === 'forward' && p.owner === o);
     this.placement = new BuildingPlacementUI(this, this.buildings, (x, y) => this.cameraSystem.screenToWorld(x, y));
+    // Battle modifiers set their parameters now: every system exists, nothing has spawned yet.
+    if (!tutorial) applyModifiers(this, data.modifiers);
+    this.buildings.buildSpeed.player = this.modifiers.player.buildSpeedMult;
+    this.buildings.buildSpeed.enemy = this.modifiers.enemy.buildSpeedMult;
 
     const { playerBase, enemyBase } = this.map.def;
-    const hq = this.buildings.spawn('stronghold', 'player', playerBase.tx, playerBase.ty, true);
+    // Each side starts with its faction's headquarters, hero and first squad.
+    const mine = startKitFor(this.factions.player);
+    const theirs = startKitFor(this.factions.enemy);
+    const hq = this.buildings.spawn(mine.hq, 'player', playerBase.tx, playerBase.ty, true);
     this.victory = new VictorySystem(this, data.winMode);
-    const survival = this.victory.mode === 'survival';
     hq.rally = { x: hq.x + 230, y: hq.y - 80 };
-    this.production.spawnFrom(hq, 'commander');
-    this.production.spawnFrom(hq, 'rifleman');
-    if (tutorial) this.production.spawnFrom(hq, 'rifleman');
-    // Survival has no Horde base: waves come from its corner instead; the tutorial has a small outpost.
+    this.production.spawnFrom(hq, mine.hero);
+    this.production.spawnFrom(hq, mine.squad);
+    if (tutorial) this.production.spawnFrom(hq, mine.squad);
+    // Survival and the nests mission have no enemy base: waves or nests come instead; the tutorial has a small outpost.
     if (tutorial) {
       TutorialDirector.setupOutpost(this);
-    } else if (!survival) {
-      const hive = this.buildings.spawn('hive', 'enemy', enemyBase.tx, enemyBase.ty, true);
+    } else if (!this.victory.noEnemyBase) {
+      const hive = this.buildings.spawn(theirs.hq, 'enemy', enemyBase.tx, enemyBase.ty, true);
       hive.rally = { x: hive.x - 120, y: hive.y + 160 };
-      this.production.spawnFrom(hive, 'overlord');
-      this.production.spawnFrom(hive, 'crawler');
+      this.production.spawnFrom(hive, theirs.hero);
+      this.production.spawnFrom(hive, theirs.squad);
     }
     this.ai = new AIController(this, data.difficulty ?? 'normal', data.personality);
+    // Mission objectives that need the world standing (nests, the Commander watch).
+    this.victory.start();
     this.tutorial = null;
     if (tutorial) {
       this.ai.enabled = false;
@@ -210,13 +237,21 @@ export class BattleScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.r3d?.dispose();
       this.r3d = null;
+      Platform.setGameplay(false);
     });
+    Platform.setGameplay(true);
     this.fog = new FogOfWarSystem(this);
     this.audio = new AudioBridge(this);
     this.atmosphere = new Atmosphere(this);
     new VoiceBridge(this);
 
     this.cameraSystem = new CameraSystem(this, this.map.worldWidth, this.map.worldHeight);
+    // While a fortification is being placed the wheel turns it instead of zooming.
+    this.cameraSystem.wheelOverride = (dy) => {
+      if (!this.placement.rotatable) return false;
+      this.placement.rotate(dy > 0 ? 1 : -1);
+      return true;
+    };
     this.cameraSystem.centerOn(hq.x + 200, hq.y - 100);
     // Opening shot: from high over the battlefield down to the base (not in the tutorial,
     // whose first lesson is moving the camera).
@@ -261,11 +296,19 @@ export class BattleScene extends Phaser.Scene {
   /** Can `owner` see a logical point? The player uses the fog; the AI sees only what its own units and buildings see. */
   fogVisibleFor(owner: Owner, x: number, y: number): boolean {
     if (owner === 'player') return this.fog ? this.fog.isVisibleWorld(x, y) : true;
-    const mult = this.world?.visionMult ?? 1;
-    return this.units.squads.some((s) => s.owner === owner && s.alive
-      && Math.hypot(s.center.x - x, s.center.y - y) <= s.def.sight * mult)
-      || this.buildings.buildings.some((b) => b.owner === owner && b.alive
-        && Math.hypot(b.x - x, b.y - y) <= (b.def.vision ?? 200) + b.radius);
+    const mult = (this.world?.visionMult ?? 1) * this.modifiers[owner].sightMult;
+    // High ground: a viewer below only sees the point when standing right next to it.
+    const level = this.map.levelAt(x, y);
+    return this.units.squads.some((s) => {
+      if (s.owner !== owner || !s.alive || s.embarked) return false;
+      const d = Math.hypot(s.center.x - x, s.center.y - y);
+      return d <= s.def.sight * mult * sightMultAt(s.level) && canSeeAcrossLevels(s.level, level, d);
+    })
+      || this.buildings.buildings.some((b) => {
+        if (b.owner !== owner || !b.alive) return false;
+        const d = Math.hypot(b.x - x, b.y - y);
+        return d <= (b.def.vision ?? 200) + b.radius && canSeeAcrossLevels(this.map.levelAt(b.x, b.y), level, d);
+      });
   }
 
   get ended(): boolean {
@@ -275,6 +318,7 @@ export class BattleScene extends Phaser.Scene {
   endBattle(winner: Owner): void {
     if (this.result) return;
     this.result = { winner, time: this.elapsed, stats: { ...this.stats }, data: this.battleData };
+    Platform.setGameplay(false);
     this.selection.clear();
     this.placement.cancel();
     this.events.emit(EV.battleEnded, this.result);

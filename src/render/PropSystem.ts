@@ -38,12 +38,14 @@ export class PropSystem {
     for (let ty = 1; ty < map.height - 1; ty++) {
       for (let tx = 1; tx < map.width - 1; tx++) {
         const t = map.getTile(tx, ty);
-        if (t === TILE.CLIFF || t === TILE.ROAD) continue;
+        if (t === TILE.CLIFF || t === TILE.ROAD || t === TILE.WATER || t === TILE.LAVA || t === TILE.ICE) continue;
         if (bases.some((b) => Math.hypot(b.x - tx, b.y - ty) < 9)) continue;
         if (battle.buildings.reserved.has(ty * map.width + tx)) continue;
         let kind: PropKind | null = null;
         const r = rnd();
         if (t === TILE.RUINS) kind = r < 0.35 ? 'wall' : r < 0.55 ? 'pillar' : null;
+        // Thickets are dense with growth: a tree on most tiles.
+        else if (t === TILE.SCRUB) kind = r < 0.6 ? 'tree' : r < 0.7 ? 'rocks' : null;
         else if (nearCliff(tx, ty)) kind = r < 0.1 ? (rnd() < 0.6 ? 'rocks' : 'tree') : null;
         else if (r < 0.028) kind = open[Math.floor(rnd() * open.length)];
         if (kind) this.add(kind, (tx + 0.2 + rnd() * 0.6) * TILE_SIZE, (ty + 0.3 + rnd() * 0.5) * TILE_SIZE, rnd);

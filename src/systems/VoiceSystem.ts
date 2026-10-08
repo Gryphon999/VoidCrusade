@@ -5,7 +5,7 @@ import { Speaker, VoiceManifest, voiceFile, voiceHash, voiceId } from './VoiceCa
 export type { Speaker };
 
 /** Priority categories: higher interrupts lower; each has its own cooldown. */
-export type VoiceCategory = 'ack' | 'event' | 'alert';
+export type VoiceCategory = 'chatter' | 'ack' | 'event' | 'alert';
 
 /** Pitch and rate for the speech-synthesis fallback, so heroes sound deep and slow, troopers clipped. */
 const PROFILE: Record<Speaker, { pitch: number; rate: number }> = {
@@ -19,8 +19,12 @@ const PROFILE: Record<Speaker, { pitch: number; rate: number }> = {
   engineer: { pitch: 0.9, rate: 1.0 },
   crew: { pitch: 0.72, rate: 1.04 },
 };
-const PRIORITY: Record<VoiceCategory, number> = { ack: 1, event: 2, alert: 3 };
-const COOLDOWN_MS: Record<VoiceCategory, number> = { ack: 900, event: 2500, alert: 6000 };
+const PRIORITY: Record<VoiceCategory, number> = { chatter: 0, ack: 1, event: 2, alert: 3 };
+const COOLDOWN_MS: Record<VoiceCategory, number> = { chatter: 3500, ack: 900, event: 2500, alert: 6000 };
+/** Battle chatter: the same shout never repeats within this window. */
+const CHATTER_REPEAT_MS = 9000;
+/** Every take plays a little higher or lower (and faster or slower), so repeats do not sound canned. */
+const PITCH_SPREAD = 0.07;
 /** Voice names that are usually male, per language (heuristic). */
 const MALE_HINTS = /male|pavel|dmitr|yuri|maxim|aleksandr|alexander|ivan|david|mark|guy|daniel|alex|fred|george|ryan|thomas|james|artem|boris/i;
 const FEMALE_HINTS = /female|irina|svetlana|milena|elena|katya|anna|zira|susan|samantha|victoria|karen|moira|tessa|hazel|catherine/i;
@@ -52,12 +56,14 @@ class VoiceEngine {
   private playing: HTMLAudioElement | null = null;
   private current: Line | null = null;
   private queued: Line | null = null;
-  private lastAt: Record<VoiceCategory, number> = { ack: 0, event: 0, alert: 0 };
+  private lastAt: Record<VoiceCategory, number> = { chatter: 0, ack: 0, event: 0, alert: 0 };
   private lastText = new Map<string, number>();
   private lastVariant = new Map<string, number>();
   private subtitleListeners = new Set<Listener>();
   private duckListeners = new Set<(speaking: boolean) => void>();
   private paused = false;
+  /** Platform hold (ad, platform pause, focus lost); kept apart from the pause menu's flag. */
+  private held = false;
 
   constructor() {
     if (typeof window === 'undefined') return;
@@ -171,11 +177,16 @@ class VoiceEngine {
 
   /** Says a (random variant of a) voice line. Returns false if skipped by cooldown/priority. */
   say(key: MessageKey, speaker: Speaker = 'announcer', category: VoiceCategory = 'event', subtitle = category !== 'ack'): boolean {
-    const variants = t(key).split('|');
+    const text = t(key);
+    // A line without text (e.g. a Horde unit, which has no recorded lines) is silence, not its key read aloud.
+    if (text === key) return false;
+    const variants = text.split('|');
     const now = performance.now();
     if (now - this.lastAt[category] < COOLDOWN_MS[category]) return false;
     // The same alert never repeats within 15 s.
-    if (category !== 'ack' && now - (this.lastText.get(key) ?? -1e9) < 15000) return false;
+    if (category !== 'ack' && now - (this.lastText.get(key) ?? -1e9) < (category === 'chatter' ? CHATTER_REPEAT_MS : 15000)) return false;
+    // Chatter only fills silence: it never interrupts or queues behind another line.
+    if (category === 'chatter' && this.current) return false;
     const variant = this.pick(voiceId(speaker, key), variants.length);
     const line: Line = { key, variant, text: variants[variant], speaker, category, subtitle };
     if (this.current) {
@@ -184,7 +195,7 @@ class VoiceEngine {
         this.silence();
         this.current = null;
       } else {
-        if (category !== 'ack' && (!this.queued || PRIORITY[category] >= PRIORITY[this.queued.category])) this.queued = line;
+        if (category !== 'ack' && category !== 'chatter' && (!this.queued || PRIORITY[category] >= PRIORITY[this.queued.category])) this.queued = line;
         return false;
       }
     }
@@ -198,7 +209,7 @@ class VoiceEngine {
     this.current = line;
     const s = Settings.get();
     if (line.subtitle || this.subtitlesOn()) for (const fn of this.subtitleListeners) fn(line.text, line.speaker);
-    if (!s.voiceEnabled || this.paused) return this.readOnly(line);
+    if (!s.voiceEnabled || this.paused || this.held) return this.readOnly(line);
     const url = this.recording(line.speaker, line.key, line.variant, line.text);
     if (url) this.playClip(line, url);
     else this.speak(line);
@@ -214,6 +225,8 @@ class VoiceEngine {
     this.playing = a;
     a.volume = this.volume();
     a.currentTime = 0;
+    a.preservesPitch = false;
+    a.playbackRate = 1 + (Math.random() * 2 - 1) * PITCH_SPREAD;
     a.onplaying = () => this.duck(true);
     a.onended = () => this.finish(line);
     // A file that fails to load or play is spoken by the synthesiser instead.
@@ -282,6 +295,11 @@ class VoiceEngine {
   setPaused(p: boolean): void {
     this.paused = p;
     if (p) this.stop();
+  }
+
+  setHeld(h: boolean): void {
+    this.held = h;
+    if (h) this.stop();
   }
 }
 

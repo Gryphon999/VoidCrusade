@@ -234,6 +234,9 @@ export class Buildings3D {
     const b = e.b;
     const view = b.view;
     e.group.visible = view.isShown;
+    // Fortifications can be turned in quarter steps (square footprints, so only the model turns).
+    const yaw = (-b.rot * Math.PI) / 2;
+    e.group.rotation.y = yaw;
     const ys = HEIGHT_SCALE.value / BUILD_SCALE;
     const horde = b.def.faction === 'nullhorde';
     const H = b.def.height * BUILD_SCALE * ys;
@@ -292,7 +295,7 @@ export class Buildings3D {
       if (e.glow) e.glow.visible = frac > 0.3 || Math.sin(this.time * 17 + b.uid * 3) > 0.2;
     }
     if (e.gun) {
-      const target = -view.gunYaw;
+      const target = -view.gunYaw - yaw;
       let diff = target - e.gun.rotation.y;
       diff = Math.atan2(Math.sin(diff), Math.cos(diff));
       e.gun.rotation.y += diff * Math.min(1, dt * 14);
@@ -313,7 +316,7 @@ export class Buildings3D {
     const t = e.dying / 1.2;
     const ys = HEIGHT_SCALE.value / BUILD_SCALE;
     e.group.scale.set(1 + t * 0.12, ys * Math.max(0.02, 1 - t * t), 1 + t * 0.12);
-    e.group.rotation.set(e.tilt.z * t * 0.35, 0, -e.tilt.x * t * 0.35);
+    e.group.rotation.set(e.tilt.z * t * 0.35, e.group.rotation.y, -e.tilt.x * t * 0.35);
     e.mat.color.setRGB(0.4 - t * 0.25, 0.36 - t * 0.22, 0.34 - t * 0.2);
     if (e.glow) e.glow.visible = false;
     if (e.gun) e.gun.position.x += dt * 30 * e.tilt.x;
@@ -357,7 +360,14 @@ export class Buildings3D {
       this.ruins.set(r, m);
     }
     for (const [r, m] of this.ruins) {
-      m.scale.y = HEIGHT_SCALE.value / BUILD_SCALE * (r.alive ? 1 : 0.6);
+      if (r.fade <= 0 || !ruins.includes(r)) {
+        // Cleared away: drop the heap (its geometry is shared and cached).
+        this.scene.remove(m);
+        this.ruins.delete(r);
+        continue;
+      }
+      // Stripped heaps sit lower; clearing ones sink into the ground.
+      m.scale.y = HEIGHT_SCALE.value / BUILD_SCALE * (!r.alive && r.fade >= 1 ? 0.6 : 1) * r.fade;
     }
   }
 

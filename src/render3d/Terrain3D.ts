@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { TILE, TILE_SIZE } from '../config';
-import { biomeForMap } from '../render/Biomes';
+import { TILE_COLORS, biomeForMap } from '../render/Biomes';
+import { ELEVATION } from '../battle/Elevation';
 import { createTerrainTextures } from '../render/TerrainTextures';
 import { ValueNoise } from '../render/Noise';
 import { detailTexture, groundMaterials, platingCanvas, rockTexture } from './Materials3D';
@@ -34,6 +35,8 @@ export class Terrain3D {
   readonly mesh = new THREE.Group();
   private material!: THREE.Material;
   private cliff: Float32Array;
+  /** Smoothed 0..1 high-ground coverage at vertex resolution (plateaus with steep sides, ramps sloped). */
+  private plateau: Float32Array;
   /** Shell craters on open ground: dents with raised rims (visual only). */
   readonly craters: { x: number; y: number; r: number }[] = [];
   private noise: ValueNoise;
@@ -55,6 +58,7 @@ export class Terrain3D {
     for (const ch of map.def.id) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
     this.noise = new ValueNoise(seed + 3);
     this.cliff = this.cliffField();
+    this.plateau = this.levelField();
     this.craters = this.placeCraters(seed);
     const biome = biomeForMap(map.def.id);
     const albedo = this.bakeAlbedo(seed);
@@ -68,8 +72,14 @@ export class Terrain3D {
     plating.anisotropy = anisotropy;
     ground.tone.anisotropy = ground.height.anisotropy = anisotropy;
     const mask = this.bakeMask();
-    this.textures.push(albedo, detail, rock, ground.tone, ground.height, plating, mask);
+    const mask2 = this.bakeMask2();
+    this.textures.push(albedo, detail, rock, ground.tone, ground.height, plating, mask, mask2);
     const lava = new THREE.Color(biome.lava ?? 0x000000);
+    const magma = new THREE.Color((biome.magma ?? TILE_COLORS.magma)[1]);
+    const water = new THREE.Color((biome.water ?? TILE_COLORS.water)[1]);
+    const waterDark = new THREE.Color((biome.water ?? TILE_COLORS.water)[0]);
+    const scrub = new THREE.Color((biome.scrub ?? TILE_COLORS.scrub)[1]);
+    const ice = new THREE.Color((biome.ice ?? TILE_COLORS.ice)[1]);
     const mat = new THREE.MeshStandardMaterial({ map: albedo, vertexColors: true, roughness: 0.92, metalness: 0.02 });
     mat.onBeforeCompile = (sh) => {
       sh.uniforms.uDetail = { value: detail };
@@ -82,6 +92,12 @@ export class Terrain3D {
       sh.uniforms.uWet = { value: biome.wet ?? 0 };
       sh.uniforms.uLava = { value: lava };
       sh.uniforms.uLavaOn = { value: biome.lava ? 1 : 0 };
+      sh.uniforms.uMask2 = { value: mask2 };
+      sh.uniforms.uMagma = { value: magma };
+      sh.uniforms.uWater = { value: water };
+      sh.uniforms.uWaterDark = { value: waterDark };
+      sh.uniforms.uScrub = { value: scrub };
+      sh.uniforms.uIce = { value: ice };
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec3 vWorldPos;\nvarying vec3 vWorldNormal;')
         .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvWorldNormal = normalize(mat3(modelMatrix) * objectNormal);');
@@ -100,6 +116,12 @@ uniform vec4 uMaskRect;
 uniform float uWet;
 uniform vec3 uLava;
 uniform float uLavaOn;
+uniform sampler2D uMask2;
+uniform vec3 uMagma;
+uniform vec3 uWater;
+uniform vec3 uWaterDark;
+uniform vec3 uScrub;
+uniform vec3 uIce;
 // Layered rock at two scales, projected from three sides so no face is stretched.
 vec3 triRock(vec3 p, vec3 n) {
   vec3 w = pow(abs(n), vec3(4.0));
@@ -122,7 +144,9 @@ float triRelief(vec3 p, vec3 n) {
 }
 float gRelief;
 float gWet;
-float gLava;`)
+float gLava;
+float gMagma;
+float gIce;`)
         .replace('#include <map_fragment>', `#include <map_fragment>
   vec2 gp = vWorldPos.xz;
   vec3 mk = texture2D(uMask, (gp + uMaskRect.xy) / uMaskRect.zw).rgb;
@@ -167,6 +191,25 @@ float gLava;`)
   float hot = smoothstep(0.56, 0.74, texture2D(uDetail, gp / 1700.0 + 0.81).r);
   gLava = uLavaOn * hot * (1.0 - roadW) * (1.0 - mk.g) * (1.0 - smoothstep(0.06, 0.3, hA.r));
   groundCol = mix(groundCol, groundCol * 0.35, gLava);
+  // Special tiles from the second mask: shallows, magma, thicket, ice.
+  vec4 m2 = texture2D(uMask2, (gp + uMaskRect.xy) / uMaskRect.zw);
+  float waterW = smoothstep(0.35, 0.6, m2.r + (gRelief - 0.5) * 0.15);
+  gMagma = smoothstep(0.4, 0.6, m2.g + (gRelief - 0.5) * 0.2);
+  float scrubW = smoothstep(0.35, 0.6, m2.b + (gRelief - 0.5) * 0.3);
+  gIce = smoothstep(0.4, 0.6, m2.a + (gRelief - 0.5) * 0.1);
+  // Shallows: dark water, pale ripples, the silt bed showing through near the bank.
+  float ripple = texture2D(uDetail, gp / 140.0 + 0.5).r * 0.6 + texture2D(uDetail, gp / 47.0 + 0.2).r * 0.4;
+  float depth = smoothstep(0.4, 0.75, m2.r);
+  vec3 waterCol = mix(uWaterDark, uWater, smoothstep(0.5, 0.9, ripple) * 0.8);
+  waterCol = mix(groundCol * 0.3 + waterCol * 0.7, waterCol, depth);
+  groundCol = mix(groundCol, waterCol, waterW);
+  gWet = max(gWet, waterW);
+  float crust = smoothstep(0.35, 0.65, hts.r);
+  groundCol = mix(groundCol, mix(uMagma, vec3(0.03, 0.02, 0.02), crust), gMagma);
+  gLava = max(gLava, gMagma * (1.0 - crust * 0.85));
+  groundCol = mix(groundCol, uScrub * (0.32 + tone * 0.9), scrubW);
+  gRelief = mix(gRelief, hts.b * 1.2, scrubW);
+  groundCol = mix(groundCol, uIce * (0.58 + tone * 0.32), gIce);
   diffuseColor.rgb = groundCol;
   // Steep faces and raised plateaus: layered rock projected in world space.
   vec3 wn = normalize(vWorldNormal);
@@ -206,9 +249,10 @@ float gLava;`)
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
   roughnessFactor = mix(roughnessFactor, 0.78, steep);
   roughnessFactor = mix(roughnessFactor, 0.62, roadW * 0.6);
-  roughnessFactor = mix(roughnessFactor, 0.08, gWet);`)
+  roughnessFactor = mix(roughnessFactor, 0.08, gWet);
+  roughnessFactor = mix(roughnessFactor, 0.22, gIce);`)
         .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-  totalEmissiveRadiance += uLava * gLava * 3.5;`);
+  totalEmissiveRadiance += mix(uLava, uMagma, gMagma) * gLava * 3.5;`);
     };
     mat.customProgramCacheKey = () => `terrain-${rich ? 'rich' : 'lean'}`;
     this.material = mat;
@@ -257,6 +301,18 @@ float gLava;`)
     return this.map.def.tiles[ty][tx];
   }
 
+  /** Depth (px) of the water and magma hollows at a point, blurred over half a tile so the banks slope. */
+  private lowField(x: number, y: number): number {
+    let s = 0;
+    for (let dy = -0.5; dy <= 0.51; dy += 0.5) {
+      for (let dx = -0.5; dx <= 0.51; dx += 0.5) {
+        const t = this.tile(Math.floor(x / TILE_SIZE + dx), Math.floor(y / TILE_SIZE + dy));
+        s += t === TILE.WATER ? 14 : t === TILE.LAVA ? 6 : 0;
+      }
+    }
+    return s / 9;
+  }
+
   /** Smoothed 0..1 cliff coverage at vertex resolution (so blocks get bevelled edges). */
   private cliffField(): Float32Array {
     const f = new Float32Array(this.vw * this.vh);
@@ -277,6 +333,46 @@ float gLava;`)
       }
     }
     return f;
+  }
+
+  /** Smoothed 0..1 high-ground coverage at vertex resolution; a ramp tile counts half, so the slope lies on it. */
+  private levelField(): Float32Array {
+    const f = new Float32Array(this.vw * this.vh);
+    if (!this.map.hasLevels) return f;
+    const lv = (tx: number, ty: number): number => (this.map.isRamp(tx, ty) ? 0.5 : this.map.level(tx, ty));
+    for (let j = 0; j < this.vh; j++) {
+      for (let i = 0; i < this.vw; i++) {
+        const x = i / this.sub - MARGIN;
+        const y = j / this.sub - MARGIN;
+        let s = 0;
+        let n = 0;
+        for (let dy = -0.5; dy <= 0.51; dy += 0.5) {
+          for (let dx = -0.5; dx <= 0.51; dx += 0.5) {
+            s += lv(Math.floor(x + dx - 0.01), Math.floor(y + dy - 0.01));
+            n++;
+          }
+        }
+        f[j * this.vw + i] = s / n;
+      }
+    }
+    return f;
+  }
+
+  /** Plateau height (px) at a logical point: steep sides, a ramp's gentle slope kept. */
+  private plateauAt(x: number, y: number): number {
+    if (!this.map.hasLevels) return 0;
+    const fx = Math.min(this.vw - 1.001, Math.max(0, (x / TILE_SIZE + MARGIN) * this.sub));
+    const fy = Math.min(this.vh - 1.001, Math.max(0, (y / TILE_SIZE + MARGIN) * this.sub));
+    const i = Math.floor(fx);
+    const j = Math.floor(fy);
+    const u = fx - i;
+    const v = fy - j;
+    const p = this.plateau;
+    const W = this.vw;
+    const k = p[j * W + i] * (1 - u) * (1 - v) + p[j * W + i + 1] * u * (1 - v) + p[(j + 1) * W + i] * (1 - u) * v + p[(j + 1) * W + i + 1] * u * v;
+    // Sharpen the edge into a wall, but keep the middle band (ramps sit at 0.5) as a slope.
+    const t = k <= 0.2 ? 0 : k >= 0.8 ? 1 : (k - 0.2) / 0.6;
+    return ELEVATION.plateau3d * t;
   }
 
   /** Distance (tiles) outside the playable rectangle, 0 inside. */
@@ -310,10 +406,15 @@ float gLava;`)
     const s = wall * wall * (3 - 2 * wall);
     const rough = this.noise.fbm(x / 70, y / 70, 3) - 0.5;
     const t = this.tile(Math.floor(x / TILE_SIZE), Math.floor(y / TILE_SIZE));
-    const ground = (n - 0.5) * (t === TILE.ROAD ? 2 : 7);
+    const ground = (n - 0.5) * (t === TILE.ROAD || t === TILE.ICE ? 2 : 7);
     // Rough, terraced tops: a second, lower shelf in places.
     const shelf = this.noise.fbm(x / 160 + 3, y / 160, 3) > 0.58 ? 0.72 : 1;
     let h = ground + s * (CLIFF_3D * shelf + rough * 42);
+    // High ground: plateaus with steep sides and sloped ramps.
+    h += this.plateauAt(x, y);
+    // Shallows and magma lie in hollows (smoothed over the tile edge so banks slope).
+    const dip = this.lowField(x, y);
+    if (dip > 0) h -= dip;
     if (this.craters.length && s < 0.05) h += this.craterAt(x, y);
     // Mountains beyond the map edge: climb away from the playable area.
     const out = this.outside(x, y);
@@ -427,6 +528,40 @@ float gLava;`)
         data[k + 1] = Math.max(0, Math.min(255, ruin * 255));
         data[k + 2] = Math.max(0, Math.min(255, foot * 2.2 * 255));
         data[k + 3] = 255;
+      }
+    }
+    const t = new THREE.DataTexture(data, W, H, THREE.RGBAFormat);
+    t.minFilter = t.magFilter = THREE.LinearFilter;
+    t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+    t.needsUpdate = true;
+    return t;
+  }
+
+  /** The special tiles for the shader: R shallows, G magma, B thicket, A ice (ragged edges like the first mask). */
+  private bakeMask2(): THREE.DataTexture {
+    const res = 8;
+    const W = (this.W + MARGIN * 2) * res;
+    const H = (this.H + MARGIN * 2) * res;
+    const data = new Uint8Array(W * H * 4);
+    const n = this.noise;
+    const step = TILE_SIZE / res;
+    const near = (kind: number, wx: number, wy: number, r: number): number => {
+      let s = 0;
+      for (let dy = -r; dy <= r; dy += r) {
+        for (let dx = -r; dx <= r; dx += r) s += this.tile(Math.floor((wx + dx) / TILE_SIZE), Math.floor((wy + dy) / TILE_SIZE)) === kind ? 1 : 0;
+      }
+      return s / 9;
+    };
+    const kinds = [TILE.WATER, TILE.LAVA, TILE.SCRUB, TILE.ICE];
+    for (let py = 0; py < H; py++) {
+      for (let px = 0; px < W; px++) {
+        const wx = (px + 0.5) * step - MARGIN * TILE_SIZE;
+        const wy = (py + 0.5) * step - MARGIN * TILE_SIZE;
+        const k = (py * W + px) * 4;
+        kinds.forEach((kind, i) => {
+          const v = near(kind, wx, wy, 22) + (n.fbm(wx / 44 + i * 9, wy / 44, 3) - 0.5) * 0.9;
+          data[k + i] = Math.max(0, Math.min(255, v * 255));
+        });
       }
     }
     const t = new THREE.DataTexture(data, W, H, THREE.RGBAFormat);
