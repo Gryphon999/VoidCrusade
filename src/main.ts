@@ -13,7 +13,7 @@ import { EncyclopediaScene } from './scenes/EncyclopediaScene';
 import { AudioSystem } from './systems/AudioSystem';
 import { Settings } from './systems/Settings';
 import { detectLanguage, setLanguage } from './i18n';
-import { Platform } from './platform/Yandex';
+import { Platform } from './platform/Platform';
 import { Voice } from './systems/VoiceSystem';
 
 const config: Phaser.Types.Core.GameConfig = {

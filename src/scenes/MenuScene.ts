@@ -9,7 +9,7 @@ import { Settings } from '../systems/Settings';
 import { SkirmishSetup } from '../ui/SkirmishSetup';
 import { RecordsPanel } from '../ui/RecordsPanel';
 import { Ambience } from '../systems/Ambience';
-import { Platform } from '../platform/Yandex';
+import { Platform } from '../platform/Platform';
 
 export class MenuScene extends Phaser.Scene {
   private bg!: MenuBackground;

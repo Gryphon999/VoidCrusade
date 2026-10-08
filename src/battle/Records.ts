@@ -2,7 +2,7 @@
  * Survival records: a top-10 table per map, difficulty and modifier set, kept in localStorage.
  * Pure table logic with an injectable storage so the tests run in Node.
  */
-import { Platform } from '../platform/Yandex';
+import { Platform } from '../platform/Platform';
 export interface RecordEntry {
   score: number;
   waves: number;

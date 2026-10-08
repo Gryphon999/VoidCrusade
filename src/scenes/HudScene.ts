@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { Platform } from '../platform/Yandex';
+import { Platform } from '../platform/Platform';
 import type { BattleScene } from './BattleScene';
 import { TopBar, TOP_BAR_H } from '../ui/TopBar';
 import { normalizeModifiers } from '../battle/BattleModifiers';

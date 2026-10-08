@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { Platform } from '../platform/Yandex';
+import { Platform } from '../platform/Platform';
 import { getMap } from '../maps';
 import { MapSystem } from '../systems/MapSystem';
 import { CameraSystem } from '../systems/CameraSystem';

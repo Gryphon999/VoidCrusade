@@ -3,7 +3,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { dyn, headingFont, t } from '../i18n';
 import { normalizeModifiers } from '../battle/BattleModifiers';
 import { BattleResult } from '../scenes/BattleTypes';
-import { Platform } from '../platform/Yandex';
+import { Platform } from '../platform/Platform';
 import type { BattleScene } from '../scenes/BattleScene';
 import { Button } from './Button';
 import { formatTime, textStyle } from './uiStyle';

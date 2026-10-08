@@ -2,7 +2,7 @@ import { Difficulty, PROJECTION } from '../config';
 import type { Lang } from '../i18n';
 import type { WargearPick } from '../campaign/Wargear';
 import { ModifierId, normalizeModifiers } from '../battle/BattleModifiers';
-import { Platform } from '../platform/Yandex';
+import { Platform } from '../platform/Platform';
 
 const KEY = 'voidcrusade.settings.v1';
 

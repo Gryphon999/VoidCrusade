@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { headingFont, t } from '../i18n';
 import { Voice } from '../systems/VoiceSystem';
-import { Platform } from '../platform/Yandex';
+import { Platform } from '../platform/Platform';
 import type { BattleScene } from '../scenes/BattleScene';
 import { Button } from './Button';
 import { drawPanel } from './uiStyle';
