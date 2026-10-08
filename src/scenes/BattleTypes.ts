@@ -3,12 +3,15 @@ import { CampaignBonuses } from '../campaign/CampaignState';
 import { Owner } from '../types';
 import type { WargearPick } from '../campaign/Wargear';
 import type { ModifierId } from '../battle/BattleModifiers';
+import type { Faction } from '../units/UnitDefs';
 
-export type WinMode = 'annihilation' | 'control' | 'survival' | 'hold' | 'nests' | 'evac';
+export type WinMode = 'annihilation' | 'control' | 'survival' | 'hold' | 'nests' | 'evac' | 'koth';
 /** Every skirmish victory condition, in menu order. */
-export const WIN_MODES: readonly WinMode[] = ['annihilation', 'control', 'survival', 'hold', 'nests', 'evac'];
+export const WIN_MODES: readonly WinMode[] = ['annihilation', 'control', 'survival', 'hold', 'nests', 'evac', 'koth'];
 
 export interface BattleData {
+  /** The player's faction (skirmish); the campaign and the tutorial are Iron Void. */
+  faction?: Faction;
   mapIndex?: number;
   difficulty?: Difficulty;
   mode?: 'skirmish' | 'campaign' | 'tutorial';
