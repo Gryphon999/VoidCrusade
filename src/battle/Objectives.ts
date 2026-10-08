@@ -1,4 +1,5 @@
-import type { UnitId } from '../units/UnitDefs';
+import type { Faction, UnitId } from '../units/UnitDefs';
+import { wavePool } from './Factions';
 
 /**
  * Rules of the mission objectives (Hold the Line, Burn the Nests, Evacuation): constants and small
@@ -29,12 +30,9 @@ export const NEST_FIRST_SPAWN = 60;
 /** The battle is lost when the clock reaches this (seconds). */
 export const NEST_TIME_LIMIT = 900;
 
-/** What a nest can spawn at a given battle second: the brood grows nastier with time. */
-export function nestPool(elapsed: number): UnitId[] {
-  const pool: UnitId[] = ['crawler', 'crawler', 'spitter'];
-  if (elapsed >= 180) pool.push('leaper', 'shaman');
-  if (elapsed >= 360) pool.push('behemoth', 'burrower');
-  return pool;
+/** What a nest can spawn at a given battle second: the brood grows nastier with time (stage = minutes / 1.5). */
+export function nestPool(elapsed: number, faction: Faction = 'nullhorde'): UnitId[] {
+  return wavePool(faction, Math.floor(elapsed / 90) + 1);
 }
 
 /**

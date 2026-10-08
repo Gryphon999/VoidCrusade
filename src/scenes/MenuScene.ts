@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, GOTHIC_FONT } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH, TITLE_FONT } from '../config';
 import { headingFont, onLanguageChange, t } from '../i18n';
 import { CampaignState } from '../campaign/CampaignState';
 import { MenuBackground } from '../ui/MenuBackground';
@@ -9,6 +9,7 @@ import { Settings } from '../systems/Settings';
 import { SkirmishSetup } from '../ui/SkirmishSetup';
 import { RecordsPanel } from '../ui/RecordsPanel';
 import { Ambience } from '../systems/Ambience';
+import { Platform } from '../platform/Platform';
 
 export class MenuScene extends Phaser.Scene {
   private bg!: MenuBackground;
@@ -26,11 +27,17 @@ export class MenuScene extends Phaser.Scene {
     const off = onLanguageChange(() => this.scene.restart());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, off);
     Ambience.menu();
+    // The menu is the first playable screen: tell Yandex loading is over (sent once).
+    Platform.ready();
+    Platform.setGameplay(false);
+    // The glow is drawn inside the text's own canvas: without padding its blur is cut off into a hard rectangle.
+    const pad = 48;
     const logo = this.add.text(GAME_WIDTH / 2, 170, 'VOIDCRUSADE', {
-      fontFamily: GOTHIC_FONT, fontSize: '120px', fontStyle: 'bold', stroke: '#1a0000', strokeThickness: 10,
+      fontFamily: TITLE_FONT, fontSize: '104px', fontStyle: '900', stroke: '#1a0000', strokeThickness: 8,
       shadow: { offsetX: 0, offsetY: 0, color: '#ff2010', blur: 28, fill: false, stroke: true },
+      padding: { x: pad, y: pad },
     }).setOrigin(0.5);
-    const grd = logo.context.createLinearGradient(0, 0, 0, logo.height);
+    const grd = logo.context.createLinearGradient(0, pad, 0, logo.height - pad);
     grd.addColorStop(0, '#fff4d0');
     grd.addColorStop(0.45, '#c8a060');
     grd.addColorStop(0.55, '#8a5a20');
@@ -44,7 +51,7 @@ export class MenuScene extends Phaser.Scene {
 
     const hasSave = !!CampaignState.load();
     const items: [string, () => void][] = [
-      [t('menu.newCampaign'), () => this.go('CampaignScene', { fresh: true })],
+      [t('menu.newCampaign'), () => this.newCampaign()],
       ...(hasSave ? [[t('menu.continue'), () => this.go('CampaignScene', {})] as [string, () => void]] : []),
       [t('menu.skirmish'), () => this.openSkirmish()],
       [t('menu.records'), () => this.openRecords()],
@@ -67,19 +74,37 @@ export class MenuScene extends Phaser.Scene {
   private promptTutorial(): void {
     if (this.busy) return;
     Settings.set({ tutorialPrompted: true });
+    this.confirm(t('prompt.title'), t('prompt.body'), t('prompt.yes'), t('prompt.no'),
+      () => this.go('BattleScene', { mode: 'tutorial', difficulty: 'easy' }));
+  }
+
+  /** "New Campaign" over a campaign in progress overwrites it, so ask first. */
+  private newCampaign(): void {
+    const save = CampaignState.load();
+    const inProgress = !!save && !save.won && (save.battles > 0 || save.owned.length > 1);
+    if (!inProgress) {
+      this.go('CampaignScene', { fresh: true });
+      return;
+    }
+    this.confirm(t('newCamp.title'), t('newCamp.body'), t('newCamp.yes'), t('newCamp.no'),
+      () => this.go('CampaignScene', { fresh: true }));
+  }
+
+  /** A modal yes/no panel over the menu; "no" just closes it. */
+  private confirm(titleText: string, bodyText: string, yesLabel: string, noLabel: string, onYes: () => void): void {
     this.busy = true;
     const root = this.add.container(0, 0).setDepth(300);
     const dim = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.6).setOrigin(0).setInteractive();
     const g = this.add.graphics();
     drawPanel(g, GAME_WIDTH / 2 - 260, GAME_HEIGHT / 2 - 110, 520, 220);
-    const title = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60, t('prompt.title'), { fontFamily: headingFont(), fontSize: '30px', color: '#ffd060' }).setOrigin(0.5);
-    const body = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 12, t('prompt.body'), { ...textStyle(15, '#d8d0c0'), align: 'center', wordWrap: { width: 460 } }).setOrigin(0.5);
-    const yes = new Button(this, { x: GAME_WIDTH / 2 - 110, y: GAME_HEIGHT / 2 + 60, w: 190, h: 42, label: t('prompt.yes'), onClick: () => {
+    const title = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60, titleText, { fontFamily: headingFont(), fontSize: '30px', color: '#ffd060' }).setOrigin(0.5);
+    const body = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 12, bodyText, { ...textStyle(15, '#d8d0c0'), align: 'center', wordWrap: { width: 460 } }).setOrigin(0.5);
+    const yes = new Button(this, { x: GAME_WIDTH / 2 - 110, y: GAME_HEIGHT / 2 + 60, w: 190, h: 42, label: yesLabel, onClick: () => {
       root.destroy();
       this.busy = false;
-      this.go('BattleScene', { mode: 'tutorial', difficulty: 'easy' });
+      onYes();
     } });
-    const no = new Button(this, { x: GAME_WIDTH / 2 + 110, y: GAME_HEIGHT / 2 + 60, w: 190, h: 42, label: t('prompt.no'), onClick: () => {
+    const no = new Button(this, { x: GAME_WIDTH / 2 + 110, y: GAME_HEIGHT / 2 + 60, w: 190, h: 42, label: noLabel, onClick: () => {
       root.destroy();
       this.busy = false;
     } });
