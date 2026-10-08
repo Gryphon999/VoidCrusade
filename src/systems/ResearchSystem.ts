@@ -35,7 +35,7 @@ const NH = { faction: 'nullhorde' as Faction, at: 'research' as BuildingRole };
 export const RESEARCH_DEFS: ResearchDef[] = [
   { id: 'plasma', name: 'Plasma Rounds', ...IV, tier: 2, cost: { scrip: 150, flux: 100 }, time: 30,
     description: '+20% damage for all squads.', apply: (m) => (m.damageMult *= 1.2) },
-  { id: 'ceramite', name: 'Ceramite Plating', ...IV, tier: 2, cost: { scrip: 150, flux: 100 }, time: 30,
+  { id: 'ceramite', name: 'Composite Plating', ...IV, tier: 2, cost: { scrip: 150, flux: 100 }, time: 30,
     description: '+20% soldier HP.', apply: (m) => (m.hpMult *= 1.2) },
   { id: 'overcharge', name: 'Turret Overcharge', ...IV, cost: { scrip: 100, flux: 100 }, time: 20,
     description: '+30% turret damage.', apply: (m) => (m.turretDamageMult *= 1.3) },
@@ -47,7 +47,7 @@ export const RESEARCH_DEFS: ResearchDef[] = [
     description: 'Infantry take 15% less damage.', apply: (m) => (m.infantryArmorMult *= 0.85) },
   { id: 'servos', name: 'Servo Greaves', faction: 'ironvoid', at: 'armoury', tier: 2, cost: { scrip: 120, flux: 60 }, time: 25,
     description: 'Infantry move 12% faster.', apply: (m) => (m.infantrySpeedMult *= 1.12) },
-  { id: 'auspex', name: 'Auspex Uplink', ...IV, tier: 2, after: ['fabrication'], cost: { scrip: 120, flux: 80 }, time: 25,
+  { id: 'auspex', name: 'Scanner Uplink', ...IV, tier: 2, after: ['fabrication'], cost: { scrip: 120, flux: 80 }, time: 25,
     description: 'All units see 25% further.', apply: (m) => (m.sightMult *= 1.25) },
   { id: 'drill', name: 'Veteran Drill', ...IV, tier: 3, after: ['conscription'], cost: { scrip: 180, flux: 120 }, time: 30,
     description: 'Squad ability cooldowns -25%.', apply: (m) => (m.abilityCooldownMult *= 0.75) },

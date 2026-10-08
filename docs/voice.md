@@ -1,42 +1,75 @@
 # Voice-over notes
 
-VoidCrusade speaks through the browser's built-in **Web Speech API** (`speechSynthesis`).
-No audio files are shipped, so the bundle stays small and the "no external assets" rule holds.
+VoidCrusade ships a **recorded voice pack**: one audio file per line, per speaker, per language
+(`public/voice/<lang>/<speaker>/<key>.<n>.mp3`). The browser's speech synthesis is only the
+fallback for a line that has no current recording.
+
+To listen to the whole pack, open [voice-preview.html](voice-preview.html) in a browser.
+
+## The cast
+
+Nine speakers, each with their own voice, delivery and effect chain (`CAST` in `scripts/voice.ts`):
+
+| Speaker | Who | Sound |
+|---|---|---|
+| commander | the hero, tutorial narration, victory and defeat | deep, slow, the echo of a vaulted hall |
+| announcer | fleet command: alerts and reports | clean narrow channel, quiet carrier, closing squelch |
+| rifleman | Void Riflemen | helmet vox: band-limited, driven, static and squelch |
+| heavy | Iron Guard | the same vox, lower and heavier |
+| ranger | Void Rangers | the same vox, light and quick |
+| breacher | Breacher Squad | respirator: muffled and boxy |
+| marksman | Void Marksmen | kept low, close to the microphone |
+| engineer | Field Engineers | helmet vox, brighter |
+| crew | buggy, APC, tank, mortar | harsh intercom over an idling engine |
+
+The delivery follows the text: a line with `!` is recorded faster, higher and louder and is driven
+harder; a one-word report stays calm.
 
 ## How it works
 
-- `src/systems/VoiceSystem.ts` picks the best installed voice for the current language
-  (`ru-RU` in Russian, `en-US`/`en-GB` in English), preferring male voices when the name
-  suggests one, and caches the choice. Voices load asynchronously; the list is refreshed on
-  the `voiceschanged` event.
-- Speakers have their own pitch/rate: the Commander is low and slow, Iron Guard deep,
-  riflemen clipped, the announcer neutral.
-- Lines have priorities (alerts > events > acknowledgements) and per-category cooldowns.
-  Only one line plays at a time; a higher-priority line cancels a lower one; the same alert
-  never repeats within 15 seconds. Voice stops when the game is paused, the window loses
-  focus or the language changes. Music is ducked while a line plays.
-- Lines live in the i18n dictionaries (`vo.*` keys, variants separated by `|`).
-- **Subtitles** are always available (Settings → Subtitles). By default they turn on
-  automatically when no voice exists for the chosen language or voice is switched off.
+- `src/systems/VoiceCast.ts` says who can speak which line (`speakersFor`), where its file lives
+  and how its text is hashed. The game and the generator share it.
+- `npm run voice` (`scripts/voice.ts`) records every line for every speaker that can say it, runs
+  the take through the speaker's ffmpeg chain, sets every file to the same peak level and writes
+  `public/voice/manifest.json`. `scripts/voice.lock.json` remembers what each file was made from,
+  so only changed lines are recorded again. Raw takes are cached in `.voice-cache/` (not in git).
+- `src/systems/VoiceSystem.ts` plays the file when the manifest holds the hash of the exact text
+  being spoken. A line whose text was edited after recording is therefore never played with the
+  old words: it falls back to speech synthesis until `npm run voice` runs again.
+- A speaker never repeats the variant they used last time for the same line.
+- Lines have priorities (alerts > events > acknowledgements) and per-category cooldowns. Only one
+  line plays at a time; a higher-priority line cancels a lower one; the same alert never repeats
+  within 15 seconds. Voice stops when the game is paused, the window loses focus or the language
+  changes. Music is ducked while a line plays.
+- Lines are fetched lazily. The announcer's alerts and each squad type's first acknowledgements
+  are fetched when the battle starts or the squad appears.
+- **Subtitles** are always available (Settings → Subtitles).
 
-## Quality depends on the player's system
+## Recording
 
-The voice you hear is whatever the operating system / browser provides:
+```
+npm run voice                       # record what is missing or changed
+npm run voice -- --only=commander   # one speaker
+npm run voice -- --force            # process everything again (raw takes stay cached)
+npm run voice -- --check            # verify the pack, write nothing
+```
 
-| Platform | Russian voices usually available |
-|----------|----------------------------------|
-| Windows 10/11 (Edge, Chrome, Yandex Browser) | Microsoft Irina / Pavel (install "Russian" speech pack in Windows settings for more) |
-| Chrome (any OS, online) | "Google русский" |
-| macOS / iOS | Milena, Yuri (download in System Settings → Accessibility → Spoken Content) |
-| Android | Google TTS Russian voice pack |
-| Linux | often none → subtitles |
+Needs `ffmpeg` on PATH and a speech engine:
 
-When no Russian voice is installed, Settings shows a note and the game falls back to
-subtitles. Browsers do not allow routing `speechSynthesis` through Web Audio, so no
-"radio" filter is applied — we deliberately do not fake it.
+- **`VOICE_ENGINE=edge`** (default): the `edge-tts` command line tool (`pip install edge-tts`).
+  If it is installed elsewhere, point `VOICE_TTS_CMD` at it, for example
+  `wsl -e /home/me/.local/bin/edge-tts`.
+- **`VOICE_ENGINE=elevenlabs`**: set `ELEVENLABS_API_KEY` and fill `ELEVEN_VOICES` in
+  `scripts/voice.ts` with one voice id per speaker.
 
-## Higher quality later (optional)
+`npm test` fails when a line has no current recording.
 
-If studio-quality voice acting is wanted, pre-generated audio files could be added as an
-optional voice pack (e.g. one Ogg/Opus file per line, loaded lazily). That would break the
-"no assets" rule and add roughly 1–3 MB per language, so it is not part of this build.
+## Limits
+
+- The takes are neural text-to-speech, shaped by effects. They are not human actors: the emotion
+  range is narrower than in a studio recording.
+- Russian is read by multilingual voices, because the service does not serve its Russian-only
+  voices to this client. Some of them may carry a slight accent.
+- The `edge` engine uses the speech service behind a browser's read-aloud feature through an
+  unofficial client. Check its terms before a commercial release, or record the pack again with
+  a licensed engine.

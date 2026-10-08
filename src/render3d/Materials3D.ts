@@ -251,3 +251,92 @@ float triDetail(vec3 p, vec3 n, float s) {
   mat.customProgramCacheKey = () => `surface-${kind}-${panel}-${strength}-${rim ? rim.getHexString() : 'n'}`;
   return mat;
 }
+
+/**
+ * Three tileable ground materials packed into two linear textures (one material per channel):
+ * R cracked earth, G gravel, B wind-rippled dust. `tone` is how light each one is, `height` its
+ * relief. The terrain shader blends them by height, so one material breaks into the next along
+ * crack lines and between stones instead of fading through a blur.
+ */
+export function groundMaterials(seed: number, size = 512): { tone: THREE.CanvasTexture; height: THREE.CanvasTexture } {
+  const n = new ValueNoise(seed);
+  const rnd = makeRng(seed + 3);
+  // Jittered feature points on a wrapping grid: `cells` per side.
+  const field = (cells: number): { px: Float32Array; py: Float32Array; tone: Float32Array } => {
+    const px = new Float32Array(cells * cells);
+    const py = new Float32Array(cells * cells);
+    const tone = new Float32Array(cells * cells);
+    for (let i = 0; i < cells * cells; i++) {
+      px[i] = 0.12 + rnd() * 0.76;
+      py[i] = 0.12 + rnd() * 0.76;
+      tone[i] = rnd();
+    }
+    return { px, py, tone };
+  };
+  // Nearest and second-nearest feature point (distances in cells) and the nearest one's tone.
+  const worley = (f: ReturnType<typeof field>, cells: number, u: number, v: number): [number, number, number] => {
+    const cx = Math.floor(u);
+    const cy = Math.floor(v);
+    let d1 = 9;
+    let d2 = 9;
+    let tone = 0;
+    for (let j = -1; j <= 1; j++) {
+      for (let i = -1; i <= 1; i++) {
+        const gx = cx + i;
+        const gy = cy + j;
+        const k = (((gy % cells) + cells) % cells) * cells + (((gx % cells) + cells) % cells);
+        const d = Math.hypot(gx + f.px[k] - u, gy + f.py[k] - v);
+        if (d < d1) {
+          d2 = d1;
+          d1 = d;
+          tone = f.tone[k];
+        } else if (d < d2) d2 = d;
+      }
+    }
+    return [d1, d2, tone];
+  };
+  const plates = field(7);
+  const shards = field(19);
+  const stones = field(30);
+  const toneC = canvas(size);
+  const heightC = canvas(size);
+  const tone = toneC.ctx.createImageData(size, size);
+  const height = heightC.ctx.createImageData(size, size);
+  const clamp = (x: number): number => Math.min(1, Math.max(0, x));
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const u = x / size;
+      const v = y / size;
+      const grain = n.fbm(u * 64, v * 64, 3, 64);
+      // Cracked earth: large plates split by wide cracks, each broken again by hairlines.
+      const warp = (n.fbm(u * 8, v * 8, 3, 8) - 0.5) * 0.5;
+      const [a1, a2, at] = worley(plates, 7, u * 7 + warp, v * 7 - warp);
+      const [b1, b2] = worley(shards, 19, u * 19 + warp * 2, v * 19 + warp);
+      const wide = clamp((a2 - a1) / 0.09);
+      const fine = clamp((b2 - b1) / 0.07);
+      const crackH = clamp(wide * (0.55 + 0.45 * fine) * (0.85 + (1 - a1) * 0.15));
+      const crackT = clamp((0.42 + at * 0.2 + grain * 0.16) * (0.25 + 0.75 * wide) * (0.72 + 0.28 * fine));
+      // Gravel: domed stones of mixed tone with dark gaps between them.
+      const [s1, , st] = worley(stones, 30, u * 30, v * 30);
+      const dome = clamp(1 - s1 / 0.62);
+      const stoneH = clamp(Math.sqrt(dome) * (0.6 + st * 0.4));
+      const stoneT = clamp((0.3 + st * 0.42) * (0.35 + 0.65 * Math.sqrt(dome)) + grain * 0.1);
+      // Dust: ripples bent by the wind, soft and pale.
+      const bend = n.fbm(u * 5, v * 5, 3, 5) * 2.2;
+      const ripple = Math.sin((u * 22 + v * 6 + bend) * Math.PI * 2) * 0.5 + 0.5;
+      const dustH = clamp(ripple * 0.45 + n.fbm(u * 12, v * 12, 3, 12) * 0.55);
+      const dustT = clamp(0.5 + (ripple - 0.5) * 0.14 + (grain - 0.5) * 0.18);
+      const k = (y * size + x) * 4;
+      tone.data[k] = crackT * 255;
+      tone.data[k + 1] = stoneT * 255;
+      tone.data[k + 2] = dustT * 255;
+      height.data[k] = crackH * 255;
+      height.data[k + 1] = stoneH * 255;
+      height.data[k + 2] = dustH * 255;
+      tone.data[k + 3] = height.data[k + 3] = 255;
+    }
+  }
+  toneC.ctx.putImageData(tone, 0, 0);
+  heightC.ctx.putImageData(height, 0, 0);
+  return { tone: toTexture(toneC.c, false), height: toTexture(heightC.c, false) };
+}

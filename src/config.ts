@@ -22,15 +22,64 @@ export const COLORS = {
 } as const;
 
 export const FONT_FAMILY = '"Trebuchet MS", Verdana, sans-serif';
-export const GOTHIC_FONT = '"UnifrakturMaguntia", "Old English Text MT", "Blackletter", Georgia, serif';
+/** Game title font, bundled (main.ts loads it before the first scene) so it looks the same on every machine. */
+export const TITLE_FONT = '"Cinzel Decorative", Georgia, serif';
 
 export const TILE = {
   GROUND: 0,
   CLIFF: 1,
   ROAD: 2,
   RUINS: 3,
+  /** Shallows: infantry wade slowly, vehicles cannot enter, nothing can be built. */
+  WATER: 4,
+  /** Magma field: burns every unit standing on it; paths avoid it unless the shortcut pays. */
+  LAVA: 5,
+  /** Fungal thicket: cover, hides squads inside, blocks shots across it. */
+  SCRUB: 6,
+  /** Frozen lake: fast, open ground that gives no cover at all. */
+  ICE: 7,
+  /** Ramp: the only way between low and high ground (counts as high ground). */
+  RAMP: 8,
 } as const;
 export type TileType = (typeof TILE)[keyof typeof TILE];
+
+/** What a tile does to the units on it; systems read this table, never the tile ids. */
+export interface TerrainRule {
+  /** Movement speed factor for everything on the tile. */
+  speed: number;
+  /** Vehicles (wide bodies) may enter. Cliffs stop everyone regardless. */
+  vehicles: boolean;
+  buildable: boolean;
+  /** 'cover': the tile itself shelters; 'normal': cover comes from neighbours as usual; 'none': never cover. */
+  cover: 'cover' | 'normal' | 'none';
+  /** Squads standing here are invisible to enemies without a detector (or at close range). */
+  conceals: boolean;
+  /** Shots crossing the tile are stopped (shots into or out of it still pass). */
+  losBlock: boolean;
+  /** Fraction of max HP every unit on the tile loses per second. */
+  damage: number;
+  /** Pathfinding cost factor for stepping onto the tile. */
+  pathCost: number;
+}
+
+const PLAIN: TerrainRule = { speed: 1, vehicles: true, buildable: true, cover: 'normal', conceals: false, losBlock: false, damage: 0, pathCost: 1 };
+
+export const TERRAIN: Record<TileType, TerrainRule> = {
+  [TILE.GROUND]: PLAIN,
+  [TILE.CLIFF]: { ...PLAIN, vehicles: false, buildable: false, losBlock: true, pathCost: 1 },
+  [TILE.ROAD]: PLAIN,
+  [TILE.RUINS]: { ...PLAIN, cover: 'cover' },
+  [TILE.WATER]: { speed: 0.6, vehicles: false, buildable: false, cover: 'none', conceals: false, losBlock: false, damage: 0, pathCost: 1.7 },
+  [TILE.LAVA]: { speed: 0.8, vehicles: true, buildable: false, cover: 'none', conceals: false, losBlock: false, damage: 0.08, pathCost: 6 },
+  [TILE.SCRUB]: { speed: 0.8, vehicles: true, buildable: false, cover: 'cover', conceals: true, losBlock: true, damage: 0, pathCost: 1.25 },
+  [TILE.ICE]: { speed: 1.25, vehicles: true, buildable: true, cover: 'none', conceals: false, losBlock: false, damage: 0, pathCost: 0.9 },
+  [TILE.RAMP]: { ...PLAIN, buildable: false, pathCost: 1.1 },
+};
+
+/** Seconds after its last shot before a squad in a thicket is hidden again. */
+export const CONCEAL_AFTER_SHOT = 1.5;
+/** An enemy this close (px) sees a concealed squad without a detector. */
+export const CONCEAL_REVEAL_RANGE = 110;
 
 export const CAMERA = {
   scrollSpeed: 900, // px/sec at zoom 1
@@ -73,7 +122,10 @@ export const RESOURCES = {
   startFlux: 100,
   /** Trickle income from the Stronghold so a player is never fully stalled. */
   baseScripIncome: 4,
+  /** Scrip per second from one held point on a small map (up to five points). */
   captureScripPerSec: 25,
+  /** Scrip per second from all the points of a map together: maps with many points pay less for each. */
+  captureScripTotal: 125,
   /** Extra Flux from holding the relic. */
   relicFluxPerSec: 5,
   /** Build radius (tiles) around a held forward-base point. */
@@ -81,13 +133,28 @@ export const RESOURCES = {
 } as const;
 
 export const BUILD = {
-  /** Buildings snap to a grid of this many tiles. */
+  /** Step (tiles) between the candidate sites the AI tries when it picks where to build. */
   snap: 4,
+  /** Buildings snap to a grid of this many tiles (1 = any tile, centred on the cursor). */
+  grid: 1,
+  /** Free tiles kept between two buildings so troops can walk out (walls, gates and mines may touch). */
+  gap: 1,
   /** Default distance (tiles) from a friendly building within which new ones may be placed. */
   radius: 10,
   /** Fraction of max HP a building starts with while under construction. */
   startHpFraction: 0.25,
   refundOnCancel: 0.75,
+  /** Self-repairing structures only mend after this many seconds without being hit. */
+  regenDelay: 6,
+} as const;
+
+/** Long battles wear fortifications down, so a siege always ends: structures take more damage. */
+export const ATTRITION = {
+  /** Battle time (s) when the wear begins. */
+  start: 480,
+  /** Extra damage to structures per minute after that. */
+  perMinute: 0.12,
+  max: 1.2,
 } as const;
 
 export const UNITS = {
@@ -180,7 +247,7 @@ export const GFX = {
 /** 3D battlefield settings per quality tier (see docs/graphics-decision.md). */
 export const GFX3D = {
   low: { shadows: false, shadowMap: 1024, bloom: false, antialias: false, maxDpr: 1, modelDetail: 0.6, pointLights: 4 },
-  medium: { shadows: true, shadowMap: 2048, bloom: true, antialias: true, maxDpr: 1.5, modelDetail: 0.8, pointLights: 8 },
+  medium: { shadows: true, shadowMap: 2048, bloom: true, antialias: true, maxDpr: 1, modelDetail: 0.8, pointLights: 8 },
   high: { shadows: true, shadowMap: 2048, bloom: true, antialias: true, maxDpr: 2, modelDetail: 1, pointLights: 12 },
   ultra: { shadows: true, shadowMap: 4096, bloom: true, antialias: true, maxDpr: 3, modelDetail: 1.25, pointLights: 16 },
 } as const;

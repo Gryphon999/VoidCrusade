@@ -53,6 +53,11 @@ export class InputController {
     // Grid hotkeys (QWERTYU/ASDFGHJ) are handled by the HUD command grid; these are extra aliases.
     kb?.on('keydown-X', () => battle.selection.squads.forEach((s) => s.stop()));
     kb?.on('keydown-M', () => this.setMode('move'));
+    // V turns a selected fortification of ours a quarter turn (placement handles V for the ghost).
+    kb?.on('keydown-V', () => {
+      const b = battle.selection.building;
+      if (!battle.placement.isActive && b && b.owner === 'player' && b.alive && b.rotatable) b.rot = (b.rot + 1) % 4;
+    });
     kb?.on('keydown-ESC', () => {
       this.setMode('none');
       this.targeting = null;

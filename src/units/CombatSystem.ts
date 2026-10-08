@@ -38,6 +38,7 @@ export class CombatSystem {
         const dist = Phaser.Math.Distance.Between(u.x, u.y, victim.x, victim.y);
         if (dist > reach || (u.def.minRange && dist < u.def.minRange)) continue;
         u.cooldown = u.def.cooldown * Phaser.Math.FloatBetween(0.85, 1.15);
+        s.lastShotAt = this.battle.elapsed;
         let dmg = u.def.damage * this.battle.modifiers[u.owner].damageMult * u.strikeMult * s.damageMult;
         u.strikeMult = 1;
         if (u.def.precision && dist < u.def.precision.closeRange) dmg *= 0.5;

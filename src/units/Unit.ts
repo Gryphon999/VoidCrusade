@@ -57,6 +57,8 @@ export class Unit {
   /** Current animation and frame (read by the 3D renderer). */
   anim: AnimName = 'idle';
   animFrame = 0;
+  /** Pose for the 3D renderer; between two sprite frames while walking. */
+  poseFrame = 0;
   /** Turret firing frame (0 rest, 1 fire). */
   turretFire = 0;
   private walkT = Math.random() * 10;
@@ -92,10 +94,10 @@ export class Unit {
     }
     const key = atlasKey(this.def.id);
     this.sprite = scene.add.image(x, Projection.vy(y), key, frameName('idle', 0, 2)).setDepth(Projection.depth(y));
-    this.sprite.setOrigin(m.anchorX / m.cellW, m.anchorY / m.cellH);
+    this.sprite.setOrigin(m.anchorX / m.cellW, m.anchorY / m.cellH).setScale(this.def.modelScale ?? 1);
     if (this.def.turret) {
       this.turret = scene.add.image(x, Projection.vy(y), turretKey(this.def.id), 'turret0_2').setDepth(Projection.depth(y) + 0.5);
-      this.turret.setOrigin(this.sprite.originX, this.sprite.originY);
+      this.turret.setOrigin(this.sprite.originX, this.sprite.originY).setScale(this.def.modelScale ?? 1);
     }
     this.silhouette = scene.add.image(x, y, key, frameName('idle', 0, 2)).setDepth(DEPTH.silhouettes);
     this.silhouette.setOrigin(this.sprite.originX, this.sprite.originY).setTintFill(0x9ad0ff).setAlpha(0.35).setVisible(false);
@@ -105,7 +107,7 @@ export class Unit {
 
   /** On-screen height of the model (px at zoom 1). */
   get height(): number {
-    return MODEL_HEIGHT[this.def.id];
+    return MODEL_HEIGHT[this.def.id] * (this.def.modelScale ?? 1);
   }
 
   /** Current 8-way facing index (0 = east, 2 = south). */
@@ -276,6 +278,8 @@ export class Unit {
     }
     this.anim = anim;
     this.animFrame = frame;
+    // The 3D figure walks in half-frame steps: twice as many poses as the sprite atlas holds.
+    this.poseFrame = anim === 'walk' ? (Math.floor(this.walkT * 2) % 12) / 2 : frame;
     this.turretFire = this.fireT > 0 ? 1 : 0;
     const name = frameName(anim, frame, this.dir);
     if (name !== this.frameKey) {

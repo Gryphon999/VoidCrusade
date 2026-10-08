@@ -35,6 +35,16 @@ function partRotation(pitch = 0, yaw = 0, roll = 0): THREE.Matrix4 {
   return m;
 }
 
+const UP = new THREE.Vector3(0, 1, 0);
+
+/** Moves a geometry built along +Y so that it runs from a to b. */
+function along(g: THREE.BufferGeometry, a: THREE.Vector3, b: THREE.Vector3): THREE.BufferGeometry {
+  g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UP, b.clone().sub(a).normalize()));
+  const mid = a.clone().add(b).multiplyScalar(0.5);
+  g.translate(mid.x, mid.y, mid.z);
+  return g;
+}
+
 function paint(g: THREE.BufferGeometry, color: number): THREE.BufferGeometry {
   const c = new THREE.Color(color);
   const n = g.getAttribute('position').count;
@@ -68,16 +78,47 @@ export function buildModelGeometry(parts: Part[], detail = 1, pose: Pose = {}): 
       const c = p3(p.c);
       g.translate(c.x, c.y, c.z);
       (p.emissive ? glow : solid).push(paint(g, p.color));
-    } else if (p.kind === 'limb') {
+    } else if (p.kind === 'limb' && p.r2 === undefined) {
       const a = p3(p.a);
       const b = p3(p.b);
       const len = a.distanceTo(b);
       const g = new THREE.CapsuleGeometry(p.r, Math.max(0.01, len), detail > 1 ? 2 : 1, seg);
-      const dir = b.clone().sub(a).normalize();
-      const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-      g.applyQuaternion(q);
-      const mid = a.clone().add(b).multiplyScalar(0.5);
-      g.translate(mid.x, mid.y, mid.z);
+      solid.push(paint(along(g, a, b), p.color));
+    } else if (p.kind === 'limb' || p.kind === 'cyl' || p.kind === 'spike') {
+      const a = p3(p.a);
+      const b = p3(p.b);
+      const len = Math.max(0.01, a.distanceTo(b));
+      const tip = p.kind === 'spike' ? 0 : p.r2 ?? p.r;
+      const list = p.kind === 'cyl' && p.emissive ? glow : solid;
+      list.push(paint(along(new THREE.CylinderGeometry(tip, p.r, len, seg + 2, 1, p.kind === 'limb'), a, b), p.color));
+      if (p.kind === 'limb') {
+        // A tapering limb is rounded off by a joint at each end.
+        for (const [at, r] of [[a, p.r], [b, tip]] as [THREE.Vector3, number][]) {
+          const s = new THREE.SphereGeometry(r, seg + 2, Math.max(3, seg - 2));
+          s.translate(at.x, at.y, at.z);
+          solid.push(paint(s, p.color));
+        }
+      }
+    } else if (p.kind === 'wedge') {
+      const hh = p.h.z * 2;
+      const g = new THREE.BoxGeometry(p.h.f * 2, hh, p.h.s * 2).toNonIndexed();
+      const pos = g.getAttribute('position');
+      for (let i = 0; i < pos.count; i++) {
+        const t = pos.getY(i) / hh + 0.5;
+        pos.setX(i, pos.getX(i) * (1 + (p.taper - 1) * t));
+        pos.setZ(i, pos.getZ(i) * (1 + ((p.taperS ?? p.taper) - 1) * t));
+      }
+      g.computeVertexNormals();
+      g.applyMatrix4(partRotation(p.pitch, p.yaw, p.roll));
+      const c = p3(p.c);
+      g.translate(c.x, c.y, c.z);
+      (p.emissive ? glow : solid).push(paint(g, p.color));
+    } else if (p.kind === 'shell') {
+      const g = new THREE.SphereGeometry(p.r, seg + 4, Math.max(3, seg - 1), 0, Math.PI * 2, 0, p.arc);
+      g.scale(1, p.squash ?? 1, 1);
+      g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UP, p3(p.n).normalize()));
+      const c = p3(p.c);
+      g.translate(c.x, c.y, c.z);
       solid.push(paint(g, p.color));
     } else if (p.kind === 'ball') {
       const g = new THREE.SphereGeometry(p.r, seg + 1, Math.max(3, seg - 2));

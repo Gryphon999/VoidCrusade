@@ -27,6 +27,8 @@ export function buildTutorialMap(): MapDef {
   return {
     id: 'proving',
     name: 'Proving Grounds',
+    w: b.w,
+    h: b.h,
     tiles: b.build(),
     playerBase: { tx: 6, ty: 28 },
     enemyBase: { tx: 52, ty: 18 },

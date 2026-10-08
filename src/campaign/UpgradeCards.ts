@@ -12,7 +12,7 @@ export const CARDS: CardDef[] = [
   { id: 'turrets', name: 'Turret Overcharge', description: 'Turrets deal +20% damage.', icon: 'icon_turret' },
   { id: 'warchest', name: 'War Chest', description: 'Start each battle with an extra 300 Scrip.', icon: 'icon_scrip' },
   { id: 'munitions', name: 'Blessed Munitions', description: 'All units deal +10% damage.', icon: 'icon_damage' },
-  { id: 'ceramite', name: 'Ceramite Stockpile', description: 'All units gain +10% HP.', icon: 'icon_cover' },
+  { id: 'ceramite', name: 'Composite Stockpile', description: 'All units gain +10% HP.', icon: 'icon_cover' },
   { id: 'deploy', name: 'Rapid Deployment', description: 'Buildings construct 25% faster.', icon: 'icon_build' },
   { id: 'slot', name: 'Levy of the Faithful', description: '+1 squad slot.', icon: 'icon_squads' },
   { id: 'fluxres', name: 'Flux Reserves', description: 'Start each battle with an extra 150 Flux.', icon: 'icon_flux' },

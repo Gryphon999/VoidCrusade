@@ -1,7 +1,7 @@
 import { makeRng } from '../utils/rng';
 import { makeCanvas, mix, rgb, shade } from './CanvasUtil';
 import { ValueNoise } from './Noise';
-import type { Biome } from './Biomes';
+import { TILE_COLORS, type Biome } from './Biomes';
 
 /** Seamless material textures for one biome (painted once at load). */
 export interface TerrainTextures {
@@ -10,6 +10,11 @@ export interface TerrainTextures {
   rubble: HTMLCanvasElement;
   cliffTop: HTMLCanvasElement;
   cliffFace: HTMLCanvasElement;
+  /** Special tiles: shallows, magma, thicket, ice. */
+  water: HTMLCanvasElement;
+  lava: HTMLCanvasElement;
+  scrub: HTMLCanvasElement;
+  ice: HTMLCanvasElement;
 }
 
 /** Fills a canvas pixel-by-pixel with tileable fBm noise between two colours. */
@@ -238,12 +243,120 @@ function cliffFaceTexture(dark: number, light: number, seed: number): HTMLCanvas
   return canvas;
 }
 
+/** Shallows: dark water with soft ripples and a pale sheen. */
+function waterTexture(dark: number, light: number, seed: number): HTMLCanvasElement {
+  const S = 256;
+  const { canvas, ctx } = makeCanvas(S, S);
+  noiseFill(ctx, S, S, dark, light, seed, 48, 0.9);
+  const rnd = makeRng(seed + 9);
+  ctx.lineWidth = 1.2;
+  for (let i = 0; i < 40; i++) {
+    const x = rnd() * S;
+    const y = rnd() * S;
+    const r = 6 + rnd() * 22;
+    wrapDraw(S, x, y, r + 2, (cx, cy) => {
+      ctx.strokeStyle = `rgba(220,240,250,${0.05 + rnd() * 0.08})`;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, r, r * 0.35, 0, 0.2, Math.PI - 0.2);
+      ctx.stroke();
+    });
+  }
+  return canvas;
+}
+
+/** Magma: a black crust cracked open over glowing rock. */
+function lavaTexture(dark: number, light: number, seed: number): HTMLCanvasElement {
+  const S = 256;
+  const { canvas, ctx } = makeCanvas(S, S);
+  noiseFill(ctx, S, S, dark, light, seed, 20, 2.4);
+  const rnd = makeRng(seed + 11);
+  // Crust plates floating on the glow.
+  for (let i = 0; i < 70; i++) {
+    const r = 5 + rnd() * 16;
+    wrapDraw(S, rnd() * S, rnd() * S, r + 2, (x, y) => {
+      ctx.fillStyle = rgb(shade(dark, 0.9 + rnd() * 0.5), 0.9);
+      ctx.beginPath();
+      const sides = 5 + Math.floor(rnd() * 3);
+      for (let s = 0; s < sides; s++) {
+        const a = (s / sides) * Math.PI * 2;
+        const rr = r * (0.7 + rnd() * 0.4);
+        if (s) ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+        else ctx.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+      }
+      ctx.closePath();
+      ctx.fill();
+    });
+  }
+  // Hot seams between the plates.
+  cracks(ctx, S, rnd, 3, 0.25);
+  return canvas;
+}
+
+/** Thicket: dark mossy ground under clumps of growth. */
+function scrubTexture(dark: number, light: number, seed: number): HTMLCanvasElement {
+  const S = 256;
+  const { canvas, ctx } = makeCanvas(S, S);
+  noiseFill(ctx, S, S, dark, mix(dark, light, 0.5), seed, 28);
+  const rnd = makeRng(seed + 13);
+  for (let i = 0; i < 160; i++) {
+    const r = 3 + rnd() * 9;
+    const col = mix(dark, light, 0.4 + rnd() * 0.6);
+    wrapDraw(S, rnd() * S, rnd() * S, r + 2, (x, y) => {
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.beginPath();
+      ctx.ellipse(x + r * 0.25, y + r * 0.35, r, r * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = rgb(col);
+      ctx.beginPath();
+      ctx.ellipse(x, y, r, r * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(230,255,220,0.12)';
+      ctx.beginPath();
+      ctx.ellipse(x - r * 0.3, y - r * 0.3, r * 0.4, r * 0.25, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+  return canvas;
+}
+
+/** Ice: pale, glassy, with fine fractures and a cold sheen. */
+function iceTexture(dark: number, light: number, seed: number): HTMLCanvasElement {
+  const S = 256;
+  const { canvas, ctx } = makeCanvas(S, S);
+  noiseFill(ctx, S, S, dark, light, seed, 40, 0.7);
+  const rnd = makeRng(seed + 15);
+  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 24; i++) {
+    let x = rnd() * S;
+    let y = rnd() * S;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    for (let k = 0; k < 4; k++) {
+      x += (rnd() - 0.5) * 50;
+      y += (rnd() - 0.5) * 50;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  cracks(ctx, S, rnd, 3, 0.12);
+  return canvas;
+}
+
 export function createTerrainTextures(b: Biome, seed: number): TerrainTextures {
+  const water = b.water ?? TILE_COLORS.water;
+  const magma = b.magma ?? TILE_COLORS.magma;
+  const scrub = b.scrub ?? TILE_COLORS.scrub;
+  const ice = b.ice ?? TILE_COLORS.ice;
   return {
     ground: b.ground.map(([d, l], i) => groundTexture(d, l, seed + i * 101, b.specks)),
     plating: platingTexture(b.plating[0], b.plating[1], seed + 500),
     rubble: rubbleTexture(b.rubble[0], b.rubble[1], seed + 600),
     cliffTop: cliffTopTexture(b.cliffTop[0], b.cliffTop[1], seed + 700),
     cliffFace: cliffFaceTexture(b.cliffFace[0], b.cliffFace[1], seed + 800),
+    water: waterTexture(water[0], water[1], seed + 900),
+    lava: lavaTexture(magma[0], magma[1], seed + 1000),
+    scrub: scrubTexture(scrub[0], scrub[1], seed + 1100),
+    ice: iceTexture(ice[0], ice[1], seed + 1200),
   };
 }

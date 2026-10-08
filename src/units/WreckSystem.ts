@@ -6,7 +6,7 @@ import { Unit } from './Unit';
 import { Building } from '../buildings/Building';
 import type { BattleScene } from '../scenes/BattleScene';
 
-/** A destroyed building's rubble: heavy cover to occupy, scrap for engineers. */
+/** A destroyed building's rubble: burns for a while (scrap for engineers), then clears away. */
 export interface Ruin {
   x: number;
   y: number;
@@ -17,6 +17,10 @@ export interface Ruin {
   alive: boolean;
   /** Rubble style (3D renderer). */
   horde: boolean;
+  /** Battle time (s) when it starts to clear away. */
+  expires: number;
+  /** 1 while standing, falls to 0 as it sinks away (renderers scale by it). */
+  fade: number;
 }
 
 /** A burnt-out vehicle hull or beast carcass: blocks movement, gives cover, can be salvaged. */
@@ -35,6 +39,9 @@ export interface Wreck {
 }
 
 const LIFETIME = 90;
+/** Seconds a building's rubble stays before it sinks away, and how long the sinking takes. */
+const RUIN_LIFETIME = 20;
+const RUIN_FADE = 2;
 export const SALVAGE_WORK = 6;
 
 export class WreckSystem {
@@ -45,7 +52,8 @@ export class WreckSystem {
     battle.events.on(EV.buildingDestroyed, (b: Building) => {
       if (b.def.mine || b.def.neutral) return;
       const img = battle.effects.leaveRuin(b);
-      this.ruins.push({ x: b.x, y: b.y, radius: b.radius, img, value: Math.round(b.def.cost.scrip * 0.2 + 15), work: 0, alive: true, horde: b.def.faction === 'nullhorde' });
+      this.ruins.push({ x: b.x, y: b.y, radius: b.radius, img, value: Math.round(b.def.cost.scrip * 0.2 + 15), work: 0, alive: true,
+        horde: b.def.faction === 'nullhorde', expires: battle.elapsed + RUIN_LIFETIME, fade: 1 });
     });
     battle.events.on(EV.unitDied, (_x: number, _y: number, u: Unit) => {
       if (u.def.category === 'vehicle') this.add(u, battle.effects.vehicleDeath(u));
@@ -112,7 +120,7 @@ export class WreckSystem {
     return null;
   }
 
-  /** Engineers stripped the ruin: the scrap is gone but the rubble tiles stay as cover. */
+  /** Engineers stripped the ruin: the scrap is gone; the heap still clears away on its timer. */
   removeRuin(r: Ruin): void {
     if (!r.alive) return;
     r.alive = false;
@@ -126,5 +134,15 @@ export class WreckSystem {
 
   update(): void {
     for (const w of this.wrecks.slice()) if (this.battle.elapsed >= w.expires) this.remove(w);
+    for (const r of this.ruins.slice()) {
+      const t = this.battle.elapsed - r.expires;
+      if (t < 0) continue;
+      r.alive = false;
+      r.fade = Math.max(0, 1 - t / RUIN_FADE);
+      if (r.img.active) r.img.setAlpha(r.fade);
+      if (r.fade > 0) continue;
+      r.img.destroy();
+      this.ruins.splice(this.ruins.indexOf(r), 1);
+    }
   }
 }

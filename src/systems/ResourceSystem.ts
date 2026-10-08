@@ -28,6 +28,11 @@ export class ResourceSystem {
     this.multiplier[owner] = mult;
   }
 
+  /** Multiplies the current income multiplier (battle modifiers compose with whatever is set). */
+  scaleIncome(owner: Owner, mult: number): void {
+    this.multiplier[owner] *= mult;
+  }
+
   /** Called every frame; dt in seconds. */
   tick(dt: number): void {
     for (const o of ['player', 'enemy'] as const) {

@@ -2,8 +2,8 @@ import Phaser from 'phaser';
 import { EV } from '../events';
 import { MessageKey, dyn } from '../i18n';
 import { Voice, Speaker } from './VoiceSystem';
+import { SHOUTS, speakerOfUnit } from './VoiceCast';
 import { Squad } from '../units/Squad';
-import { UnitId } from '../units/UnitDefs';
 import { Building } from '../buildings/Building';
 import { Unit } from '../units/Unit';
 import { CapturePoint } from './CapturePoint';
@@ -12,16 +12,14 @@ import { Owner } from '../types';
 import { Settings } from './Settings';
 import type { BattleScene } from '../scenes/BattleScene';
 
-const SPEAKERS: Partial<Record<UnitId, Speaker>> = {
-  commander: 'commander', heavy: 'heavy', ranger: 'ranger', breacher: 'breacher', marksman: 'marksman', engineer: 'engineer',
-  buggy: 'crew', apc: 'crew', tank: 'crew', artillery: 'crew',
-};
+export { SHOUTS };
 
-/** Abilities whose use gets a battle cry. */
-export const SHOUTS = ['frag', 'smoke', 'rally', 'barrage', 'sprint', 'smite', 'overcharge'];
+/** Lines fetched when a battle starts, so the first orders and alerts are answered at once. */
+const WARM_ANNOUNCER: MessageKey[] = ['vo.underAttack', 'vo.captured', 'vo.pointLost', 'vo.buildDone', 'vo.squadLost', 'vo.noResources', 'vo.reinforced'];
+const WARM_SQUAD: MessageKey[] = ['vo.move', 'vo.attack', 'vo.capture'];
 
 export function speakerFor(s: Squad): Speaker {
-  return SPEAKERS[s.def.id] ?? 'rifleman';
+  return speakerOfUnit(s.def.id);
 }
 
 /** Hooks battle events to voice lines (announcer alerts and squad acknowledgements). */
@@ -30,13 +28,31 @@ export class VoiceBridge {
 
   constructor(private battle: BattleScene) {
     const ev = battle.events;
+    Voice.preload('announcer', WARM_ANNOUNCER);
+    Voice.preload('commander', ['vo.battleStart', dyn('vo.select.commander'), ...WARM_SQUAD]);
+    Voice.preload('rifleman', [dyn('vo.select.rifleman'), ...WARM_SQUAD]);
+    // Only Iron Void squads have recorded lines; Horde squads keep silent (the announcer still speaks for the player).
+    const vocal = (s: Squad): boolean => s.owner === 'player' && s.def.faction === 'ironvoid';
+    ev.on(EV.squadSpawned, (s: Squad) => vocal(s) && Voice.preload(speakerFor(s), [dyn(`vo.select.${s.def.id}`), ...WARM_SQUAD]));
     ev.on(EV.squadDestroyed, (s: Squad) => s.owner === 'player' && Voice.say('vo.squadLost', 'announcer', 'alert'));
     ev.on(EV.pointCaptured, (_p: CapturePoint, owner: Owner, old: Owner | null) => {
       if (owner === 'player') Voice.say('vo.captured', 'announcer', 'event');
       else if (old === 'player') Voice.say('vo.pointLost', 'announcer', 'alert');
     });
     ev.on(EV.buildingComplete, (b: Building) => b.owner === 'player' && Voice.say('vo.buildDone', 'announcer', 'event'));
-    ev.on(EV.unitHit, (_x: number, _y: number, u: Unit) => u.owner === 'player' && this.alarm());
+    ev.on(EV.unitHit, (_x: number, _y: number, u: Unit) => {
+      if (u.owner !== 'player') return;
+      this.alarm();
+      // Soldiers shout when they come under fire (vehicle crews keep it to the intercom).
+      if (vocal(u.squad) && u.squad.alive && u.def.category !== 'vehicle' && Math.random() < 0.25) Voice.say('vo.underFire', speakerFor(u.squad), 'chatter', false);
+    });
+    ev.on(EV.unitDied, (_x: number, _y: number, u: Unit, from: Squad | null) => {
+      if (u.owner === 'player') {
+        if (vocal(u.squad) && u.squad.units.some((m) => m.alive && m !== u)) Voice.say('vo.manDown', speakerFor(u.squad), 'chatter', false);
+      } else if (from && vocal(from) && from.alive && !u.squad.units.some((m) => m.alive && m !== u)) {
+        Voice.say('vo.enemyDown', speakerFor(from), 'chatter', false);
+      }
+    });
     ev.on(EV.buildingDamaged, (b: Building) => b.owner === 'player' && this.alarm());
     ev.on(EV.message, (key: MessageKey) => {
       if (key === 'err.resources') Voice.say('vo.noResources', 'announcer', 'event');
@@ -44,10 +60,10 @@ export class VoiceBridge {
       else if (key === 'note.reinforced') Voice.say('vo.reinforced', 'announcer', 'event', true);
     });
     ev.on(EV.tierUp, (o: Owner) => o === 'player' && Voice.say('vo.tierUp', 'announcer', 'event'));
-    ev.on(EV.squadBroken, (s: Squad) => s.owner === 'player' && Voice.say('vo.broken', speakerFor(s), 'event'));
+    ev.on(EV.squadBroken, (s: Squad) => vocal(s) && Voice.say('vo.broken', speakerFor(s), 'event'));
     ev.on(EV.squadRankUp, (s: Squad) => s.owner === 'player' && Voice.say('vo.rankUp', 'announcer', 'event'));
     ev.on(EV.abilityUsed, (s: Squad, id: string) => {
-      if (s.owner === 'player' && SHOUTS.includes(id)) Voice.say(dyn(`vo.ab.${id}`), speakerFor(s), 'ack', true);
+      if (vocal(s) && SHOUTS.includes(id)) Voice.say(dyn(`vo.ab.${id}`), speakerFor(s), 'ack', true);
     });
     ev.on(EV.dropIncoming, (o: Owner) => Voice.say(o === 'player' ? 'vo.drop' : 'vo.dropEnemy', 'announcer', o === 'player' ? 'event' : 'alert'));
     ev.on(EV.mapEvent, (kind: string, on: boolean) => kind === 'storm' && on && Voice.say('vo.storm', 'announcer', 'alert'));

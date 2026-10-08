@@ -47,7 +47,7 @@ function fieldPage(b: BattleScene, squads: Squad[], ui: CommandUI): Command[] {
     return {
       icon: buildingIconKey(id), title: buildingName(id),
       body: () => `${t('cost.time', { cost: costText(d.cost), t: d.buildTime })}\n${buildingDesc(id)}\n${t('cmd.fieldHint')}`,
-      locked: () => b.tech.lockReason('player', d.tier, d.requires),
+      locked: () => b.tech.lockReason('player', d.tier, d.requires, d.category),
       onClick: () => {
         if (!b.resources.canAfford('player', d.cost)) b.hud.showMessage('err.resources');
         else b.placement.start(id, builders);
@@ -177,7 +177,7 @@ function buildPage(b: BattleScene, cat: BuildCategory, ui: CommandUI): Command[]
     return {
       icon: buildingIconKey(id), title: buildingName(id),
       body: () => `${t('cost.time', { cost: costText(d.cost), t: d.buildTime })}\n${buildingDesc(id)}`,
-      locked: () => b.tech.lockReason('player', d.tier, d.requires),
+      locked: () => b.tech.lockReason('player', d.tier, d.requires, d.category),
       onClick: () => {
         const check = b.buildings.validate('player', id, -99, -99);
         if (check.reason === 'err.resources') b.hud.showMessage(check.reason, check.params);

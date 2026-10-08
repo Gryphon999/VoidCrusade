@@ -1,6 +1,8 @@
 import { Difficulty, PROJECTION } from '../config';
 import type { Lang } from '../i18n';
 import type { WargearPick } from '../campaign/Wargear';
+import { ModifierId, normalizeModifiers } from '../battle/BattleModifiers';
+import { Platform } from '../platform/Platform';
 
 const KEY = 'voidcrusade.settings.v1';
 
@@ -32,9 +34,15 @@ export interface GameSettings {
   /** UI language; undefined until chosen (then auto-detected). */
   language?: Lang;
   /** Last skirmish setup choices. */
+  skirmishMap?: number;
   skirmishMode?: string;
   skirmishPersonality?: string;
+  /** Older saves: ash storms on/off (migrated into skirmishModifiers on load). */
   skirmishStorms?: boolean;
+  /** Last battle modifiers picked in the skirmish setup. */
+  skirmishModifiers?: ModifierId[];
+  /** Last faction picked in the skirmish setup. */
+  skirmishFaction?: 'ironvoid' | 'nullhorde';
   /** Last commander wargear loadout. */
   wargear?: WargearPick;
   /** Contextual hint toasts (C5). */
@@ -66,6 +74,10 @@ export const Settings = {
     if (current.language !== undefined && current.language !== 'en' && current.language !== 'ru') current.language = undefined;
     if (!['low', 'medium', 'high', 'ultra'].includes(current.graphics)) current.graphics = 'medium';
     if (typeof current.tilt !== 'number' || !Number.isFinite(current.tilt)) current.tilt = PROJECTION.defaultTilt;
+    // Modifiers: keep only known ids; an old "ash storms" switch becomes the storms modifier.
+    const mods = Array.isArray(current.skirmishModifiers) ? current.skirmishModifiers : [];
+    current.skirmishModifiers = normalizeModifiers(current.skirmishStorms && !current.skirmishModifiers ? ['storms', ...mods] : mods);
+    delete current.skirmishStorms;
     return current;
   },
 
@@ -73,10 +85,16 @@ export const Settings = {
     current = { ...Settings.get(), ...patch };
     try {
       window.localStorage.setItem(KEY, JSON.stringify(current));
+      Platform.saved();
     } catch {
       /* storage unavailable */
     }
     for (const l of listeners) l(current);
+  },
+
+  /** Forgets the cached copy so the next get() re-reads storage (after the cloud save was pulled in). */
+  reload(): void {
+    current = null;
   },
 
   onChange(fn: (s: GameSettings) => void): void {

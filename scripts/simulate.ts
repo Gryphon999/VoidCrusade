@@ -9,10 +9,10 @@
  * same seed replays the same matches. Prints win rates, average duration, unit usage and
  * cost-efficiency (damage dealt per 100 resources spent on that unit type).
  */
-import { spawn } from 'node:child_process';
 import { existsSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Browser, chromium } from 'playwright-core';
+import { startServer, stopServer } from './devserver';
 
 const args = process.argv.slice(2);
 const opt = (name: string, def: string): string => args.find((a) => a.startsWith(`--${name}=`))?.split('=')[1] ?? def;
@@ -23,8 +23,14 @@ const DIFF = opt('diff', 'hard');
 const PDIFF = opt('pdiff', DIFF);
 const PARALLEL = Number(opt('parallel', '3'));
 const JSON_OUT = opt('json', '');
+/** Battle modifiers for every match, e.g. --mods=night,scarcity (see src/battle/BattleModifiers). */
+const MODS = opt('mods', '').split(',').filter(Boolean);
+/** The "player" side's faction: ironvoid (default) or nullhorde (the Horde played by the AI against the Iron Void). */
+const FACTION = opt('faction', 'ironvoid');
 const PORT = 5198;
 const PERSONALITIES = ['balanced', 'rusher', 'turtler'];
+/** Number of battle maps (src/maps/index.ts). */
+const MAPS = 8;
 
 function findChromium(): string | undefined {
   if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
@@ -33,18 +39,6 @@ function findChromium(): string | undefined {
   const dir = readdirSync(root).find((d) => /^chromium-\d+$/.test(d));
   const exe = dir && join(root, dir, 'chrome-linux', 'chrome');
   return exe && existsSync(exe) ? exe : undefined;
-}
-
-async function waitForServer(url: string): Promise<void> {
-  for (let i = 0; i < 120; i++) {
-    try {
-      if ((await fetch(url)).ok) return;
-    } catch {
-      /* not up yet */
-    }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error('dev server did not start');
 }
 
 interface UnitStat { trained: number; spent: number; damage: number; kills: number }
@@ -57,6 +51,8 @@ interface MatchResult {
   time: number;
   units: Record<string, UnitStat>;
   points: { player: number; enemy: number };
+  /** State when the match stopped: army supply, structures standing and headquarters health (0-1). */
+  end: Record<'player' | 'enemy', { supply: number; buildings: number; hq: number }>;
 }
 
 async function playMatch(browser: Browser, url: string, m: { seed: number; map: number; personality: string; playerPersonality: string }): Promise<MatchResult> {
@@ -83,7 +79,7 @@ async function playMatch(browser: Browser, url: string, m: { seed: number; map: 
   await page.goto(url);
   await page.waitForFunction(() => !!(window as never as { game?: { scene: { getScene(k: string): unknown } } }).game?.scene.getScene('MenuScene'), null, { timeout: 90000 });
   await page.waitForTimeout(1500);
-  const data = { mode: 'skirmish', mapIndex: m.map, difficulty: DIFF, personality: m.personality };
+  const data = { mode: 'skirmish', faction: FACTION, mapIndex: m.map, difficulty: DIFF, personality: m.personality, modifiers: MODS };
   await page.evaluate((d) => {
     const g = (window as never as { game: { scene: { getScenes(a: boolean): { scene: { key: string; stop(): void } }[]; start(k: string, d: object): void } } }).game;
     g.scene.getScenes(true).forEach((s) => s.scene.key !== 'SubtitleScene' && s.scene.stop());
@@ -136,7 +132,16 @@ async function playMatch(browser: Browser, url: string, m: { seed: number; map: 
       pts.enemy += b.capture.countOwned('enemy');
       samples++;
     }
+    const endOf = (o: string): { supply: number; buildings: number; hq: number } => {
+      const hq = b.buildings.getHQ(o);
+      return {
+        supply: b.units.getSquads(o).reduce((n: number, s: any) => n + s.def.supply, 0),
+        buildings: b.buildings.getOwned(o).length,
+        hq: hq ? +(hq.hp / hq.maxHp).toFixed(2) : 0,
+      };
+    };
     return {
+      end: { player: endOf('player'), enemy: endOf('enemy') },
       winner: b.result ? b.result.winner : 'draw',
       time: Math.round(b.elapsed),
       units,
@@ -184,16 +189,15 @@ function report(results: MatchResult[]): void {
 }
 
 async function main(): Promise<void> {
-  const server = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', shell: process.platform === 'win32', env: { ...process.env, VC_STATIC: '1' } });
-  const url = `http://localhost:${PORT}/`;
+  const { server, url } = await startServer(PORT);
   try {
-    await waitForServer(url);
     const browser = await chromium.launch({ executablePath: findChromium(), args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--mute-audio'] });
     const plan = Array.from({ length: MATCHES }, (_, i) => ({
       seed: SEED * 1000 + i,
-      map: i % 3,
-      personality: PERSONALITIES[Math.floor(i / 3) % PERSONALITIES.length],
-      playerPersonality: PERSONALITIES[(i + 1) % PERSONALITIES.length],
+      map: i % MAPS,
+      personality: PERSONALITIES[Math.floor(i / MAPS) % PERSONALITIES.length],
+      // Full factorial over 45 matches: every map meets every pair of personalities.
+      playerPersonality: PERSONALITIES[Math.floor(i / (MAPS * 3)) % PERSONALITIES.length],
     }));
     const results: MatchResult[] = [];
     let next = 0;
@@ -209,7 +213,7 @@ async function main(): Promise<void> {
           continue;
         }
         results.push(r);
-        console.log(`match seed=${r.seed} map=${r.map} horde=${r.personality} void=${r.playerPersonality}: ${r.winner} in ${r.time}s (${Math.round((Date.now() - t0) / 1000)}s real)`);
+        console.log(`match seed=${r.seed} map=${r.map} horde=${r.personality} void=${r.playerPersonality}: ${r.winner} in ${r.time}s · void ${r.end.player.supply} supply, ${r.end.player.buildings} bld, hq ${r.end.player.hq} · horde ${r.end.enemy.supply} supply, ${r.end.enemy.buildings} bld, hq ${r.end.enemy.hq} · points ${r.points.player}/${r.points.enemy}`);
       }
     };
     await Promise.all(Array.from({ length: Math.max(1, PARALLEL) }, worker));
@@ -218,7 +222,7 @@ async function main(): Promise<void> {
     if (JSON_OUT) writeFileSync(JSON_OUT, JSON.stringify(results, null, 2));
     await browser.close();
   } finally {
-    server.kill();
+    stopServer(server);
   }
 }
 

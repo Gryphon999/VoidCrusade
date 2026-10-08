@@ -5,8 +5,13 @@ import ashfall from '../assets/baked/lut-ashfall.png';
 import veyra from '../assets/baked/lut-veyra.png';
 import khorvan from '../assets/baked/lut-khorvan.png';
 import proving from '../assets/baked/lut-proving.png';
+import mourngate from '../assets/baked/lut-mourngate.png';
+import cinder from '../assets/baked/lut-cinder.png';
+import delta from '../assets/baked/lut-delta.png';
+import ignis from '../assets/baked/lut-ignis.png';
+import frost from '../assets/baked/lut-frost.png';
 
-const LUTS: Record<string, string> = { ashfall, veyra, khorvan, proving };
+const LUTS: Record<string, string> = { ashfall, veyra, khorvan, proving, mourngate, cinder, delta, ignis, frost };
 const SIZE = 16;
 
 /** Colour grade from the baked LUT strip for a map (loaded async; the pass is off until ready). */

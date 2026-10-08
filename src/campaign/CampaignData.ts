@@ -1,3 +1,6 @@
+import type { ModifierId } from '../battle/BattleModifiers';
+import type { WinMode } from '../scenes/BattleTypes';
+
 /** Static definition of the campaign world: 10 hex territories. */
 
 export type BonusType = 'scrip' | 'flux' | 'squadSlot' | 'hp' | 'damage' | 'build' | 'turret' | 'throne';
@@ -13,6 +16,13 @@ export interface TerritoryDef {
   mapIndex: number;
   /** Extra starting Scrip for the Horde here (harder territories). */
   enemyBonus: number;
+  /** How this territory fights: battle modifiers and/or a mission objective. */
+  rules?: TerritoryRules;
+}
+
+export interface TerritoryRules {
+  modifiers?: ModifierId[];
+  winMode?: WinMode;
 }
 
 export const BONUS_ICON: Record<BonusType, string> = {
@@ -28,15 +38,15 @@ export const BONUS_ICON: Record<BonusType, string> = {
 
 export const TERRITORIES: TerritoryDef[] = [
   { id: 'ascalon', name: 'Forge of Ascalon', q: 0, r: 2, bonus: 'scrip', bonusText: '+50 Scrip per battle', mapIndex: 0, enemyBonus: 0 },
-  { id: 'veyra', name: 'Veyra Wastes', q: -1, r: 2, bonus: 'flux', bonusText: '+75 Flux per battle', mapIndex: 1, enemyBonus: 0 },
-  { id: 'khorvan', name: 'Khorvan Deep', q: 1, r: 1, bonus: 'squadSlot', bonusText: 'Extra squad slot', mapIndex: 2, enemyBonus: 0 },
-  { id: 'ossuary', name: 'The Ossuary', q: 0, r: 1, bonus: 'hp', bonusText: '+15% unit HP', mapIndex: 1, enemyBonus: 100 },
-  { id: 'mourn', name: 'Mourngate', q: -1, r: 1, bonus: 'damage', bonusText: '+10% unit damage', mapIndex: 2, enemyBonus: 100 },
-  { id: 'cinder', name: 'Cinder Spires', q: 1, r: 0, bonus: 'build', bonusText: '+25% build speed', mapIndex: 0, enemyBonus: 100 },
-  { id: 'halcyon', name: 'Halcyon Ruin', q: -1, r: 0, bonus: 'turret', bonusText: '+20% turret damage', mapIndex: 0, enemyBonus: 200 },
-  { id: 'nadir', name: 'Nadir Rift', q: 1, r: -1, bonus: 'scrip', bonusText: '+50 Scrip per battle', mapIndex: 1, enemyBonus: 200 },
-  { id: 'spire', name: 'Hollow Spire', q: 0, r: -1, bonus: 'squadSlot', bonusText: 'Extra squad slot', mapIndex: 2, enemyBonus: 200 },
-  { id: 'throne', name: 'Iron Void Throne', q: 0, r: 0, bonus: 'throne', bonusText: 'Final objective', mapIndex: 0, enemyBonus: 400 },
+  { id: 'veyra', name: 'Veyra Wastes', q: -1, r: 2, bonus: 'flux', bonusText: '+75 Flux per battle', mapIndex: 1, enemyBonus: 0, rules: { modifiers: ['storms'] } },
+  { id: 'khorvan', name: 'Khorvan Deep', q: 1, r: 1, bonus: 'squadSlot', bonusText: 'Extra squad slot', mapIndex: 2, enemyBonus: 0, rules: { modifiers: ['night'] } },
+  { id: 'ossuary', name: 'The Ossuary', q: 0, r: 1, bonus: 'hp', bonusText: '+15% unit HP', mapIndex: 5, enemyBonus: 100, rules: { winMode: 'nests' } },
+  { id: 'mourn', name: 'Mourngate', q: -1, r: 1, bonus: 'damage', bonusText: '+10% unit damage', mapIndex: 3, enemyBonus: 100, rules: { modifiers: ['storms'] } },
+  { id: 'cinder', name: 'Cinder Spires', q: 1, r: 0, bonus: 'build', bonusText: '+25% build speed', mapIndex: 4, enemyBonus: 100, rules: { modifiers: ['blitz'] } },
+  { id: 'halcyon', name: 'Halcyon Ruin', q: -1, r: 0, bonus: 'turret', bonusText: '+20% turret damage', mapIndex: 0, enemyBonus: 200, rules: { winMode: 'hold' } },
+  { id: 'nadir', name: 'Nadir Rift', q: 1, r: -1, bonus: 'scrip', bonusText: '+50 Scrip per battle', mapIndex: 6, enemyBonus: 200, rules: { modifiers: ['noDefense'] } },
+  { id: 'spire', name: 'Hollow Spire', q: 0, r: -1, bonus: 'squadSlot', bonusText: 'Extra squad slot', mapIndex: 7, enemyBonus: 200, rules: { modifiers: ['night', 'veterans'] } },
+  { id: 'throne', name: 'Iron Void Throne', q: 0, r: 0, bonus: 'throne', bonusText: 'Final objective', mapIndex: 4, enemyBonus: 400, rules: { modifiers: ['bigWar'] } },
 ];
 
 export const START_TERRITORY = 'ascalon';

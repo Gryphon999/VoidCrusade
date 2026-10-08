@@ -30,7 +30,7 @@ export class CorpseSystem {
     const m = UNIT_MODELS[u.def.id];
     const dir = u.dir;
     const img = this.scene.add.image(u.x, Projection.vy(u.y), atlasKey(u.def.id), frameName('death', 0, dir));
-    img.setOrigin(m.anchorX / m.cellW, m.anchorY / m.cellH).setDepth(Projection.depth(u.y));
+    img.setOrigin(m.anchorX / m.cellW, m.anchorY / m.cellH).setDepth(Projection.depth(u.y)).setScale(u.def.modelScale ?? 1);
     hide2D(this.scene, img);
     this.bodies.push({ id: u.def.id, x: u.x, y: u.y, angle: u.angle, born: this.scene.time.now, img });
     let f = 0;

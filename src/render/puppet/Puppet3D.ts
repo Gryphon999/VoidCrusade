@@ -33,9 +33,21 @@ function normalize(p: W3): W3 {
 
 export type Part =
   | { kind: 'box'; c: V3; h: V3; color: number; pitch?: number; yaw?: number; roll?: number; emissive?: boolean; outline?: boolean }
-  | { kind: 'limb'; a: V3; b: V3; r: number; color: number }
+  | { kind: 'limb'; a: V3; b: V3; r: number; color: number; /** End radius, for a tapering limb. */ r2?: number }
   | { kind: 'ball'; c: V3; r: number; color: number; emissive?: boolean; squash?: number }
-  | { kind: 'glow'; c: V3; r: number; color: number };
+  | { kind: 'glow'; c: V3; r: number; color: number }
+  /** Flat-ended cylinder or cone frustum from a (radius r) to b (radius r2): barrels, vents, greaves. */
+  | { kind: 'cyl'; a: V3; b: V3; r: number; r2?: number; color: number; emissive?: boolean }
+  /** Pointed cone from its base at a to its tip at b: claws, horns, spines, teeth. */
+  | { kind: 'spike'; a: V3; b: V3; r: number; color: number }
+  /** Box whose top face is scaled by `taper` (forward) and `taperS` (sideways): plates, roofs, blades. */
+  | { kind: 'wedge'; c: V3; h: V3; taper: number; taperS?: number; color: number; pitch?: number; yaw?: number; roll?: number; emissive?: boolean }
+  /** Curved armour plate: the cap of a sphere facing `n`, covering `arc` radians from its pole. */
+  | { kind: 'shell'; c: V3; r: number; n: V3; arc: number; color: number; squash?: number };
+
+/** Parts defined by two end points. */
+type Spanned = Extract<Part, { a: V3 }>;
+const spanned = (p: Part): p is Spanned => p.kind === 'limb' || p.kind === 'cyl' || p.kind === 'spike';
 
 /** Whole-figure transform applied before yaw (death falls, lean, bob). */
 export interface Pose {
@@ -109,14 +121,26 @@ export class PuppetRenderer {
   /** Paints parts back-to-front. */
   draw(parts: Part[]): void {
     const items = parts.map((p) => {
-      const c = p.kind === 'limb' ? v((p.a.f + p.b.f) / 2, (p.a.s + p.b.s) / 2, (p.a.z + p.b.z) / 2) : p.c;
+      const c = spanned(p) ? v((p.a.f + p.b.f) / 2, (p.a.s + p.b.s) / 2, (p.a.z + p.b.z) / 2) : p.c;
       return { p, d: this.depth(this.world(c)) };
     });
     items.sort((a, b) => a.d - b.d);
+    // The sprite rasteriser draws the sculpted kinds as their nearest simple shape.
     for (const { p } of items) {
       if (p.kind === 'box') this.box(p);
-      else if (p.kind === 'limb') this.limb(p.a, p.b, p.r, p.color);
+      else if (p.kind === 'wedge') this.box({ ...p, kind: 'box', h: v(p.h.f * (1 + p.taper) / 2, p.h.s * (1 + (p.taperS ?? p.taper)) / 2, p.h.z) });
+      else if (p.kind === 'limb') this.limb(p.a, p.b, (p.r + (p.r2 ?? p.r)) / 2, p.color);
+      else if (p.kind === 'cyl') {
+        // Long ones are drawn as a stroke, squat ones (wheels, drums) as a ball. Thin discs (rims,
+        // hoops, caps) are left out: at sprite size they would swallow the figure.
+        const r = (p.r + (p.r2 ?? p.r)) / 2;
+        const len = Math.hypot(p.b.f - p.a.f, p.b.s - p.a.s, p.b.z - p.a.z);
+        if (len >= r * 1.2) this.limb(p.a, p.b, r, p.color);
+        else if (len >= r * 0.5 || p.emissive) this.ball(v((p.a.f + p.b.f) / 2, (p.a.s + p.b.s) / 2, (p.a.z + p.b.z) / 2), r, p.color, !!p.emissive, 1);
+      }
+      else if (p.kind === 'spike') this.limb(p.a, p.b, p.r * 0.55, p.color);
       else if (p.kind === 'ball') this.ball(p.c, p.r, p.color, p.emissive ?? false, p.squash ?? 1);
+      else if (p.kind === 'shell') this.ball(v(p.c.f + p.n.f * p.r * 0.5, p.c.s + p.n.s * p.r * 0.5, p.c.z + p.n.z * p.r * 0.5), p.r * Math.sin(Math.min(p.arc, Math.PI / 2)), p.color, false, (p.squash ?? 1) * 0.6);
       else this.glowAt(p.c, p.r, p.color);
     }
   }

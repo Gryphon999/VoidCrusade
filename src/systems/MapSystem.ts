@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { MAP_H, MAP_W, TILE, TILE_SIZE, TileType } from '../config';
+import { TERRAIN, TILE, TILE_SIZE, TerrainRule, TileType } from '../config';
+import { canStepLevels } from '../battle/Elevation';
 import { MapDef } from '../maps/MapBuilder';
 import { TerrainRenderer } from '../render/TerrainRenderer';
 import { Owner } from '../types';
@@ -7,11 +8,14 @@ import { Owner } from '../types';
 /** Owns the battle terrain: tile data, rendering, and passability queries. */
 export class MapSystem {
   readonly def: MapDef;
-  readonly width = MAP_W;
-  readonly height = MAP_H;
-  readonly worldWidth = MAP_W * TILE_SIZE;
-  readonly worldHeight = MAP_H * TILE_SIZE;
+  /** Size in tiles and in world px; every map has its own. */
+  readonly width: number;
+  readonly height: number;
+  readonly worldWidth: number;
+  readonly worldHeight: number;
   private tiles: number[][];
+  /** Ground level per tile (0 low, 1 high); null on a flat map. */
+  private levels: number[][] | null;
   /** Tiles occupied by buildings (blocks movement). */
   private occupied: Uint8Array;
   /** Tiles blocked by wrecks (counter, so overlapping wrecks stack). */
@@ -21,8 +25,13 @@ export class MapSystem {
   constructor(def: MapDef) {
     this.def = def;
     this.tiles = def.tiles.map((r) => r.slice());
-    this.occupied = new Uint8Array(MAP_W * MAP_H);
-    this.blocked = new Uint8Array(MAP_W * MAP_H);
+    this.levels = def.levels ? def.levels.map((r) => r.slice()) : null;
+    this.width = def.w;
+    this.height = def.h;
+    this.worldWidth = def.w * TILE_SIZE;
+    this.worldHeight = def.h * TILE_SIZE;
+    this.occupied = new Uint8Array(def.w * def.h);
+    this.blocked = new Uint8Array(def.w * def.h);
   }
 
   /** Bakes the projected terrain. */
@@ -36,7 +45,7 @@ export class MapSystem {
   }
 
   inBounds(tx: number, ty: number): boolean {
-    return tx >= 0 && ty >= 0 && tx < MAP_W && ty < MAP_H;
+    return tx >= 0 && ty >= 0 && tx < this.width && ty < this.height;
   }
 
   getTile(tx: number, ty: number): TileType {
@@ -56,10 +65,61 @@ export class MapSystem {
     return this.inBounds(tx, ty) && this.tiles[ty][tx] !== TILE.CLIFF;
   }
 
+  /** The gameplay rule of a tile (cliff outside the map). */
+  rule(tx: number, ty: number): TerrainRule {
+    return TERRAIN[this.getTile(tx, ty)];
+  }
+
+  /** Vehicles may drive here (open ground that is not water). */
+  isVehicleTerrain(tx: number, ty: number): boolean {
+    return this.isTerrainPassable(tx, ty) && this.rule(tx, ty).vehicles;
+  }
+
+  /** Structures may stand here. */
+  isBuildable(tx: number, ty: number): boolean {
+    return this.isTerrainPassable(tx, ty) && this.rule(tx, ty).buildable;
+  }
+
+  /** Movement speed factor of the terrain under a world point. */
+  speedAt(wx: number, wy: number): number {
+    const t = this.worldToTile(wx, wy);
+    return this.rule(t.tx, t.ty).speed;
+  }
+
+  /** Rule of the terrain under a world point. */
+  ruleAt(wx: number, wy: number): TerrainRule {
+    const t = this.worldToTile(wx, wy);
+    return this.rule(t.tx, t.ty);
+  }
+
+  /** Ground level of a tile: 0 low, 1 high (0 outside the map and on flat maps). */
+  level(tx: number, ty: number): number {
+    return this.levels && this.inBounds(tx, ty) ? this.levels[ty][tx] : 0;
+  }
+
+  levelAt(wx: number, wy: number): number {
+    const t = this.worldToTile(wx, wy);
+    return this.level(t.tx, t.ty);
+  }
+
+  isRamp(tx: number, ty: number): boolean {
+    return this.getTile(tx, ty) === TILE.RAMP;
+  }
+
+  /** A unit may walk from tile a to tile b: same level, or one of them is a ramp. */
+  canStep(ax: number, ay: number, bx: number, by: number): boolean {
+    return !this.levels || canStepLevels(this.level(ax, ay), this.level(bx, by), this.isRamp(ax, ay), this.isRamp(bx, by));
+  }
+
+  /** Does the map have any high ground at all? */
+  get hasLevels(): boolean {
+    return this.levels !== null;
+  }
+
   /** Passable for units: not a cliff and not covered by a building (own gates are open to `owner`). */
   isPassable(tx: number, ty: number, owner?: Owner): boolean {
-    if (!this.isTerrainPassable(tx, ty) || this.blocked[ty * MAP_W + tx] !== 0) return false;
-    const o = this.occupied[ty * MAP_W + tx];
+    if (!this.isTerrainPassable(tx, ty) || this.blocked[ty * this.width + tx] !== 0) return false;
+    const o = this.occupied[ty * this.width + tx];
     return o === 0 || (!!owner && ((o === 2 && owner === 'player') || (o === 3 && owner === 'enemy')));
   }
 
@@ -69,18 +129,18 @@ export class MapSystem {
   }
 
   isOccupied(tx: number, ty: number): boolean {
-    return !this.inBounds(tx, ty) || this.occupied[ty * MAP_W + tx] !== 0 || this.blocked[ty * MAP_W + tx] !== 0;
+    return !this.inBounds(tx, ty) || this.occupied[ty * this.width + tx] !== 0 || this.blocked[ty * this.width + tx] !== 0;
   }
 
   /** Adds/removes a wreck blocker on one tile. */
   setBlocked(tx: number, ty: number, on: boolean): void {
     if (!this.inBounds(tx, ty)) return;
-    const i = ty * MAP_W + tx;
+    const i = ty * this.width + tx;
     this.blocked[i] = Math.max(0, this.blocked[i] + (on ? 1 : -1));
   }
 
   isBlocked(tx: number, ty: number): boolean {
-    return this.inBounds(tx, ty) && this.blocked[ty * MAP_W + tx] !== 0;
+    return this.inBounds(tx, ty) && this.blocked[ty * this.width + tx] !== 0;
   }
 
   /** Marks a building footprint; a gate's footprint stays passable for `gateOwner`'s units. */
@@ -88,7 +148,7 @@ export class MapSystem {
     const v = !value ? 0 : gateOwner === 'player' ? 2 : gateOwner === 'enemy' ? 3 : 1;
     for (let y = ty; y < ty + h; y++) {
       for (let x = tx; x < tx + w; x++) {
-        if (this.inBounds(x, y)) this.occupied[y * MAP_W + x] = v;
+        if (this.inBounds(x, y)) this.occupied[y * this.width + x] = v;
       }
     }
   }
@@ -96,7 +156,7 @@ export class MapSystem {
   /** True if the tile is a gate owned by `owner`. */
   isGateFor(tx: number, ty: number, owner: Owner): boolean {
     if (!this.inBounds(tx, ty)) return false;
-    const o = this.occupied[ty * MAP_W + tx];
+    const o = this.occupied[ty * this.width + tx];
     return (o === 2 && owner === 'player') || (o === 3 && owner === 'enemy');
   }
 
