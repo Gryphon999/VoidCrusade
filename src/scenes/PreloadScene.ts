@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, GOTHIC_FONT } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH, TITLE_FONT } from '../config';
 import { createTileTextures } from '../assets/TileTextures';
 import { createUITextures } from '../assets/UITextures';
 import { createBuildingTextures } from '../assets/BuildingTextures';
@@ -31,7 +31,7 @@ export class PreloadScene extends Phaser.Scene {
   create(): void {
     const cx = GAME_WIDTH / 2;
     const cy = GAME_HEIGHT / 2;
-    this.add.text(cx, cy - 110, 'VOIDCRUSADE', { fontFamily: GOTHIC_FONT, fontSize: '64px', color: '#c8a060' }).setOrigin(0.5);
+    this.add.text(cx, cy - 110, 'VOIDCRUSADE', { fontFamily: TITLE_FONT, fontSize: '64px', fontStyle: '900', color: '#c8a060' }).setOrigin(0.5);
     const label = this.add.text(cx, cy + 40, '', textStyle(16, '#aab')).setOrigin(0.5);
     this.add.text(cx, cy + 120, t(Phaser.Utils.Array.GetRandom(TIPS) as MessageKey), { ...textStyle(15, '#778'), fontStyle: 'italic' }).setOrigin(0.5);
     const w = 520;
@@ -73,7 +73,10 @@ export class PreloadScene extends Phaser.Scene {
       }
       const [text, fn] = steps[i];
       label.setText(`${text}…`);
+      // Each step's time shows up in performance.getEntriesByType('measure') (and DevTools → Performance).
+      const t0 = performance.now();
       fn();
+      performance.measure(`preload ${i}: ${text}`, { start: t0, end: performance.now() });
       i++;
       bar.clear().fillStyle(0xb08830, 1).fillRect(cx - w / 2, cy - 10, (w * i) / steps.length, 20);
       bar.fillStyle(0xffe0a0, 0.5).fillRect(cx - w / 2, cy - 10, (w * i) / steps.length, 4);

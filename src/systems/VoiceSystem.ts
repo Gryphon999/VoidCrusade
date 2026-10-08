@@ -62,6 +62,8 @@ class VoiceEngine {
   private subtitleListeners = new Set<Listener>();
   private duckListeners = new Set<(speaking: boolean) => void>();
   private paused = false;
+  /** Platform hold (ad, platform pause, focus lost); kept apart from the pause menu's flag. */
+  private held = false;
 
   constructor() {
     if (typeof window === 'undefined') return;
@@ -175,7 +177,10 @@ class VoiceEngine {
 
   /** Says a (random variant of a) voice line. Returns false if skipped by cooldown/priority. */
   say(key: MessageKey, speaker: Speaker = 'announcer', category: VoiceCategory = 'event', subtitle = category !== 'ack'): boolean {
-    const variants = t(key).split('|');
+    const text = t(key);
+    // A line without text (e.g. a Horde unit, which has no recorded lines) is silence, not its key read aloud.
+    if (text === key) return false;
+    const variants = text.split('|');
     const now = performance.now();
     if (now - this.lastAt[category] < COOLDOWN_MS[category]) return false;
     // The same alert never repeats within 15 s.
@@ -204,7 +209,7 @@ class VoiceEngine {
     this.current = line;
     const s = Settings.get();
     if (line.subtitle || this.subtitlesOn()) for (const fn of this.subtitleListeners) fn(line.text, line.speaker);
-    if (!s.voiceEnabled || this.paused) return this.readOnly(line);
+    if (!s.voiceEnabled || this.paused || this.held) return this.readOnly(line);
     const url = this.recording(line.speaker, line.key, line.variant, line.text);
     if (url) this.playClip(line, url);
     else this.speak(line);
@@ -290,6 +295,11 @@ class VoiceEngine {
   setPaused(p: boolean): void {
     this.paused = p;
     if (p) this.stop();
+  }
+
+  setHeld(h: boolean): void {
+    this.held = h;
+    if (h) this.stop();
   }
 }
 

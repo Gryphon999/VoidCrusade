@@ -5,8 +5,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  EVAC_ARRIVAL, EVAC_LOAD, EVAC_SQUADS, HOLD_DRAIN, HOLD_TIME, NEST_COUNT, NEST_SPAWN_EVERY, NEST_TIME_LIMIT,
-  evacReady, evacStep, holdStep, nestPool, pickNestPoints,
+  EVAC_ARRIVAL, EVAC_LOAD, EVAC_SQUADS, HOLD_DRAIN, HOLD_TIME, KOTH_GOAL, KOTH_RATE, NEST_COUNT, NEST_SPAWN_EVERY, NEST_TIME_LIMIT,
+  evacReady, evacStep, holdStep, kothStep, nestPool, pickNestPoints,
 } from '../src/battle/Objectives';
 import { UNIT_DEFS } from '../src/units/UnitDefs';
 import { MAP_BUILDERS } from '../src/maps';
@@ -63,6 +63,18 @@ test('boarding needs the Commander and enough squads, fills while they stay and 
   load = evacStep(load, true, 100);
   assert.equal(load, EVAC_LOAD);
   assert.ok(EVAC_ARRIVAL > 60);
+});
+
+test('the hill scores for its owner only and the race ends at the goal', () => {
+  let s = { player: 0, enemy: 0 };
+  s = kothStep(s, 'player', 10);
+  assert.deepEqual(s, { player: 10 * KOTH_RATE, enemy: 0 });
+  s = kothStep(s, null, 10);
+  assert.deepEqual(s, { player: 10 * KOTH_RATE, enemy: 0 }, 'a neutral hill scores for nobody');
+  s = kothStep(s, 'enemy', 5);
+  assert.equal(s.enemy, 5 * KOTH_RATE);
+  s = kothStep(s, 'player', 10000);
+  assert.equal(s.player, KOTH_GOAL, 'capped at the goal');
 });
 
 test('every win mode is localised in both languages', () => {

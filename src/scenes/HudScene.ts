@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
+import { Platform } from '../platform/Platform';
 import type { BattleScene } from './BattleScene';
 import { TopBar, TOP_BAR_H } from '../ui/TopBar';
 import { normalizeModifiers } from '../battle/BattleModifiers';
-import { EVAC_LOAD, EVAC_SQUADS, HOLD_TIME, NEST_COUNT } from '../battle/Objectives';
+import { EVAC_LOAD, EVAC_SQUADS, HOLD_TIME, KOTH_GOAL, NEST_COUNT } from '../battle/Objectives';
+import { SquadRoster } from '../ui/SquadRoster';
 import { SelectionPanel } from '../ui/SelectionPanel';
 import { MiniMap } from '../ui/MiniMap';
 import { CommandGrid } from '../ui/CommandGrid';
@@ -15,7 +17,7 @@ import { PauseMenu } from '../ui/PauseMenu';
 import { ResearchTree } from '../ui/ResearchTree';
 import { HintToast } from '../ui/HintToast';
 import { TutorialOverlay } from '../tutorial/TutorialOverlay';
-import { CONTROL_HOLD, SURVIVAL_WAVES } from '../systems/VictorySystem';
+import { CONTROL_HOLD } from '../systems/VictorySystem';
 import { textStyle } from '../ui/uiStyle';
 import { CursorKind, getCursors } from '../assets/Cursors';
 import { GAME_HEIGHT, GAME_WIDTH, GFX } from '../config';
@@ -53,6 +55,7 @@ export class HudScene extends Phaser.Scene {
   private hints!: HintToast;
   private treeTick = 0;
   private tooltip!: Tooltip;
+  private roster!: SquadRoster;
   private notes!: Notifications;
   private blockers: Blocker[] = [];
   private ended = false;
@@ -87,6 +90,14 @@ export class HudScene extends Phaser.Scene {
     this.addBlocker(new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, TOP_BAR_H));
     this.tooltip = new Tooltip(this);
     this.topBar.onHover = (title, body, x, y) => (title ? this.tooltip.show(title, body, x, y) : this.tooltip.hide());
+    // Squad roster down the left edge; it blocks battlefield input only where its cards are.
+    this.roster = new SquadRoster(this, this.battle, this.tooltip);
+    const rosterRect = new Phaser.Geom.Rectangle(0, 0, 0, 0);
+    this.addBlocker(rosterRect, () => {
+      const r = this.roster.rect;
+      rosterRect.setTo(r.x, r.y, r.width, r.height);
+      return this.roster.rect.width > 8;
+    });
     this.panel = new SelectionPanel(this, this.battle);
     this.grid = new CommandGrid(this, this.tooltip);
     this.minimap = new MiniMap(this, this.battle);
@@ -105,7 +116,11 @@ export class HudScene extends Phaser.Scene {
       e.preventDefault();
       if (this.scene.isActive('EncyclopediaScene') || this.pause.isOpen || this.ended) return;
       this.battle.scene.pause();
-      this.scene.launch('EncyclopediaScene', { onClose: () => this.battle.scene.resume() });
+      Platform.setGameplay(false);
+      this.scene.launch('EncyclopediaScene', { onClose: () => {
+        this.battle.scene.resume();
+        Platform.setGameplay(true);
+      } });
       this.scene.bringToTop('EncyclopediaScene');
     });
     this.input.keyboard?.on('keydown-ESC', () => {
@@ -250,7 +265,12 @@ export class HudScene extends Phaser.Scene {
       if (me > 0) return t('obj.holding', { t: formatTime(CONTROL_HOLD - me) });
       return t('obj.control', { n: v.needed, max: this.battle.capture.points.length });
     }
-    if (v.mode === 'survival') return t('obj.wave', { n: v.wave, max: SURVIVAL_WAVES, t: formatTime(v.waveIn) });
+    if (v.mode === 'survival') return t('obj.waveEndless', { n: v.wave, t: formatTime(v.waveIn) });
+    if (v.mode === 'koth') {
+      const o = v.centre.owner;
+      const who = t(o === 'player' ? 'obj.hillYours' : o === 'enemy' ? 'obj.hillTheirs' : 'obj.hillEmpty');
+      return t('obj.koth', { p: Math.floor(v.koth.player), e: Math.floor(v.koth.enemy), goal: KOTH_GOAL, who });
+    }
     if (v.mode === 'hold') {
       const left = formatTime(HOLD_TIME - v.holdProgress);
       const o = v.centre.owner;
@@ -271,6 +291,7 @@ export class HudScene extends Phaser.Scene {
     this.grain?.setTilePosition(Math.random() * 256, Math.random() * 256);
     this.notes.update();
     if (this.ended) return;
+    this.roster.update(delta / 1000);
     this.topBar.update(formatTime(this.battle.elapsed));
     this.objective.setText(this.objectiveText());
     const u = this.battle.units;

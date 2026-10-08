@@ -1,4 +1,5 @@
-import type { UnitId } from '../units/UnitDefs';
+import type { Faction, UnitId } from '../units/UnitDefs';
+import { wavePool } from './Factions';
 
 /**
  * Rules of the mission objectives (Hold the Line, Burn the Nests, Evacuation): constants and small
@@ -29,12 +30,9 @@ export const NEST_FIRST_SPAWN = 60;
 /** The battle is lost when the clock reaches this (seconds). */
 export const NEST_TIME_LIMIT = 900;
 
-/** What a nest can spawn at a given battle second: the brood grows nastier with time. */
-export function nestPool(elapsed: number): UnitId[] {
-  const pool: UnitId[] = ['crawler', 'crawler', 'spitter'];
-  if (elapsed >= 180) pool.push('leaper', 'shaman');
-  if (elapsed >= 360) pool.push('behemoth', 'burrower');
-  return pool;
+/** What a nest can spawn at a given battle second: the brood grows nastier with time (stage = minutes / 1.5). */
+export function nestPool(elapsed: number, faction: Faction = 'nullhorde'): UnitId[] {
+  return wavePool(faction, Math.floor(elapsed / 90) + 1);
 }
 
 /**
@@ -69,3 +67,20 @@ export function evacStep(load: number, boarding: boolean, dt: number): number {
 export function evacReady(commanderInZone: boolean, othersInZone: number): boolean {
   return commanderInZone && othersInZone >= EVAC_SQUADS;
 }
+
+// ---- King of the Hill ---------------------------------------------------------------------
+
+/** Points a side needs to win, and points per second for owning the hill. */
+export const KOTH_GOAL = 300;
+export const KOTH_RATE = 1;
+
+/** One tick of the hill: the owner scores, a neutral hill scores for nobody. */
+export function kothStep(score: { player: number; enemy: number }, owner: 'player' | 'enemy' | null, dt: number): { player: number; enemy: number } {
+  if (!owner) return score;
+  return { ...score, [owner]: Math.min(KOTH_GOAL, score[owner] + KOTH_RATE * dt) };
+}
+
+// ---- Survival -----------------------------------------------------------------------------
+
+/** Wave at which the first tide is declared broken (a milestone, not the end: survival is endless). */
+export const SURVIVAL_MILESTONE = 15;

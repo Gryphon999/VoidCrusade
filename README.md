@@ -58,6 +58,7 @@ this in 13 interactive steps. **F1** opens the Encyclopedia everywhere.
 | **Ctrl/Alt + 1–9** · **1–9** · **Shift + 1–9** | Bind group · recall (twice centres) · add to group |
 | **Ctrl + A** · **.** | Select whole army · cycle idle squads |
 | **Space** | Centre camera on selection |
+| Squad roster (left edge) | One card per squad with its health: click selects, **Shift**+click adds, clicking the selected squad centres the camera; a card flashes red while the squad is under fire |
 | **Esc** | Cancel order / placement, close a build page |
 | **P** / F10 | Pause menu (Resume, Settings, Encyclopedia, Tutorial, Leave) |
 | **F1** | Encyclopedia (pauses the battle) |
@@ -186,8 +187,30 @@ point and the enemy stronghold. A map sets its own size (`MapBuilder`), so more 
 - **Stances** — hold, defend, aggressive, plus retreat.
 
 **Modes** — Campaign (ten hex territories with bonuses and upgrade cards), Skirmish (Annihilation,
-Control, Survival, Hold the Line, Burn the Nests, Evacuation; map, difficulty, AI personality, battle
+Control, Survival, Hold the Line, Burn the Nests, Evacuation, King of the Hill; map, difficulty, AI personality, battle
 modifiers, wargear), Tutorial.
+
+**Campaign consequences** (`src/campaign/CampaignState.ts`, `CampaignEvents.ts`, `CampaignData.ts`):
+every territory fights by its own rules (battle modifiers and/or a mission objective, listed in the
+assault dialog; three territories use the new maps). After a victory and the boon pick, an event may
+appear (60 %): a situation with two answers whose effects (next-battle bonuses, a boon gained or lost,
+extra Horde Scrip, counterattack chance) are spelled out. After every battle the Horde may counterattack a
+held frontier territory (30 % + 5 % per battle won, capped at 60 %, tilted by events): the map pulses it
+red, it is the only battle available, the defence is Hold the Line on that map with the Horde +100 Scrip,
+and losing it loses the territory. Old saves load unchanged.
+
+**Playable Null Horde** — the skirmish setup has a **Faction** row: play the Iron Void or the Null Horde
+(the AI takes the other side). Each side starts with its own headquarters, hero and first squad
+(`src/battle/Factions.ts`); Survival waves and Burn the Nests use the enemy's faction (Iron Void waves,
+Barracks as "nests"). The Horde has no recorded voice lines, so its squads keep silent; the announcer still
+speaks for the player. The campaign and the tutorial stay Iron Void. `npm run simulate -- --faction=nullhorde`
+plays the Horde as the player-side AI.
+
+**Survival records and King of the Hill** — Survival is endless (wave 15 is a milestone, not the end);
+every run goes into a top-10 table per battlefield, difficulty and modifier set (`src/battle/Records.ts`,
+`localStorage`, also sent to a Yandex Games leaderboard named `survival` when the SDK is present). The end
+screen shows the rank and the top five; **Records** in the main menu lists the best run of every table.
+*King of the Hill*: the centre point scores a point per second for its owner, first to 300 wins.
 
 **Mission objectives** (`src/battle/Objectives.ts` holds the rules, `VictorySystem` wires them):
 *Hold the Line* — own the centre point for 4:00 in all; the meter drains twice as fast while the Horde

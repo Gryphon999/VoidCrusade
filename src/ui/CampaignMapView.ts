@@ -12,7 +12,7 @@ const HEX = 72;
 const CX = 700;
 const CY = 300;
 
-export type TerritoryStatus = 'owned' | 'attackable' | 'enemy';
+export type TerritoryStatus = 'owned' | 'attackable' | 'enemy' | 'underAttack';
 
 interface HexView {
   def: TerritoryDef;
@@ -83,7 +83,7 @@ export class CampaignMapView {
     if (id === this.hovered) return;
     this.hovered = id;
     this.onHover?.(id);
-    this.scene.input.setDefaultCursor(id && this.status(id) === 'attackable' ? 'pointer' : 'default');
+    this.scene.input.setDefaultCursor(id && (this.status(id) === 'attackable' || this.status(id) === 'underAttack') ? 'pointer' : 'default');
   }
 
   private drawBackground(): void {
@@ -124,12 +124,13 @@ export class CampaignMapView {
     const glow = this.glow.clear();
     for (const h of this.hexes) {
       const st = this.status(h.def.id);
-      this.flags.get(h.def.id)?.setTint(st === 'owned' ? 0x3a70d8 : 0x9a1a2a);
-      this.swords.get(h.def.id)?.setVisible(st === 'attackable');
-      const fill = st === 'owned' ? 0x1e4a9a : 0x6a1420;
-      g.fillStyle(fill, st === 'owned' ? 0.8 : 0.7).fillPoints(h.poly.points, true);
+      const held = st === 'owned' || st === 'underAttack';
+      this.flags.get(h.def.id)?.setTint(held ? 0x3a70d8 : 0x9a1a2a);
+      this.swords.get(h.def.id)?.setVisible(st === 'attackable' || st === 'underAttack');
+      const fill = held ? 0x1e4a9a : 0x6a1420;
+      g.fillStyle(fill, held ? 0.8 : 0.7).fillPoints(h.poly.points, true);
       const pulse = 0.5 + 0.5 * Math.sin(this.t * 4);
-      let border = st === 'owned' ? 0x6ab0ff : 0xc04050;
+      let border = held ? 0x6ab0ff : 0xc04050;
       let width = 2;
       if (h.def.bonus === 'throne') {
         border = 0xb08820;
@@ -138,6 +139,12 @@ export class CampaignMapView {
       if (st === 'attackable') {
         border = 0x50ff90;
         width = 2 + pulse * 3;
+      }
+      // Under Horde attack: a red alarm pulse over held land.
+      if (st === 'underAttack') {
+        g.fillStyle(0xc02020, 0.25 + pulse * 0.3).fillPoints(h.poly.points, true);
+        border = 0xff4040;
+        width = 3 + pulse * 3;
       }
       g.lineStyle(width, border, 1).strokePoints(h.poly.points, true);
       if (h.def.id === this.hovered) {
