@@ -2,6 +2,7 @@
  * Survival records: a top-10 table per map, difficulty and modifier set, kept in localStorage.
  * Pure table logic with an injectable storage so the tests run in Node.
  */
+import { Platform } from '../platform/Yandex';
 export interface RecordEntry {
   score: number;
   waves: number;
@@ -58,6 +59,7 @@ export function loadRecords(store: StorageLike | null = storage()): RecordBook {
 export function saveRecords(book: RecordBook, store: StorageLike | null = storage()): void {
   try {
     store?.setItem(RECORDS_KEY, JSON.stringify(book));
+    Platform.saved();
   } catch {
     /* storage unavailable: records last for this session only */
   }
@@ -86,12 +88,7 @@ export function bestRecords(book: RecordBook): { key: string; mapId: string; dif
     .sort((a, b) => b.best.score - a.best.score);
 }
 
-/** Yandex Games leaderboard, when the SDK is on the page (best effort). */
+/** Yandex Games leaderboard "survival" (must exist in the game's console), when on Yandex. */
 function submitYandex(score: number): void {
-  try {
-    const sdk = (window as unknown as { ysdk?: { getLeaderboards?: () => Promise<{ setLeaderboardScore(name: string, score: number): Promise<void> }> } }).ysdk;
-    sdk?.getLeaderboards?.().then((lb) => lb.setLeaderboardScore('survival', Math.round(score))).catch(() => undefined);
-  } catch {
-    /* no SDK */
-  }
+  void Platform.submitScore('survival', Math.round(score));
 }

@@ -3,6 +3,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { dyn, headingFont, t } from '../i18n';
 import { normalizeModifiers } from '../battle/BattleModifiers';
 import { BattleResult } from '../scenes/BattleTypes';
+import { Platform } from '../platform/Yandex';
 import type { BattleScene } from '../scenes/BattleScene';
 import { Button } from './Button';
 import { formatTime, textStyle } from './uiStyle';
@@ -64,7 +65,14 @@ export function showEndScreen(scene: Phaser.Scene, battle: BattleScene, result: 
       ];
   buttons.forEach((b, i) => {
     const x = cx + (i - (buttons.length - 1) / 2) * 220;
-    const btn = new Button(scene, { x, y: buttonY, w: 200, h: 48, label: b.label, onClick: b.action });
+    // Between battles is the one place a fullscreen ad may show (the SDK itself spaces them out).
+    let leaving = false;
+    const go = (): void => {
+      if (leaving) return;
+      leaving = true;
+      void Platform.showInterstitial().then(b.action);
+    };
+    const btn = new Button(scene, { x, y: buttonY, w: 200, h: 48, label: b.label, onClick: go });
     btn.container.setAlpha(0);
     scene.tweens.add({ targets: btn.container, alpha: 1, duration: 400, delay: 1400 });
     root.add(btn.container);

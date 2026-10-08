@@ -424,6 +424,10 @@ export const enContent = {
   'prompt.body': 'A short interactive tutorial on the Proving Grounds teaches camera, orders, building, cover, abilities and vehicles. You can replay it from the menu at any time.',
   'prompt.yes': 'Play tutorial',
   'prompt.no': 'Not now',
+  'newCamp.title': 'Start a new campaign?',
+  'newCamp.body': 'Your current crusade will be lost: every conquered territory, boon and victory. This cannot be undone.',
+  'newCamp.yes': 'Start anew',
+  'newCamp.no': 'Keep my campaign',
   // C5: tutorial
   'tut.skip': 'Skip step',
   'tut.exit': 'Exit',

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Platform } from '../platform/Yandex';
 import { getMap } from '../maps';
 import { MapSystem } from '../systems/MapSystem';
 import { CameraSystem } from '../systems/CameraSystem';
@@ -236,7 +237,9 @@ export class BattleScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.r3d?.dispose();
       this.r3d = null;
+      Platform.setGameplay(false);
     });
+    Platform.setGameplay(true);
     this.fog = new FogOfWarSystem(this);
     this.audio = new AudioBridge(this);
     this.atmosphere = new Atmosphere(this);
@@ -315,6 +318,7 @@ export class BattleScene extends Phaser.Scene {
   endBattle(winner: Owner): void {
     if (this.result) return;
     this.result = { winner, time: this.elapsed, stats: { ...this.stats }, data: this.battleData };
+    Platform.setGameplay(false);
     this.selection.clear();
     this.placement.cancel();
     this.events.emit(EV.battleEnded, this.result);

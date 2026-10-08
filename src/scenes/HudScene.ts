@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Platform } from '../platform/Yandex';
 import type { BattleScene } from './BattleScene';
 import { TopBar, TOP_BAR_H } from '../ui/TopBar';
 import { normalizeModifiers } from '../battle/BattleModifiers';
@@ -115,7 +116,11 @@ export class HudScene extends Phaser.Scene {
       e.preventDefault();
       if (this.scene.isActive('EncyclopediaScene') || this.pause.isOpen || this.ended) return;
       this.battle.scene.pause();
-      this.scene.launch('EncyclopediaScene', { onClose: () => this.battle.scene.resume() });
+      Platform.setGameplay(false);
+      this.scene.launch('EncyclopediaScene', { onClose: () => {
+        this.battle.scene.resume();
+        Platform.setGameplay(true);
+      } });
       this.scene.bringToTop('EncyclopediaScene');
     });
     this.input.keyboard?.on('keydown-ESC', () => {

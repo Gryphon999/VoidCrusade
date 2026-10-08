@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { headingFont, t } from '../i18n';
 import { Voice } from '../systems/VoiceSystem';
+import { Platform } from '../platform/Yandex';
 import type { BattleScene } from '../scenes/BattleScene';
 import { Button } from './Button';
 import { drawPanel } from './uiStyle';
@@ -26,6 +27,7 @@ export class PauseMenu {
     if (this.root || this.battle.ended) return;
     if (!alreadyPaused) this.battle.scene.pause();
     Voice.setPaused(true);
+    Platform.setGameplay(false);
     const cx = GAME_WIDTH / 2;
     const cy = GAME_HEIGHT / 2;
     const root = this.scene.add.container(0, 0).setDepth(450);
@@ -59,6 +61,7 @@ export class PauseMenu {
     this.root = null;
     this.battle.scene.resume();
     Voice.setPaused(false);
+    Platform.setGameplay(true);
   }
 
   private startTutorial(): void {

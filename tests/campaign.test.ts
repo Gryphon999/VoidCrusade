@@ -114,3 +114,31 @@ test('counterattacks target held land on the frontier, never the start, and a lo
   assert.ok(s.owned.includes('veyra'));
   assert.equal(s.underAttack, null);
 });
+
+test('progress survives a reload: victories, boons, events and a pending counterattack are saved', () => {
+  const data = new Map<string, string>();
+  const storage = {
+    getItem: (k: string) => data.get(k) ?? null,
+    setItem: (k: string, v: string) => void data.set(k, v),
+  };
+  const g = globalThis as unknown as { window?: unknown };
+  g.window = { localStorage: storage };
+  try {
+    const s = CampaignState.newCampaign();
+    const target = CampaignState.attackable(s)[0];
+    const offer = CampaignState.recordVictory(s, target, seq(0.99));
+    CampaignState.chooseCard(s, offer[0].id);
+    if (s.eventId) CampaignState.answerEvent(s, 0, seq(0.99));
+
+    // A fresh load (as after closing the tab) sees exactly what was played.
+    assert.deepEqual(CampaignState.load(), JSON.parse(JSON.stringify(s)));
+    assert.ok(CampaignState.load()!.owned.includes(target));
+    assert.equal(CampaignState.load()!.battles, 1);
+
+    // A broken save is ignored instead of crashing the menu.
+    data.set('voidcrusade.campaign.v1', '{not json');
+    assert.equal(CampaignState.load(), null);
+  } finally {
+    delete g.window;
+  }
+});

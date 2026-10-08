@@ -1,6 +1,7 @@
 import { START_TERRITORY, THRONE, TERRITORIES, getTerritory, neighbors } from './CampaignData';
 import { CardId, CardDef, drawCards } from './UpgradeCards';
 import { EventEffect, drawEvent, getEvent } from './CampaignEvents';
+import { Platform } from '../platform/Yandex';
 
 const KEY = 'voidcrusade.campaign.v1';
 
@@ -68,6 +69,7 @@ export class CampaignState {
   static save(s: CampaignSave): void {
     try {
       safeStorage()?.setItem(KEY, JSON.stringify(s));
+      Platform.saved();
     } catch {
       /* storage unavailable — campaign lasts for this session only */
     }
