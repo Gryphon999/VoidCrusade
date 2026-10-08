@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { UNITS } from '../config';
+import { CONCEAL_AFTER_SHOT, UNITS } from '../config';
+import { rangeBonusAt } from '../battle/Elevation';
 import { EV } from '../events';
 import { Owner } from '../types';
 import { UnitDef } from './UnitDefs';
@@ -66,6 +67,8 @@ export class Squad {
   burrowed = false;
   /** Seen by an enemy detector this tick. */
   detected = false;
+  /** Battle second of the last shot any soldier of the squad fired (thicket concealment). */
+  lastShotAt = -99;
   /** Seconds out of combat (burrowing starts after a short calm). */
   calm = 0;
   leapCd = 0;
@@ -289,6 +292,8 @@ export class Squad {
     if (this.auraUntil > this.battle.elapsed) m *= 1 + this.auraSpeed;
     if (this.def.category === 'infantry') m *= this.battle.modifiers[this.owner].infantrySpeedMult;
     if (this.def.isHero) m *= this.battle.modifiers[this.owner].heroSpeedMult;
+    // Terrain under the squad: shallows slow, ice speeds up (flyers ignore it).
+    if (!this.def.flying) m *= this.battle.map.speedAt(this.x, this.y);
     const now = this.battle.elapsed;
     if ((this.buffs.sprint ?? 0) > now) m *= 1.6;
     if ((this.buffs.frenzy ?? 0) > now) m *= 1.4;
@@ -322,9 +327,19 @@ export class Squad {
     return m;
   }
 
-  /** True if `viewer` cannot see this squad at all (burrowed and undetected, or riding in a transport). */
+  /** True if `viewer` cannot see this squad at all (burrowed or in a thicket and undetected, or riding in a transport). */
   hiddenFrom(viewer: Owner): boolean {
-    return !!this.carrier || !!this.garrisonIn || (viewer !== this.owner && this.burrowed && !this.detected);
+    if (this.carrier || this.garrisonIn) return true;
+    if (viewer === this.owner) return false;
+    if ((this.burrowed || this.concealed) && !this.detected) return true;
+    // High ground: unseen from below unless the viewer has eyes up there (or stands right next to us).
+    return this.level > 0 && !this.battle.units.seesHigh(viewer, this.center);
+  }
+
+  /** Standing in concealing terrain (a thicket) and quiet: the squad fired no shot lately. */
+  get concealed(): boolean {
+    if (this.def.flying || this.burrowed) return false;
+    return this.battle.map.ruleAt(this.x, this.y).conceals && this.battle.elapsed - this.lastShotAt > CONCEAL_AFTER_SHOT;
   }
 
   /** Inside a transport or a bunker (not drawn, not selectable, cannot capture). */
@@ -339,7 +354,12 @@ export class Squad {
   /** Weapon reach, including the deployed-artillery bonus. */
   get range(): number {
     return this.def.range + (this.deployState === 'deployed' ? this.def.deploy?.rangeBonus ?? 0 : 0) + (this.garrisonIn ? 40 : 0)
-      + (this.def.isHero ? this.battle.modifiers[this.owner].heroRangeBonus : 0);
+      + (this.def.isHero ? this.battle.modifiers[this.owner].heroRangeBonus : 0) + rangeBonusAt(this.level);
+  }
+
+  /** Ground level under the squad (0 low, 1 high ground or a ramp). Flyers count as high. */
+  get level(): number {
+    return this.def.flying ? 1 : this.battle.map.levelAt(this.x, this.y);
   }
 
   /** Walk to a friendly bunker and shelter inside. */

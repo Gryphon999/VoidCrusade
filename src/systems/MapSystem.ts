@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { TILE, TILE_SIZE, TileType } from '../config';
+import { TERRAIN, TILE, TILE_SIZE, TerrainRule, TileType } from '../config';
+import { canStepLevels } from '../battle/Elevation';
 import { MapDef } from '../maps/MapBuilder';
 import { TerrainRenderer } from '../render/TerrainRenderer';
 import { Owner } from '../types';
@@ -13,6 +14,8 @@ export class MapSystem {
   readonly worldWidth: number;
   readonly worldHeight: number;
   private tiles: number[][];
+  /** Ground level per tile (0 low, 1 high); null on a flat map. */
+  private levels: number[][] | null;
   /** Tiles occupied by buildings (blocks movement). */
   private occupied: Uint8Array;
   /** Tiles blocked by wrecks (counter, so overlapping wrecks stack). */
@@ -22,6 +25,7 @@ export class MapSystem {
   constructor(def: MapDef) {
     this.def = def;
     this.tiles = def.tiles.map((r) => r.slice());
+    this.levels = def.levels ? def.levels.map((r) => r.slice()) : null;
     this.width = def.w;
     this.height = def.h;
     this.worldWidth = def.w * TILE_SIZE;
@@ -59,6 +63,57 @@ export class MapSystem {
   /** Terrain-only passability: cliffs are impassable. */
   isTerrainPassable(tx: number, ty: number): boolean {
     return this.inBounds(tx, ty) && this.tiles[ty][tx] !== TILE.CLIFF;
+  }
+
+  /** The gameplay rule of a tile (cliff outside the map). */
+  rule(tx: number, ty: number): TerrainRule {
+    return TERRAIN[this.getTile(tx, ty)];
+  }
+
+  /** Vehicles may drive here (open ground that is not water). */
+  isVehicleTerrain(tx: number, ty: number): boolean {
+    return this.isTerrainPassable(tx, ty) && this.rule(tx, ty).vehicles;
+  }
+
+  /** Structures may stand here. */
+  isBuildable(tx: number, ty: number): boolean {
+    return this.isTerrainPassable(tx, ty) && this.rule(tx, ty).buildable;
+  }
+
+  /** Movement speed factor of the terrain under a world point. */
+  speedAt(wx: number, wy: number): number {
+    const t = this.worldToTile(wx, wy);
+    return this.rule(t.tx, t.ty).speed;
+  }
+
+  /** Rule of the terrain under a world point. */
+  ruleAt(wx: number, wy: number): TerrainRule {
+    const t = this.worldToTile(wx, wy);
+    return this.rule(t.tx, t.ty);
+  }
+
+  /** Ground level of a tile: 0 low, 1 high (0 outside the map and on flat maps). */
+  level(tx: number, ty: number): number {
+    return this.levels && this.inBounds(tx, ty) ? this.levels[ty][tx] : 0;
+  }
+
+  levelAt(wx: number, wy: number): number {
+    const t = this.worldToTile(wx, wy);
+    return this.level(t.tx, t.ty);
+  }
+
+  isRamp(tx: number, ty: number): boolean {
+    return this.getTile(tx, ty) === TILE.RAMP;
+  }
+
+  /** A unit may walk from tile a to tile b: same level, or one of them is a ramp. */
+  canStep(ax: number, ay: number, bx: number, by: number): boolean {
+    return !this.levels || canStepLevels(this.level(ax, ay), this.level(bx, by), this.isRamp(ax, ay), this.isRamp(bx, by));
+  }
+
+  /** Does the map have any high ground at all? */
+  get hasLevels(): boolean {
+    return this.levels !== null;
   }
 
   /** Passable for units: not a cliff and not covered by a building (own gates are open to `owner`). */

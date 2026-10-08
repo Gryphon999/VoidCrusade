@@ -39,7 +39,17 @@ class AudioEngine {
       Settings.onChange(() => this.applyVolumes());
       for (const l of this.listeners) l();
     }
-    if (this.ctx.state === 'suspended') void this.ctx.resume();
+    if (this.ctx.state === 'suspended' && !this.muted) void this.ctx.resume();
+  }
+
+  /** Platform hold (ad, platform pause, focus lost): everything synthesised goes silent until released. */
+  private muted = false;
+
+  setMuted(m: boolean): void {
+    this.muted = m;
+    if (!this.ctx) return;
+    if (m) void this.ctx.suspend();
+    else void this.ctx.resume();
   }
 
   /** Runs `fn` once the context exists (immediately if it already does). */

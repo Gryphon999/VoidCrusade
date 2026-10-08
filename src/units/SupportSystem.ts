@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { CONCEAL_REVEAL_RANGE } from '../config';
 import { Owner, opponent } from '../types';
 import { Building } from '../buildings/Building';
 import { Squad, isSquad } from './Squad';
@@ -41,18 +42,25 @@ export class SupportSystem {
 
   // ---- Stealth -------------------------------------------------------------
 
-  /** A burrowed squad is detected by any enemy detector unit (or detector structure) in range. */
+  /**
+   * A burrowed or concealed (thicket) squad is detected by any enemy detector unit or structure in
+   * range; a squad in a thicket is also seen by any enemy standing right next to it.
+   */
   private detection(): void {
     const squads = this.battle.units.squads;
     for (const s of squads) {
-      if (!s.burrowed) {
+      const concealed = s.concealed;
+      if (!s.burrowed && !concealed) {
         s.detected = false;
         continue;
       }
       const c = s.center;
       const foe = opponent(s.owner);
-      s.detected = squads.some((d) => d.alive && d.owner === foe && d.detector > 0
-        && Phaser.Math.Distance.Between(d.center.x, d.center.y, c.x, c.y) <= d.detector)
+      s.detected = squads.some((d) => {
+        if (!d.alive || d.owner !== foe || d.embarked) return false;
+        const dist = Phaser.Math.Distance.Between(d.center.x, d.center.y, c.x, c.y);
+        return (d.detector > 0 && dist <= d.detector) || (concealed && dist <= CONCEAL_REVEAL_RANGE);
+      })
         || this.battle.buildings.buildings.some((b) => b.alive && b.owner === foe && b.isReady && !!b.def.detector
           && Phaser.Math.Distance.Between(b.x, b.y, c.x, c.y) <= (b.def.detector ?? 0));
     }

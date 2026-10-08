@@ -1,4 +1,4 @@
-import { TILE_SIZE } from '../config';
+import { TERRAIN, TILE_SIZE } from '../config';
 import { MapSystem } from './MapSystem';
 import { Owner } from '../types';
 
@@ -47,6 +47,11 @@ class Heap {
   }
 }
 
+/** Tiles whose path cost reaches this are never crossed by a straight shortcut. */
+const AVOID_COST = 3;
+/** The cheapest terrain step (ice), for the heuristic. */
+const MIN_COST = Math.min(...Object.values(TERRAIN).map((r) => r.pathCost));
+
 const DIRS = [
   [1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1],
   [1, 1, Math.SQRT2], [1, -1, Math.SQRT2], [-1, 1, Math.SQRT2], [-1, -1, Math.SQRT2],
@@ -78,12 +83,17 @@ export class Pathfinder {
    */
   isWidePassable(tx: number, ty: number, owner?: Owner): boolean {
     const m = this.map;
-    const p = (x: number, y: number): boolean => m.isPassable(x, y, owner);
+    // Vehicles also need driveable terrain (no shallows).
+    const p = (x: number, y: number): boolean => m.isPassable(x, y, owner) && m.isVehicleTerrain(x, y);
     if (!p(tx, ty)) return false;
+    // On a ramp the whole 2x2 block must be ramp: vehicles need a ramp two tiles wide.
+    const ramp = m.isRamp(tx, ty);
     for (const [ox, oy] of [[0, 0], [-1, 0], [0, -1], [-1, -1]]) {
       const x = tx + ox;
       const y = ty + oy;
-      if (p(x, y) && p(x + 1, y) && p(x, y + 1) && p(x + 1, y + 1)) return true;
+      if (!(p(x, y) && p(x + 1, y) && p(x, y + 1) && p(x + 1, y + 1))) continue;
+      if (ramp && !(m.isRamp(x, y) && m.isRamp(x + 1, y) && m.isRamp(x, y + 1) && m.isRamp(x + 1, y + 1))) continue;
+      return true;
     }
     return false;
   }
@@ -106,11 +116,14 @@ export class Pathfinder {
       gx = w.x;
       gy = w.y;
     }
-    if (this.hasLine(sx, sy, gx, gy, clearance)) return [{ x: gx, y: gy }];
+    if (this.hasLine(sx, sy, gx, gy, clearance, wide)) return [{ x: gx, y: gy }];
     this.run++;
     const start = s.ty * W + s.tx;
     const target = goal.ty * W + goal.tx;
-    const h = (i: number): number => Math.hypot((i % W) - goal.tx, Math.floor(i / W) - goal.ty);
+    // Cheapest possible step per tile keeps the heuristic admissible with terrain costs below 1 (ice).
+    const h = (i: number): number => Math.hypot((i % W) - goal.tx, Math.floor(i / W) - goal.ty) * MIN_COST;
+    // Terrain costs spread the search out; a whole map of iterations is still well under a millisecond's work per frame.
+    const maxIterations = Math.max(6000, W * m.height);
     const heap = new Heap(this.f);
     this.visit(start, 0, h(start), -1);
     heap.push(start);
@@ -119,7 +132,7 @@ export class Pathfinder {
     // Closest node reached so far: an unreachable goal yields a path to the nearest reachable spot.
     let best = start;
     let bestH = h(start);
-    while (heap.size > 0 && iterations++ < 6000) {
+    while (heap.size > 0 && iterations++ < maxIterations) {
       const cur = heap.pop();
       if (this.closed[cur] === this.run) continue;
       this.closed[cur] = this.run;
@@ -139,9 +152,12 @@ export class Pathfinder {
         const ny = cy + dy;
         if (!pass(nx, ny)) continue;
         if (dx !== 0 && dy !== 0 && (!pass(cx + dx, cy) || !pass(cx, cy + dy))) continue;
+        // Between low and high ground only over a ramp.
+        if (!m.canStep(cx, cy, nx, ny)) continue;
         const ni = ny * W + nx;
         if (this.closed[ni] === this.run) continue;
-        const ng = this.g[cur] + cost;
+        // Stepping onto slow or dangerous ground costs more, so routes go round it when they can.
+        const ng = this.g[cur] + cost * m.rule(nx, ny).pathCost;
         if (this.stamp[ni] === this.run && ng >= this.g[ni]) continue;
         this.visit(ni, ng, ng + h(ni), cur);
         heap.push(ni);
@@ -155,7 +171,7 @@ export class Pathfinder {
     }
     tiles.reverse();
     if (found && tiles.length) tiles[tiles.length - 1] = { x: gx, y: gy };
-    return this.smooth({ x: sx, y: sy }, tiles, clearance);
+    return this.smooth({ x: sx, y: sy }, tiles, clearance, wide);
   }
 
   private visit(i: number, g: number, f: number, parent: number): void {
@@ -165,13 +181,13 @@ export class Pathfinder {
     this.parent[i] = parent;
   }
 
-  private smooth(start: Pt, pts: Pt[], clearance: number): Pt[] {
+  private smooth(start: Pt, pts: Pt[], clearance: number, wide: boolean): Pt[] {
     const out: Pt[] = [];
     let anchor = start;
     let i = 0;
     while (i < pts.length) {
       let j = pts.length - 1;
-      while (j > i && !this.hasLine(anchor.x, anchor.y, pts[j].x, pts[j].y, clearance)) j--;
+      while (j > i && !this.hasLine(anchor.x, anchor.y, pts[j].x, pts[j].y, clearance, wide)) j--;
       out.push(pts[j]);
       anchor = pts[j];
       i = j + 1;
@@ -180,16 +196,24 @@ export class Pathfinder {
   }
 
   /** True if a straight walk between two world points stays on passable tiles (with body clearance). */
-  hasLine(x0: number, y0: number, x1: number, y1: number, clearance = 10): boolean {
+  hasLine(x0: number, y0: number, x1: number, y1: number, clearance = 10, wide = false): boolean {
     const d = Math.hypot(x1 - x0, y1 - y0);
     const steps = Math.ceil(d / (TILE_SIZE / 4));
     const nx = d > 0 ? (-(y1 - y0) / d) * clearance : 0;
     const ny = d > 0 ? ((x1 - x0) / d) * clearance : 0;
+    let prev = this.map.worldToTile(x0, y0);
     for (let s = 0; s <= steps; s++) {
       const t = steps === 0 ? 0 : s / steps;
       const x = x0 + (x1 - x0) * t;
       const y = y0 + (y1 - y0) * t;
       if (!this.map.isPassableWorld(x + nx, y + ny, this.owner) || !this.map.isPassableWorld(x - nx, y - ny, this.owner)) return false;
+      const c = this.map.worldToTile(x, y);
+      // A straight shortcut never crosses ground the search itself would avoid (lava).
+      if (this.map.rule(c.tx, c.ty).pathCost >= AVOID_COST) return false;
+      if (wide && !this.map.isVehicleTerrain(c.tx, c.ty)) return false;
+      // Nor does it climb between levels anywhere but on a ramp.
+      if ((c.tx !== prev.tx || c.ty !== prev.ty) && !this.map.canStep(prev.tx, prev.ty, c.tx, c.ty)) return false;
+      prev = c;
     }
     return true;
   }

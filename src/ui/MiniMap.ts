@@ -63,12 +63,17 @@ export class MiniMap {
     const pal = biomeForMap(this.battle.map.def.id).minimap;
     const TERRAIN_COLORS: Record<number, number> = {
       [TILE.GROUND]: pal.ground, [TILE.CLIFF]: pal.cliff, [TILE.ROAD]: pal.road, [TILE.RUINS]: pal.ruins,
+      [TILE.WATER]: pal.water, [TILE.LAVA]: pal.lava, [TILE.SCRUB]: pal.scrub, [TILE.ICE]: pal.ice, [TILE.RAMP]: pal.road,
     };
     const tw = TILE_SIZE * this.sx;
     const th = TILE_SIZE * this.sy;
+    const map = this.battle.map;
+    // High ground reads lighter.
+    const lift = (c: number): number => ((Math.min(255, (c >> 16) + 34) << 16) | (Math.min(255, ((c >> 8) & 255) + 34) << 8) | Math.min(255, (c & 255) + 34));
     for (let ty = 0; ty < tiles.length; ty++) {
       for (let tx = 0; tx < tiles[ty].length; tx++) {
-        g.fillStyle(TERRAIN_COLORS[tiles[ty][tx]] ?? 0x333333, 1).fillRect(tx * tw, ty * th, Math.ceil(tw), Math.ceil(th));
+        const c = TERRAIN_COLORS[tiles[ty][tx]] ?? 0x333333;
+        g.fillStyle(map.level(tx, ty) > 0 ? lift(c) : c, 1).fillRect(tx * tw, ty * th, Math.ceil(tw), Math.ceil(th));
       }
     }
   }

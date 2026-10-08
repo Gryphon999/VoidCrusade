@@ -28,7 +28,7 @@ export function scatterDecals(map: MapSystem, seed: number): TerrainDecal[] {
   for (let ty = 0; ty < map.height; ty++) {
     for (let tx = 0; tx < map.width; tx++) {
       const t = map.getTile(tx, ty);
-      if (t === TILE.CLIFF) continue;
+      if (t === TILE.CLIFF || t === TILE.WATER || t === TILE.LAVA || t === TILE.ICE) continue;
       for (const [kind, chance, r0, r1] of kinds) {
         if (rnd() > chance) continue;
         if (t === TILE.ROAD && kind !== 'scorch' && kind !== 'stain') continue;

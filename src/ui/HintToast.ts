@@ -47,6 +47,7 @@ export class HintToast {
     on(EV.tierUp, (o: string) => o === 'player' && this.show('tier'));
     on(EV.dropIncoming, () => this.show('drop'));
     on(EV.mapEvent, (kind: string, start: boolean) => kind === 'storm' && start && this.show('storm'));
+    on(EV.mapEvent, (kind: string, start: boolean) => kind === 'lava' && start && this.show('lava'));
     on(EV.wreckChanged, () => this.show('wreck'));
     on(EV.buildingComplete, (b: Building) => b.owner === 'player' && !!b.def.garrison && this.show('garrison'));
     on(EV.message, (k: string) => {
