@@ -33,7 +33,13 @@ export class CoverSystem implements CoverQueries {
     for (let ty = 0; ty < m.height; ty++) {
       for (let tx = 0; tx < m.width; tx++) {
         const t = m.getTile(tx, ty);
-        let cover = t === TILE.RUINS || walls.has(ty * m.width + tx);
+        const rule = m.rule(tx, ty);
+        // Open ice never shelters anyone, whatever stands next to it.
+        if (rule.cover === 'none') {
+          this.grid[ty * m.width + tx] = 0;
+          continue;
+        }
+        let cover = rule.cover === 'cover' || walls.has(ty * m.width + tx);
         // Wrecks and carcasses shelter the tiles around them.
         if (!cover && !m.isBlocked(tx, ty)) {
           for (let dy = -1; dy <= 1 && !cover; dy++) {
@@ -88,7 +94,8 @@ export class CoverSystem implements CoverQueries {
       const y = y0 + ((y1 - y0) * i) / steps;
       const t = map.worldToTile(x, y);
       if ((t.tx === start.tx && t.ty === start.ty) || (t.tx === end.tx && t.ty === end.ty)) continue;
-      if (map.getTile(t.tx, t.ty) === TILE.CLIFF) return { x, y };
+      // Cliffs and thickets stop a shot crossing them (shots into or out of the tile itself still pass).
+      if (map.rule(t.tx, t.ty).losBlock) return { x, y };
     }
     return null;
   }

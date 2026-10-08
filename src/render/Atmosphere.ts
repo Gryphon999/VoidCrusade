@@ -14,12 +14,15 @@ export class Atmosphere {
     const cam = battle.cameras.main;
     const fx = cam.postFX;
     if (fx && q.grade) {
-      // Grimdark dusk: slightly desaturated, cool ambient with warm highlights.
+      // Grimdark dusk: slightly desaturated, cool ambient with warm highlights. A night look
+      // (Khorvan, or the Night modifier on any map) goes darker and bluer.
+      const night = battle.lookId === 'khorvan';
       const cm = fx.addColorMatrix();
-      cm.saturate(-0.18);
-      cm.brightness(0.95, true);
-      cm.contrast(0.12, true);
-      fx.addVignette(0.5, 0.5, 0.82, 0.35);
+      cm.saturate(night ? -0.3 : -0.18);
+      cm.brightness(night ? 0.72 : 0.95, true);
+      cm.contrast(night ? 0.2 : 0.12, true);
+      if (night) cm.multiply([0.8, 0, 0, 0, 0, 0, 0.88, 0, 0, 0, 0, 0, 1.15, 0, 0, 0, 0, 0, 1, 0], true);
+      fx.addVignette(0.5, 0.5, night ? 0.7 : 0.82, night ? 0.5 : 0.35);
     }
     if (fx && q.bloom) fx.addBloom(0xffffff, 1, 1, 1, 1.15, 4);
     if (q.ash > 0) {

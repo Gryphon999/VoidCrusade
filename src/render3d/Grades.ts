@@ -23,4 +23,10 @@ export const GRADES: Record<string, Grade> = {
   // Ember dusk: crushed warm blacks, red-orange highlights.
   cinder: { saturation: 0.78, split: 0.07, shadowTint: [0.02, -0.02, 0.16], highTint: [0.18, 0.07, -0.1], contrast: 0.3, lift: [0.02, 0.016, 0.018], gain: [1, 0.98, 0.95] },
   proving: { saturation: 0.95, split: 0.06, shadowTint: [-0.15, 0.04, 0.2], highTint: [0.22, 0.1, -0.15], contrast: 0.25, lift: [0.015, 0.012, 0.014], gain: [1, 0.98, 0.94] },
+  // Humid delta morning: olive shadows, warm milky highlights, gentle contrast.
+  delta: { saturation: 0.86, split: 0.09, shadowTint: [-0.08, 0.12, -0.02], highTint: [0.18, 0.12, 0.0], contrast: 0.22, lift: [0.024, 0.026, 0.018], gain: [1, 0.98, 0.9] },
+  // Furnace: crushed warm blacks, deep red-orange highlights, strong contrast.
+  ignis: { saturation: 0.84, split: 0.1, shadowTint: [0.06, -0.04, 0.1], highTint: [0.26, 0.08, -0.14], contrast: 0.34, lift: [0.018, 0.01, 0.012], gain: [1, 0.94, 0.88] },
+  // Winter: cold blue shadows, clean white highlights, crisp.
+  frost: { saturation: 0.8, split: 0.1, shadowTint: [-0.16, -0.02, 0.26], highTint: [0.02, 0.04, 0.1], contrast: 0.26, lift: [0.02, 0.024, 0.036], gain: [0.96, 0.99, 1] },
 };

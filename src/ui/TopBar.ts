@@ -3,7 +3,8 @@ import { GAME_WIDTH } from '../config';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { HUD } from './HudArt';
 import { textStyle } from './uiStyle';
-import { t } from '../i18n';
+import { dyn, t } from '../i18n';
+import { ModifierId, getModifier } from '../battle/BattleModifiers';
 
 export const TOP_BAR_H = HUD.topH;
 
@@ -17,8 +18,10 @@ export class TopBar {
   private tierText: Phaser.GameObjects.Text;
   readonly pauseButton: Phaser.GameObjects.Text;
   readonly container: Phaser.GameObjects.Container;
+  /** Hover on a modifier icon: title + body to show, or null to hide. */
+  onHover?: (title: string | null, body: string, x: number, y: number) => void;
 
-  constructor(scene: Phaser.Scene, private resources: ResourceSystem) {
+  constructor(scene: Phaser.Scene, private resources: ResourceSystem, modifiers: readonly ModifierId[] = []) {
     const y = HUD.topH / 2 - 1;
     const bg = scene.add.image(0, 0, 'hud_top').setOrigin(0);
     const lbl = (x: number, color: string): Phaser.GameObjects.Text => scene.add.text(x, y, '', textStyle(17, color)).setOrigin(0, 0.5).setStroke('#000', 3);
@@ -39,6 +42,14 @@ export class TopBar {
     this.pauseButton.on('pointerout', () => this.pauseButton.setColor('#e8e0c8'));
     this.container = scene.add.container(0, 0, [bg, scripIcon, this.scripText, fluxIcon, this.fluxText, armyIcon, this.armyText,
       timeIcon, this.timeText, nexusIcon, this.pointsText, this.tierText, this.pauseButton]);
+    // Active battle modifiers, right of the tier: hover for name and effect.
+    modifiers.forEach((id, i) => {
+      const x = 1010 + i * 30;
+      const icon = scene.add.image(x, y, getModifier(id).icon).setScale(0.9).setInteractive({ useHandCursor: true });
+      icon.on('pointerover', () => this.onHover?.(t(dyn(`mod.${id}`)), t(dyn(`mod.${id}.desc`)), x, y + 16));
+      icon.on('pointerout', () => this.onHover?.(null, '', x, y));
+      this.container.add(icon);
+    });
   }
 
   setArmy(supply: number, cap: number, points: number, enemyPoints: number, tier: number): void {

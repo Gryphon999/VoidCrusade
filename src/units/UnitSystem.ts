@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { DEPTH, SUPPLY, TILE, TILE_SIZE, UNITS } from '../config';
+import { BUILDING_VISION, DEPTH, TILE, TILE_SIZE, UNITS } from '../config';
+import { ELEVATION } from '../battle/Elevation';
 import { Projection } from '../render/Projection';
 import { EV } from '../events';
 import { Owner, opponent } from '../types';
@@ -28,6 +29,7 @@ export class UnitSystem {
     const max = def.squadSize + bonus;
     const p = this.findOpenSpot(x, y);
     const squad = new Squad(this.battle, def, owner, p.x, p.y, size ?? max, max);
+    squad.rank = this.battle.spawnRank;
     this.squads.push(squad);
     this.battle.events.emit(EV.squadSpawned, squad);
     return squad;
@@ -61,7 +63,51 @@ export class UnitSystem {
   supplyCap(owner: Owner): number {
     let n = this.battle.modifiers[owner].supplyBonus;
     for (const b of this.battle.buildings.buildings) if (b.owner === owner && b.isReady) n += b.def.supply ?? 0;
-    return Math.min(SUPPLY.hardMax, n);
+    return Math.min(this.battle.supplyHardMax, n);
+  }
+
+  private lastBurnHint = -99;
+
+  /** Damaging ground (lava): every unit standing on it loses a share of its health each second. */
+  private burn(dt: number): void {
+    const map = this.battle.map;
+    let playerBurnt = false;
+    for (const s of this.squads) {
+      if (s.embarked || !s.alive || s.def.flying) continue;
+      for (const u of s.units) {
+        if (!u.alive) continue;
+        const r = map.ruleAt(u.x, u.y);
+        if (r.damage <= 0) continue;
+        this.battle.combat.applyDamage(u, r.damage * u.maxHp * dt, null);
+        if (s.owner === 'player') playerBurnt = true;
+      }
+    }
+    if (playerBurnt && this.battle.elapsed - this.lastBurnHint > 12) {
+      this.lastBurnHint = this.battle.elapsed;
+      this.battle.events.emit(EV.mapEvent, 'lava', true);
+    }
+  }
+
+  /**
+   * Does `owner` have eyes on high ground at a point: a squad of theirs on high ground (or a ramp,
+   * or flying) with the point in sight, a building of theirs on high ground with it in vision, or
+   * any squad of theirs standing right next to it.
+   */
+  seesHigh(owner: Owner, p: { x: number; y: number }): boolean {
+    const b = this.battle;
+    if (!b.map.hasLevels) return true;
+    const mult = (b.world?.visionMult ?? 1) * b.modifiers[owner].sightMult;
+    for (const s of this.squads) {
+      if (s.owner !== owner || !s.alive || s.embarked) continue;
+      const d = Math.hypot(s.center.x - p.x, s.center.y - p.y);
+      if (d <= ELEVATION.lowSeesHighWithin) return true;
+      if (s.level > 0 && d <= s.def.sight * mult * ELEVATION.highSightMult) return true;
+    }
+    for (const bl of b.buildings.buildings) {
+      if (bl.owner !== owner || !bl.alive || b.map.levelAt(bl.x, bl.y) === 0) continue;
+      if (Math.hypot(bl.x - p.x, bl.y - p.y) <= (bl.def.vision ?? BUILDING_VISION) + bl.radius) return true;
+    }
+    return false;
   }
 
   squadAt(wx: number, wy: number, owner?: Owner): Squad | undefined {
@@ -151,6 +197,7 @@ export class UnitSystem {
       if (s.embarked) continue;
       for (const u of s.units) this.steer(u, dt);
     }
+    this.burn(dt);
     this.drawBars();
     this.occlusionTimer -= dt;
     if (this.occlusionTimer <= 0) {

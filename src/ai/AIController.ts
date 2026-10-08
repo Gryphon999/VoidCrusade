@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { AI, Difficulty, SUPPLY } from '../config';
+import { AI, Difficulty } from '../config';
 import { BuildingRole, defForRole } from '../buildings/BuildingDefs';
 import { Building } from '../buildings/Building';
 import { Squad } from '../units/Squad';
@@ -164,7 +164,7 @@ export class AIController {
     if (fighters < 3 && bs.hasRole(this.owner, 'infantry') && res.scrip < 300) return;
     // Supply before the army hits the cap.
     const cap = b.units.supplyCap(this.owner);
-    if (cap < SUPPLY.hardMax && b.production.supplyUsed(this.owner) + 5 > cap && this.tryBuild('supply')) return;
+    if (cap < b.supplyHardMax && b.production.supplyUsed(this.owner) + 5 > cap && this.tryBuild('supply')) return;
     // Tier 3 as soon as the requirements stand (hard+: whenever affordable with a margin).
     const up = b.tech.next(this.owner);
     if (up && b.tech.checkAdvance(this.owner) === null && (this.skill.queue >= 3 || b.tech.tierOf(this.owner) >= 2) && res.scrip > up.cost.scrip + 150) {
@@ -174,7 +174,11 @@ export class AIController {
     const order = this.style.order;
     if (this.buildIndex < order.length) {
       if (this.tryBuild(order[this.buildIndex])) this.buildIndex++;
-      else if (!defForRole(b.factions[this.owner], order[this.buildIndex])) this.buildIndex++;
+      else {
+        // Skip a step this faction cannot build at all, or one a battle modifier has closed.
+        const def = defForRole(b.factions[this.owner], order[this.buildIndex]);
+        if (!def || b.tech.lockedCategories.has(def.category)) this.buildIndex++;
+      }
       return;
     }
     // After the opening: rebuild lost production, add production when rich, towers per personality.
@@ -198,6 +202,7 @@ export class AIController {
       if (b.tech.checkAdvance(this.owner) === null) b.tech.advance(this.owner);
       return false;
     }
+    if (b.tech.lockedCategories.has(def.category)) return false;
     if (!b.resources.canAfford(this.owner, def.cost)) return false;
     const ok = this.builder.place(def.id, role === 'defense' || role === 'longrange');
     if (ok) this.lastBuild = b.elapsed;

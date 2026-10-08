@@ -2,7 +2,7 @@ import { EV } from '../events';
 import type { MessageKey } from '../i18n';
 import { t } from '../i18n';
 import { buildingName, roleName } from '../i18n/names';
-import { BuildingRole, defForRole } from '../buildings/BuildingDefs';
+import { BuildCategory, BuildingRole, defForRole } from '../buildings/BuildingDefs';
 import { Faction, Tier } from '../units/UnitDefs';
 import { Resources } from './ResourceSystem';
 import { Owner } from '../types';
@@ -28,6 +28,8 @@ export class TechSystem {
   private active: Partial<Record<Owner, { up: TierUpgrade; t: number }>> = {};
   /** Tier-up speed factor (the tutorial speeds it up). */
   speed = 1;
+  /** Build categories closed to both sides for this battle (battle modifiers). */
+  readonly lockedCategories = new Set<BuildCategory>();
 
   constructor(private battle: BattleScene, private factions: Record<Owner, Faction>) {}
 
@@ -47,7 +49,8 @@ export class TechSystem {
   }
 
   /** Missing-requirement text for a tier + role list (localised), or null when unlocked. */
-  lockReason(owner: Owner, tier: Tier, requires: BuildingRole[]): string | null {
+  lockReason(owner: Owner, tier: Tier, requires: BuildingRole[], category?: BuildCategory): string | null {
+    if (category && this.lockedCategories.has(category)) return t('lock.modifier');
     if (this.tier[owner] < tier) return t('lock.tier', { n: tier });
     const missing = requires.filter((r) => !this.battle.buildings.hasRole(owner, r));
     if (!missing.length) return null;
