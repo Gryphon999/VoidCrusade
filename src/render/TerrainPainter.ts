@@ -124,10 +124,46 @@ export class TerrainPainter {
         else if (t === TILE.ICE) this.surface(ctx, tx, ty, TILE.ICE, this.tex.ice);
       }
     }
+    if (this.map.hasLevels) this.levelsOverlay(ctx, tx0, ty0, tx1, ty1);
     for (let ty = ty0 - 1; ty <= ty1 + 1; ty++) {
       for (let tx = tx0 - 1; tx <= tx1 + 1; tx++) if (this.isCliff(tx, ty)) this.cliff(ctx, x0, y0, tx, ty);
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  /** High ground in 2D: a pale wash, a dark rim where it drops to low ground, hatching on ramps. */
+  private levelsOverlay(ctx: CanvasRenderingContext2D, tx0: number, ty0: number, tx1: number, ty1: number): void {
+    const m = this.map;
+    for (let ty = ty0 - 1; ty <= ty1 + 1; ty++) {
+      for (let tx = tx0 - 1; tx <= tx1 + 1; tx++) {
+        if (m.level(tx, ty) === 0 || m.getTile(tx, ty) === TILE.CLIFF) continue;
+        const x = tx * T;
+        const y = ty * T;
+        ctx.fillStyle = 'rgba(255,245,225,0.07)';
+        ctx.fillRect(x, y, T, T);
+        if (m.isRamp(tx, ty)) {
+          ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+          ctx.lineWidth = 2;
+          for (let i = 8; i < T; i += 12) {
+            ctx.beginPath();
+            ctx.moveTo(x, y + i);
+            ctx.lineTo(x + T, y + i);
+            ctx.stroke();
+          }
+          continue;
+        }
+        // Rim on every side that drops to low ground (not onto a ramp).
+        const drop = (dx: number, dy: number): boolean => m.level(tx + dx, ty + dy) === 0 && !m.isRamp(tx + dx, ty + dy) && m.getTile(tx + dx, ty + dy) !== TILE.CLIFF;
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        if (drop(0, 1)) ctx.fillRect(x, y + T - 4, T, 4);
+        if (drop(1, 0)) ctx.fillRect(x + T - 3, y, 3, T);
+        if (drop(0, -1)) ctx.fillRect(x, y, T, 2);
+        if (drop(-1, 0)) ctx.fillRect(x, y, 2, T);
+        ctx.fillStyle = 'rgba(255,240,210,0.18)';
+        if (drop(0, 1)) ctx.fillRect(x, y + T - 6, T, 2);
+        if (drop(1, 0)) ctx.fillRect(x + T - 5, y, 2, T);
+      }
+    }
   }
 
   /** A road or ruin patch: seamless toward same-type neighbours, crumbling edge elsewhere. */

@@ -40,6 +40,12 @@ export function buildMap8(): MapDef {
 
   b.rect(3, 64, 14, 14, GROUND);
 
+  // A raised shelf north of the base overlooks the western approach and the point at 12,46; ramps
+  // lead down to the base and east toward the lake.
+  b.raiseEllipse(14, 46, 9, 5);
+  b.ramp(12, 51, 3, 2);
+  b.ramp(23, 44, 2, 3);
+
   const centre: [number, number, PointKind?][] = [[56, 42]];
   const half: [number, number, PointKind?][] = [[24, 72], [12, 46], [36, 56], [16, 14], [56, 76]];
   b.pads(centre).pads(half).border(CLIFF).mirror();
@@ -51,6 +57,7 @@ export function buildMap8(): MapDef {
     w: b.w,
     h: b.h,
     tiles: b.build(),
+    levels: b.buildLevels(),
     playerBase,
     enemyBase: b.mirrorTile(playerBase, 4),
     capturePoints: b.points(centre, half),

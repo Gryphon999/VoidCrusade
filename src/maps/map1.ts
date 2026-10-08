@@ -32,6 +32,15 @@ export function buildMap1(): MapDef {
   // Keep base clear.
   b.rect(3, 36, 9, 9, GROUND);
 
+  // High ground: the shelf behind the first ridge overlooks the base's approach (point 10,22 sits on
+  // it), with a ramp down toward the base and one toward the centre road.
+  b.raiseEllipse(10, 21, 8, 5);
+  b.ramp(9, 26, 3, 5);
+  b.ramp(18, 20, 2, 3);
+  // A second overlook above the flank point, reached by one ramp cut through the ridge from the road.
+  b.raiseEllipse(30, 41, 5, 3);
+  b.ramp(23, 40, 4, 3);
+
   const centre: [number, number, PointKind?][] = [[32, 24]];
   const half: [number, number, PointKind?][] = [[20, 38], [10, 22], [6, 10], [31, 42]];
   b.pads(centre).pads(half).border(CLIFF).mirror();
@@ -43,6 +52,7 @@ export function buildMap1(): MapDef {
     w: b.w,
     h: b.h,
     tiles: b.build(),
+    levels: b.buildLevels(),
     playerBase,
     enemyBase: b.mirrorTile(playerBase, 4),
     capturePoints: b.points(centre, half),

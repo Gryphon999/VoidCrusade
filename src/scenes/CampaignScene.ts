@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH, SUPPLY } from '../config';
-import { CampaignSave, CampaignState } from '../campaign/CampaignState';
-import { TERRITORIES, getTerritory } from '../campaign/CampaignData';
+import { CampaignSave, CampaignState, DEFENCE_ENEMY_SCRIP } from '../campaign/CampaignState';
+import { TERRITORIES, TerritoryRules, getTerritory } from '../campaign/CampaignData';
 import { getCard } from '../campaign/UpgradeCards';
+import { describeEffect, getEvent } from '../campaign/CampaignEvents';
 import { CampaignMapView, TerritoryStatus } from '../ui/CampaignMapView';
 import { showCardPicker } from '../ui/CardPicker';
 import { Button } from '../ui/Button';
@@ -13,10 +14,10 @@ import { WargearPicker } from '../ui/WargearPicker';
 import { defaultPick } from '../campaign/Wargear';
 import { Voice } from '../systems/VoiceSystem';
 import { Ambience } from '../systems/Ambience';
-import { headingFont, onLanguageChange, t } from '../i18n';
+import { dyn, headingFont, onLanguageChange, t } from '../i18n';
 import { bonusText, cardName, territoryName } from '../i18n/names';
 
-/** Territory-conquest strategic layer: conquer territories one battle at a time. */
+/** Territory-conquest strategic layer: conquer territories one battle at a time, hold them against counterattacks. */
 export class CampaignScene extends Phaser.Scene {
   private save!: CampaignSave;
   private view!: CampaignMapView;
@@ -46,6 +47,7 @@ export class CampaignScene extends Phaser.Scene {
   }
 
   private statusOf(id: string): TerritoryStatus {
+    if (this.save.underAttack === id) return 'underAttack';
     if (this.save.owned.includes(id)) return 'owned';
     return CampaignState.attackable(this.save).includes(id) ? 'attackable' : 'enemy';
   }
@@ -66,6 +68,7 @@ export class CampaignScene extends Phaser.Scene {
     const lines = [
       t('camp.held', { n: this.save.owned.length, max: TERRITORIES.length }),
       t('camp.battles', { n: this.save.battles }),
+      ...(this.save.lost ? [t('camp.lost', { n: this.save.lost })] : []),
       '',
       t('camp.bonuses'),
       t('camp.bonus.res', { s: b.startScrip, f: b.startFlux }),
@@ -75,10 +78,21 @@ export class CampaignScene extends Phaser.Scene {
       '',
       t('camp.boons'),
       ...(this.save.cards.length ? this.save.cards.map((c) => `  • ${cardName(c)}`) : [t('camp.noBoons')]),
-      '',
-      t('camp.help'),
     ];
+    // One-off effects of the last event.
+    const next = describeEffect({ nextBattle: this.save.nextBattle, enemyScrip: this.save.enemyScrip });
+    if (this.save.nextBattle || this.save.enemyScrip) {
+      lines.push('', t('camp.next'), ...next.map((p) => `  • ${t(dyn(p.key), p.params)}`));
+    }
+    lines.push('', t('camp.help'));
     this.summary.setText(lines.join('\n'));
+  }
+
+  /** The rules line of a territory: its modifiers and mission, or "standard battle". */
+  private rulesText(rules: TerritoryRules | undefined, defence = false): string {
+    const parts = (rules?.modifiers ?? []).map((m) => t(dyn(`mod.${m}`)));
+    if (!defence && rules?.winMode) parts.push(t(dyn(`mode.${rules.winMode}`)));
+    return parts.length ? t('camp.rules', { list: parts.join(', ') }) : t('camp.rules.none');
   }
 
   private showInfo(id: string | null): void {
@@ -88,23 +102,26 @@ export class CampaignScene extends Phaser.Scene {
     }
     const tr = getTerritory(id);
     const st = this.statusOf(id);
-    const status = t(st === 'owned' ? 'camp.status.owned' : st === 'attackable' ? 'camp.status.attackable' : 'camp.status.enemy');
+    const status = t(st === 'owned' ? 'camp.status.owned' : st === 'attackable' ? 'camp.status.attackable' : st === 'underAttack' ? 'camp.status.underAttack' : 'camp.status.enemy');
     this.info.setText(`${territoryName(id)} — ${bonusText(tr.bonus)}\n${status}`);
   }
 
   private clickTerritory(id: string): void {
-    if (this.modal || this.statusOf(id) !== 'attackable') return;
+    const st = this.statusOf(id);
+    if (this.modal || (st !== 'attackable' && st !== 'underAttack')) return;
     const tr = getTerritory(id);
+    const defence = st === 'underAttack';
     const root = this.add.container(0, 0).setDepth(300);
     const dim = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.6).setOrigin(0).setInteractive();
     const g = this.add.graphics();
-    drawPanel(g, GAME_WIDTH / 2 - 230, GAME_HEIGHT / 2 - 120, 460, 240);
-    const title = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 80, t('camp.assault', { name: territoryName(id) }), textStyle(24, '#f0d27a')).setOrigin(0.5);
+    drawPanel(g, GAME_WIDTH / 2 - 250, GAME_HEIGHT / 2 - 140, 500, 280);
+    const title = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 100, t(defence ? 'camp.defend' : 'camp.assault', { name: territoryName(id) }), textStyle(24, defence ? '#ff8080' : '#f0d27a')).setOrigin(0.5);
     const threat = t(tr.enemyBonus >= 400 ? 'camp.threat.extreme' : tr.enemyBonus >= 200 ? 'camp.threat.high' : tr.enemyBonus >= 100 ? 'camp.threat.moderate' : 'camp.threat.low');
-    const body = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20, t('camp.reward', { bonus: bonusText(tr.bonus), threat }),
-      { ...textStyle(17, '#ccd'), align: 'center' }).setOrigin(0.5);
-    const go = new Button(this, { x: GAME_WIDTH / 2 - 100, y: GAME_HEIGHT / 2 + 70, w: 180, h: 44, label: t('camp.launch'), onClick: () => this.launch(id) });
-    const cancel = new Button(this, { x: GAME_WIDTH / 2 + 100, y: GAME_HEIGHT / 2 + 70, w: 180, h: 44, label: t('common.cancel'), onClick: () => this.closeDialog() });
+    const rules = this.rulesText(tr.rules, defence);
+    const text = defence ? t('camp.defendBody', { rules }) : `${t('camp.reward', { bonus: bonusText(tr.bonus), threat })}\n${rules}`;
+    const body = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 25, text, { ...textStyle(16, '#ccd'), align: 'center', wordWrap: { width: 450 } }).setOrigin(0.5);
+    const go = new Button(this, { x: GAME_WIDTH / 2 - 110, y: GAME_HEIGHT / 2 + 90, w: 200, h: 44, label: t(defence ? 'camp.defendGo' : 'camp.launch'), onClick: () => this.launch(id, defence) });
+    const cancel = new Button(this, { x: GAME_WIDTH / 2 + 110, y: GAME_HEIGHT / 2 + 90, w: 180, h: 44, label: t('common.cancel'), onClick: () => this.closeDialog() });
     root.add([dim, g, title, body, go.container, cancel.container]);
     this.dialog = root;
     this.modal = true;
@@ -116,7 +133,7 @@ export class CampaignScene extends Phaser.Scene {
     this.modal = false;
   }
 
-  private launch(id: string): void {
+  private launch(id: string, defence: boolean): void {
     const tr = getTerritory(id);
     const data: BattleData = {
       mode: 'campaign',
@@ -124,9 +141,13 @@ export class CampaignScene extends Phaser.Scene {
       mapIndex: tr.mapIndex,
       difficulty: Settings.get().difficulty,
       bonuses: CampaignState.bonuses(this.save),
-      enemyBonusScrip: tr.enemyBonus,
+      enemyBonusScrip: tr.enemyBonus + (this.save.enemyScrip ?? 0) + (defence ? DEFENCE_ENEMY_SCRIP : 0),
+      modifiers: tr.rules?.modifiers,
+      // A defence is always Hold the Line; an assault fights by the territory's mission, if any.
+      winMode: defence ? 'hold' : tr.rules?.winMode,
+      defense: defence,
     };
-    // Arm the Commander before every assault.
+    // Arm the Commander before every battle.
     this.modal = true;
     new WargearPicker(this, 'ironvoid', Settings.get().wargear ?? defaultPick('ironvoid'), (pick) => {
       Settings.set({ wargear: pick });
@@ -135,20 +156,27 @@ export class CampaignScene extends Phaser.Scene {
   }
 
   private handleResult(result?: BattleResult): void {
-    const pending = this.save.offer;
     if (result && result.data.territoryId) {
+      const id = result.data.territoryId;
+      const defence = !!result.data.defense;
       if (result.winner === 'player') {
-        const cards = CampaignState.recordVictory(this.save, result.data.territoryId);
+        const cards = CampaignState.recordVictory(this.save, id);
         Voice.say('vo.territory', 'commander', 'event');
         this.refreshSummary();
-        this.banner(t('camp.ours', { name: territoryName(result.data.territoryId) }), '#8fc0ff');
+        this.banner(t(defence ? 'camp.held2' : 'camp.ours', { name: territoryName(id) }), '#8fc0ff');
         this.time.delayedCall(900, () => this.pickCards(cards.map((c) => c.id)));
         return;
       }
-      this.banner(t('camp.repelled'), '#ff8080');
+      const lost = CampaignState.recordDefeat(this.save, id, defence);
+      this.refreshSummary();
+      this.banner(lost ? t('camp.lostLand', { name: territoryName(id) }) : t('camp.repelled'), '#ff8080');
+      this.time.delayedCall(1200, () => this.afterTurn());
+      return;
     }
-    if (pending.length) this.pickCards(pending);
+    if (this.save.offer.length) this.pickCards(this.save.offer);
+    else if (this.save.eventId) this.showEvent();
     else if (this.save.won) this.showCampaignVictory();
+    else this.afterTurn();
   }
 
   private pickCards(ids: string[]): void {
@@ -158,7 +186,56 @@ export class CampaignScene extends Phaser.Scene {
       this.modal = false;
       this.refreshSummary();
       if (this.save.won) this.showCampaignVictory();
+      else if (this.save.eventId) this.showEvent();
+      else this.afterTurn();
     });
+  }
+
+  /** Between-battle event: a situation and two answers, each with its price spelled out. */
+  private showEvent(): void {
+    const ev = getEvent(this.save.eventId ?? '');
+    this.modal = true;
+    const root = this.add.container(0, 0).setDepth(400);
+    const dim = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.75).setOrigin(0).setInteractive();
+    const w = 760;
+    const h = 460;
+    const x0 = (GAME_WIDTH - w) / 2;
+    const y0 = (GAME_HEIGHT - h) / 2;
+    const g = this.add.graphics();
+    drawPanel(g, x0, y0, w, h);
+    const kicker = this.add.text(GAME_WIDTH / 2, y0 + 34, t('ev.title'), textStyle(14, '#9a9280')).setOrigin(0.5);
+    const title = this.add.text(GAME_WIDTH / 2, y0 + 72, t(dyn(`ev.${ev.id}.title`)), { fontFamily: headingFont(), fontSize: '36px', color: '#ffd060' }).setOrigin(0.5);
+    const text = this.add.text(GAME_WIDTH / 2, y0 + 150, t(dyn(`ev.${ev.id}.text`)), { ...textStyle(17, '#ccd'), align: 'center', wordWrap: { width: w - 100 } }).setOrigin(0.5);
+    root.add([dim, g, kicker, title, text]);
+    ev.options.forEach((fx, i) => {
+      const cx = x0 + 40 + i * (w / 2);
+      const cy = y0 + 230;
+      const card = this.add.graphics();
+      card.fillStyle(0x1a1814, 0.95).fillRect(cx, cy, w / 2 - 60, 170);
+      card.lineStyle(1, 0x6a5a38, 1).strokeRect(cx + 0.5, cy + 0.5, w / 2 - 61, 169);
+      const label = this.add.text(cx + 16, cy + 14, t(dyn(`ev.${ev.id}.${i === 0 ? 'a' : 'b'}`)), { ...textStyle(17, '#f0d27a'), wordWrap: { width: w / 2 - 92 } });
+      const fxText = describeEffect(fx).map((p) => `• ${t(dyn(p.key), p.params)}`).join('\n');
+      const desc = this.add.text(cx + 16, cy + 62, fxText, { ...textStyle(13, '#bcb4a0'), wordWrap: { width: w / 2 - 92 }, lineSpacing: 3 });
+      const zone = this.add.zone(cx, cy, w / 2 - 60, 170).setOrigin(0).setInteractive({ useHandCursor: true });
+      zone.on('pointerover', () => card.clear().fillStyle(0x3a3020, 0.95).fillRect(cx, cy, w / 2 - 60, 170).lineStyle(2, 0xffd060, 1).strokeRect(cx + 0.5, cy + 0.5, w / 2 - 61, 169));
+      zone.on('pointerout', () => card.clear().fillStyle(0x1a1814, 0.95).fillRect(cx, cy, w / 2 - 60, 170).lineStyle(1, 0x6a5a38, 1).strokeRect(cx + 0.5, cy + 0.5, w / 2 - 61, 169));
+      zone.on('pointerdown', () => {
+        root.destroy();
+        CampaignState.answerEvent(this.save, i as 0 | 1);
+        this.modal = false;
+        this.refreshSummary();
+        this.afterTurn();
+      });
+      root.add([card, label, desc, zone]);
+    });
+  }
+
+  /** The turn's last word: a counterattack, if the Horde rolled one. */
+  private afterTurn(): void {
+    if (this.save.underAttack) {
+      this.banner(t('camp.counterattack', { name: territoryName(this.save.underAttack) }), '#ff6060');
+      Voice.say('vo.underAttack', 'announcer', 'alert');
+    }
   }
 
   private banner(text: string, color: string): void {

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CONCEAL_AFTER_SHOT, UNITS } from '../config';
+import { rangeBonusAt } from '../battle/Elevation';
 import { EV } from '../events';
 import { Owner } from '../types';
 import { UnitDef } from './UnitDefs';
@@ -328,7 +329,11 @@ export class Squad {
 
   /** True if `viewer` cannot see this squad at all (burrowed or in a thicket and undetected, or riding in a transport). */
   hiddenFrom(viewer: Owner): boolean {
-    return !!this.carrier || !!this.garrisonIn || (viewer !== this.owner && (this.burrowed || this.concealed) && !this.detected);
+    if (this.carrier || this.garrisonIn) return true;
+    if (viewer === this.owner) return false;
+    if ((this.burrowed || this.concealed) && !this.detected) return true;
+    // High ground: unseen from below unless the viewer has eyes up there (or stands right next to us).
+    return this.level > 0 && !this.battle.units.seesHigh(viewer, this.center);
   }
 
   /** Standing in concealing terrain (a thicket) and quiet: the squad fired no shot lately. */
@@ -349,7 +354,12 @@ export class Squad {
   /** Weapon reach, including the deployed-artillery bonus. */
   get range(): number {
     return this.def.range + (this.deployState === 'deployed' ? this.def.deploy?.rangeBonus ?? 0 : 0) + (this.garrisonIn ? 40 : 0)
-      + (this.def.isHero ? this.battle.modifiers[this.owner].heroRangeBonus : 0);
+      + (this.def.isHero ? this.battle.modifiers[this.owner].heroRangeBonus : 0) + rangeBonusAt(this.level);
+  }
+
+  /** Ground level under the squad (0 low, 1 high ground or a ramp). Flyers count as high. */
+  get level(): number {
+    return this.def.flying ? 1 : this.battle.map.levelAt(this.x, this.y);
   }
 
   /** Walk to a friendly bunker and shelter inside. */

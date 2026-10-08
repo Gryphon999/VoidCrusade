@@ -100,6 +100,8 @@ function fakeMap(w: number, h: number, blocked: (x: number, y: number) => boolea
     isPassable,
     rule: () => TERRAIN[TILE.GROUND],
     isVehicleTerrain: isPassable,
+    isRamp: () => false,
+    canStep: () => true,
     isPassableWorld: (wx: number, wy: number) => isPassable(Math.floor(wx / TILE_SIZE), Math.floor(wy / TILE_SIZE)),
     worldToTile: (wx: number, wy: number) => ({ tx: Math.floor(wx / TILE_SIZE), ty: Math.floor(wy / TILE_SIZE) }),
     tileToWorld: (tx: number, ty: number) => ({ x: (tx + 0.5) * TILE_SIZE, y: (ty + 0.5) * TILE_SIZE }),

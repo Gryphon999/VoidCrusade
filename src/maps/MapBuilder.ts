@@ -15,6 +15,8 @@ export interface MapDef {
   w: number;
   h: number;
   tiles: number[][];
+  /** Ground level per tile (0 low, 1 high); absent = all low. Ramps (TILE.RAMP) are the only way between levels. */
+  levels?: number[][];
   playerBase: TilePoint; // top-left tile of the stronghold footprint
   enemyBase: TilePoint;
   /** Capture point centres in tiles; `kind` overrides the default layout (centre = relic, next two = forward bases). */
@@ -30,10 +32,63 @@ export interface MapDef {
  */
 export class MapBuilder {
   readonly tiles: number[][];
+  /** Ground level per tile; raised by raise()/raiseEllipse(), entered through ramp(). */
+  readonly levels: number[][];
+  private raised = false;
 
   constructor(fill: TileType = TILE.GROUND, readonly w: number = MAP_W, readonly h: number = MAP_H, readonly scale = 1) {
     this.tiles = [];
-    for (let y = 0; y < h; y++) this.tiles.push(new Array<number>(w).fill(fill));
+    this.levels = [];
+    for (let y = 0; y < h; y++) {
+      this.tiles.push(new Array<number>(w).fill(fill));
+      this.levels.push(new Array<number>(w).fill(0));
+    }
+  }
+
+  /** Raises a rectangle (design units) to high ground. */
+  raise(x: number, y: number, w: number, h: number): this {
+    const k = this.scale;
+    for (let j = Math.round(y * k); j < Math.round((y + h) * k); j++) {
+      for (let i = Math.round(x * k); i < Math.round((x + w) * k); i++) this.setLevel(i, j, 1);
+    }
+    return this;
+  }
+
+  /** Raises an ellipse (design units) to high ground. */
+  raiseEllipse(cx: number, cy: number, rx: number, ry: number): this {
+    const k = this.scale;
+    const [X, Y, RX, RY] = [cx * k, cy * k, rx * k, ry * k];
+    for (let j = Math.floor(Y - RY); j <= Math.ceil(Y + RY); j++) {
+      for (let i = Math.floor(X - RX); i <= Math.ceil(X + RX); i++) {
+        const dx = (i + 0.5 - X) / RX;
+        const dy = (j + 0.5 - Y) / RY;
+        if (dx * dx + dy * dy <= 1) this.setLevel(i, j, 1);
+      }
+    }
+    return this;
+  }
+
+  /**
+   * A ramp (design units): its tiles become RAMP on high ground, so a rectangle laid across a
+   * plateau's edge joins the two levels; it cuts through any cliff in its way. Make it at least two
+   * tiles wide for vehicles.
+   */
+  ramp(x: number, y: number, w: number, h: number): this {
+    const k = this.scale;
+    for (let j = Math.round(y * k); j < Math.round((y + h) * k); j++) {
+      for (let i = Math.round(x * k); i < Math.round((x + w) * k); i++) {
+        this.set(i, j, TILE.RAMP);
+        this.setLevel(i, j, 1);
+      }
+    }
+    return this;
+  }
+
+  private setLevel(x: number, y: number, level: number): void {
+    if (x >= 0 && y >= 0 && x < this.w && y < this.h) {
+      this.levels[y][x] = level;
+      if (level) this.raised = true;
+    }
   }
 
   /** Writes one tile (tile coordinates, not design units). */
@@ -119,7 +174,10 @@ export class MapBuilder {
     const { w, h } = this;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
-        if (y / (h - 1) > x / (w - 1)) this.tiles[h - 1 - y][w - 1 - x] = this.tiles[y][x];
+        if (y / (h - 1) > x / (w - 1)) {
+          this.tiles[h - 1 - y][w - 1 - x] = this.tiles[y][x];
+          this.levels[h - 1 - y][w - 1 - x] = this.levels[y][x];
+        }
       }
     }
     return this;
@@ -127,6 +185,11 @@ export class MapBuilder {
 
   build(): number[][] {
     return this.tiles.map((r) => r.slice());
+  }
+
+  /** The level grid, or undefined when nothing was raised (a flat map). */
+  buildLevels(): number[][] | undefined {
+    return this.raised ? this.levels.map((r) => r.slice()) : undefined;
   }
 
   /** Design-unit position of a footprint's top-left corner, as a tile. */
