@@ -22,7 +22,8 @@ export const COLORS = {
 } as const;
 
 export const FONT_FAMILY = '"Trebuchet MS", Verdana, sans-serif';
-export const GOTHIC_FONT = '"UnifrakturMaguntia", "Old English Text MT", "Blackletter", Georgia, serif';
+/** Game title font, bundled (main.ts loads it before the first scene) so it looks the same on every machine. */
+export const TITLE_FONT = '"Cinzel Decorative", Georgia, serif';
 
 export const TILE = {
   GROUND: 0,

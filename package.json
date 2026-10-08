@@ -22,7 +22,9 @@
     "benchmark": "tsx scripts/screenshots-models.ts --fps"
   },
   "dependencies": {
+    "@fontsource/cinzel-decorative": "^5.3.0",
     "@types/three": "^0.186.0",
+    "@vkontakte/vk-bridge": "^3.0.2",
     "phaser": "3.90.0",
     "three": "^0.186.1"
   },
