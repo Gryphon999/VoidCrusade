@@ -9,6 +9,7 @@ import { buildTutorialMap } from '../src/maps/tutorialMap';
 import { MapDef } from '../src/maps/MapBuilder';
 import { Pathfinder } from '../src/systems/Pathfinder';
 import { CAPTURE, TERRAIN, TILE, TILE_SIZE, TerrainRule, TileType } from '../src/config';
+import { canStepLevels } from '../src/battle/Elevation';
 
 const HQ = 4;
 
@@ -18,12 +19,18 @@ function mapOf(def: MapDef) {
   const open = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < def.w && y < def.h && def.tiles[y][x] !== TILE.CLIFF;
   const isPassable = (x: number, y: number): boolean => open(x, y) && !inHq(x, y);
   const rule = (x: number, y: number): TerrainRule => TERRAIN[(open(x, y) ? def.tiles[y][x] : TILE.CLIFF) as TileType];
+  const level = (x: number, y: number): number => (def.levels && open(x, y) ? def.levels[y][x] : 0);
+  const isRamp = (x: number, y: number): boolean => open(x, y) && def.tiles[y][x] === TILE.RAMP;
   return {
     width: def.w,
     height: def.h,
     open,
     isPassable,
     rule,
+    level,
+    isRamp,
+    hasLevels: !!def.levels,
+    canStep: (ax: number, ay: number, bx: number, by: number) => !def.levels || canStepLevels(level(ax, ay), level(bx, by), isRamp(ax, ay), isRamp(bx, by)),
     isVehicleTerrain: (x: number, y: number) => open(x, y) && rule(x, y).vehicles,
     isPassableWorld: (wx: number, wy: number) => isPassable(Math.floor(wx / TILE_SIZE), Math.floor(wy / TILE_SIZE)),
     worldToTile: (wx: number, wy: number) => ({ tx: Math.floor(wx / TILE_SIZE), ty: Math.floor(wy / TILE_SIZE) }),
@@ -54,6 +61,53 @@ test('battle maps are point-symmetric: terrain, strongholds and capture points',
     for (const p of m.capturePoints) {
       assert.ok(m.capturePoints.some((q) => Math.abs(q.x - (m.w - p.x)) < 0.01 && Math.abs(q.y - (m.h - p.y)) < 0.01), `${m.id}: point ${p.x},${p.y} has no twin`);
     }
+  }
+});
+
+test('high ground is symmetric, sealed by cliffs or level changes, and entered by ramps at least two tiles wide', () => {
+  const withLevels = battleMaps.filter((m) => m.levels);
+  assert.ok(withLevels.length >= 4, 'at least four maps have high ground');
+  for (const m of withLevels) {
+    const L = m.levels as number[][];
+    assert.equal(L.length, m.h);
+    assert.ok(L.every((r) => r.length === m.w));
+    let diff = 0;
+    for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (L[y][x] !== L[m.h - 1 - y][m.w - 1 - x]) diff++;
+    assert.ok(diff <= m.w, `${m.id}: ${diff} level tiles break the symmetry`);
+    // Every connected ramp joins low and high open ground and is at least two tiles across somewhere.
+    const seen = new Set<number>();
+    let ramps = 0;
+    const isRamp = (x: number, y: number): boolean => m.tiles[y]?.[x] === TILE.RAMP;
+    for (let y = 0; y < m.h; y++) {
+      for (let x = 0; x < m.w; x++) {
+        if (!isRamp(x, y) || seen.has(y * m.w + x)) continue;
+        const group: [number, number][] = [];
+        const stack: [number, number][] = [[x, y]];
+        seen.add(y * m.w + x);
+        while (stack.length) {
+          const [cx, cy] = stack.pop() as [number, number];
+          group.push([cx, cy]);
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const nx = cx + dx;
+            const ny = cy + dy;
+            if (isRamp(nx, ny) && !seen.has(ny * m.w + nx)) {
+              seen.add(ny * m.w + nx);
+              stack.push([nx, ny]);
+            }
+          }
+        }
+        ramps++;
+        const touches = (level: number): boolean => group.some(([gx, gy]) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => {
+          const t = m.tiles[gy + dy]?.[gx + dx];
+          return t !== undefined && t !== TILE.CLIFF && t !== TILE.RAMP && L[gy + dy][gx + dx] === level;
+        }));
+        assert.ok(touches(0) && touches(1), `${m.id}: ramp at ${x},${y} does not join low and high ground`);
+        const wide = group.some(([gx, gy]) => isRamp(gx + 1, gy) && isRamp(gx, gy + 1) && isRamp(gx + 1, gy + 1));
+        assert.ok(wide, `${m.id}: ramp at ${x},${y} is nowhere two tiles across`);
+      }
+    }
+    assert.ok(ramps >= 2, `${m.id}: only ${ramps} ramps`);
+    for (const b of [m.playerBase, m.enemyBase]) assert.equal(L[b.ty][b.tx], 0, `${m.id}: a stronghold on high ground`);
   }
 });
 

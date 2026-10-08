@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { DEPTH, TILE, TILE_SIZE, UNITS } from '../config';
+import { BUILDING_VISION, DEPTH, TILE, TILE_SIZE, UNITS } from '../config';
+import { ELEVATION } from '../battle/Elevation';
 import { Projection } from '../render/Projection';
 import { EV } from '../events';
 import { Owner, opponent } from '../types';
@@ -85,6 +86,28 @@ export class UnitSystem {
       this.lastBurnHint = this.battle.elapsed;
       this.battle.events.emit(EV.mapEvent, 'lava', true);
     }
+  }
+
+  /**
+   * Does `owner` have eyes on high ground at a point: a squad of theirs on high ground (or a ramp,
+   * or flying) with the point in sight, a building of theirs on high ground with it in vision, or
+   * any squad of theirs standing right next to it.
+   */
+  seesHigh(owner: Owner, p: { x: number; y: number }): boolean {
+    const b = this.battle;
+    if (!b.map.hasLevels) return true;
+    const mult = (b.world?.visionMult ?? 1) * b.modifiers[owner].sightMult;
+    for (const s of this.squads) {
+      if (s.owner !== owner || !s.alive || s.embarked) continue;
+      const d = Math.hypot(s.center.x - p.x, s.center.y - p.y);
+      if (d <= ELEVATION.lowSeesHighWithin) return true;
+      if (s.level > 0 && d <= s.def.sight * mult * ELEVATION.highSightMult) return true;
+    }
+    for (const bl of b.buildings.buildings) {
+      if (bl.owner !== owner || !bl.alive || b.map.levelAt(bl.x, bl.y) === 0) continue;
+      if (Math.hypot(bl.x - p.x, bl.y - p.y) <= (bl.def.vision ?? BUILDING_VISION) + bl.radius) return true;
+    }
+    return false;
   }
 
   squadAt(wx: number, wy: number, owner?: Owner): Squad | undefined {

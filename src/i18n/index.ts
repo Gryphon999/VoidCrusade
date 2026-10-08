@@ -1,5 +1,6 @@
 import { en, MessageKey } from './en';
 import { ru } from './ru';
+import { Platform } from '../platform/Platform';
 
 export type Lang = 'en' | 'ru';
 export type { MessageKey };
@@ -11,18 +12,9 @@ const RU_REGION = ['ru', 'uk', 'be', 'kk', 'uz', 'ky', 'tg', 'hy', 'az', 'tk', '
 let current: Lang = 'en';
 const listeners = new Set<(l: Lang) => void>();
 
-interface YandexEnv {
-  ysdk?: { environment?: { i18n?: { lang?: string } } };
-}
-
-/** Yandex Games SDK language if present, else the browser language; CIS languages map to Russian. */
+/** The games portal's language (Yandex, VK) if present, else the browser language; CIS languages map to Russian. */
 export function detectLanguage(): Lang {
-  let code = '';
-  try {
-    code = (window as unknown as YandexEnv).ysdk?.environment?.i18n?.lang ?? '';
-  } catch {
-    code = '';
-  }
+  let code = Platform.language ?? '';
   if (!code) code = navigator.language || (navigator.languages && navigator.languages[0]) || 'en';
   const base = code.toLowerCase().split(/[-_]/)[0];
   return RU_REGION.includes(base) ? 'ru' : 'en';

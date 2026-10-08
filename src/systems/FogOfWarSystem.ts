@@ -4,6 +4,7 @@ import type { BattleScene, FogQueries } from '../scenes/BattleScene';
 import { Projection } from '../render/Projection';
 import { makeCanvas } from '../render/CanvasUtil';
 import { hide2D } from '../render3d/hide2D';
+import { canSeeAcrossLevels, sightMultAt } from '../battle/Elevation';
 
 const UNEXPLORED = 0;
 const EXPLORED = 1;
@@ -57,18 +58,26 @@ export class FogOfWarSystem implements FogQueries {
     this.recompute();
   }
 
-  private reveal(x: number, y: number, r: number): void {
+  /** Reveals a disc; a viewer on low ground does not reveal high-ground cells (except right next to it). */
+  private reveal(x: number, y: number, r: number, viewerLevel = 1): void {
     const c = this.cellPx;
     const x0 = Math.max(0, Math.floor((x - r) / c));
     const x1 = Math.min(this.cols - 1, Math.floor((x + r) / c));
     const y0 = Math.max(0, Math.floor((y - r) / c));
     const y1 = Math.min(this.rows - 1, Math.floor((y + r) / c));
     const r2 = r * r;
+    const map = this.battle.map;
+    const levels = map.hasLevels && viewerLevel < 1;
     for (let cy = y0; cy <= y1; cy++) {
       for (let cx = x0; cx <= x1; cx++) {
-        const dx = (cx + 0.5) * c - x;
-        const dy = (cy + 0.5) * c - y;
-        if (dx * dx + dy * dy <= r2) this.state[cy * this.cols + cx] = VISIBLE;
+        const px = (cx + 0.5) * c;
+        const py = (cy + 0.5) * c;
+        const dx = px - x;
+        const dy = py - y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > r2) continue;
+        if (levels && !canSeeAcrossLevels(viewerLevel, map.levelAt(px, py), Math.sqrt(d2))) continue;
+        this.state[cy * this.cols + cx] = VISIBLE;
       }
     }
   }
@@ -76,14 +85,17 @@ export class FogOfWarSystem implements FogQueries {
   recompute(): void {
     for (let i = 0; i < this.state.length; i++) if (this.state[i] === VISIBLE) this.state[i] = EXPLORED;
     if (!this.enabled) this.state.fill(VISIBLE);
+    const map = this.battle.map;
     for (const s of this.battle.units.squads) {
       if (s.owner !== 'player' || !s.alive || s.embarked) continue;
       const mult = (this.battle.world?.visionMult ?? 1) * this.battle.modifiers.player.sightMult;
-      for (const u of s.units) this.reveal(u.x, u.y, u.def.sight * mult);
+      // High ground sees further and sees everything below; low ground does not see up.
+      const level = s.level;
+      for (const u of s.units) this.reveal(u.x, u.y, u.def.sight * mult * sightMultAt(level), level);
     }
     for (const b of this.battle.buildings.buildings) {
       if (b.owner !== 'player' || !b.alive) continue;
-      this.reveal(b.x, b.y, (b.def.vision ?? (b.def.role === 'hq' ? FOG.hqVision : FOG.buildingVision)) + b.radius);
+      this.reveal(b.x, b.y, (b.def.vision ?? (b.def.role === 'hq' ? FOG.hqVision : FOG.buildingVision)) + b.radius, map.levelAt(b.x, b.y));
     }
     this.applyVisibility();
     this.draw();

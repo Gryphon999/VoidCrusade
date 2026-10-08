@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TERRAIN, TILE, TILE_SIZE, TerrainRule, TileType } from '../src/config';
 import { Pathfinder } from '../src/systems/Pathfinder';
+import { ELEVATION, canSeeAcrossLevels, canStepLevels, rangeBonusAt, sightMultAt } from '../src/battle/Elevation';
 
 test('every tile has a rule and the rules are sane', () => {
   for (const t of Object.values(TILE)) {
@@ -38,6 +39,10 @@ function gridMap(rows: string[]) {
     height: h,
     rule,
     isPassable,
+    level: () => 0,
+    isRamp: () => false,
+    hasLevels: false,
+    canStep: () => true,
     isVehicleTerrain: (x: number, y: number) => isPassable(x, y) && rule(x, y).vehicles,
     isPassableWorld: (wx: number, wy: number) => isPassable(Math.floor(wx / TILE_SIZE), Math.floor(wy / TILE_SIZE)),
     worldToTile: (wx: number, wy: number) => ({ tx: Math.floor(wx / TILE_SIZE), ty: Math.floor(wy / TILE_SIZE) }),
@@ -117,4 +122,59 @@ test('routes go round a lava field when the detour is short, and through it when
   const through = pf2.find(c.x, c.y, d.x, d.y, false);
   const e = through[through.length - 1];
   assert.ok(through.length && Math.hypot(e.x - d.x, e.y - d.y) < TILE_SIZE, 'with no way round, the path wades the lava');
+});
+
+/** A grid map with a second row set: '^' high ground, '/' a ramp (high ground), anything else low. */
+function levelMap(rows: string[], levelRows: string[]) {
+  const base = gridMap(rows.map((r) => r.replace(/[\^/]/g, '.')));
+  const tiles = rows.map((r, y) => [...r].map((ch, x) => (ch === '/' ? TILE.RAMP : base.rule(x, y) === TERRAIN[TILE.CLIFF] ? TILE.CLIFF : TILE.GROUND)));
+  const level = (x: number, y: number): number => (levelRows[y]?.[x] === '^' || levelRows[y]?.[x] === '/' ? 1 : 0);
+  const isRamp = (x: number, y: number): boolean => tiles[y]?.[x] === TILE.RAMP;
+  const rule = (x: number, y: number): TerrainRule => TERRAIN[(tiles[y]?.[x] ?? TILE.CLIFF) as TileType];
+  return {
+    ...base,
+    rule,
+    level,
+    isRamp,
+    hasLevels: true,
+    canStep: (ax: number, ay: number, bx: number, by: number) => canStepLevels(level(ax, ay), level(bx, by), isRamp(ax, ay), isRamp(bx, by)),
+  };
+}
+
+test('a plateau is sealed without a ramp and open through one; vehicles need a two-wide ramp', () => {
+  const rows = ['........', '........', '........', '........'];
+  const sealed = levelMap(rows, ['....^^^^', '....^^^^', '....^^^^', '....^^^^']);
+  const pf = new Pathfinder(sealed as never);
+  const a = at(1, 1);
+  const b = at(6, 1);
+  const none = pf.find(a.x, a.y, b.x, b.y, false);
+  const endNone = none[none.length - 1] ?? a;
+  assert.ok(Math.hypot(endNone.x - b.x, endNone.y - b.y) > TILE_SIZE * 2, 'no way up without a ramp');
+
+  const narrow = levelMap(['........', '........', '..../...', '........'], ['....^^^^', '....^^^^', '..../^^^', '....^^^^']);
+  const pf2 = new Pathfinder(narrow as never);
+  const foot = pf2.find(a.x, a.y, b.x, b.y, false);
+  const ef = foot[foot.length - 1];
+  assert.ok(foot.length && Math.hypot(ef.x - b.x, ef.y - b.y) < TILE_SIZE, 'infantry climbs the one-tile ramp');
+  const wheels = pf2.find(a.x, a.y, b.x, b.y, true);
+  const ew = wheels[wheels.length - 1] ?? a;
+  assert.ok(Math.hypot(ew.x - b.x, ew.y - b.y) > TILE_SIZE * 2, 'vehicles cannot use a one-tile ramp');
+
+  const wideRamp = levelMap(['........', '..../...', '..../...', '........'], ['....^^^^', '..../^^^', '..../^^^', '....^^^^']);
+  const pf3 = new Pathfinder(wideRamp as never);
+  const up = pf3.find(a.x, a.y, b.x, b.y, true);
+  const eu = up[up.length - 1];
+  assert.ok(up.length && Math.hypot(eu.x - b.x, eu.y - b.y) < TILE_SIZE, 'vehicles climb a two-wide ramp');
+});
+
+test('high ground sees further and is unseen from below except at contact range', () => {
+  assert.ok(sightMultAt(1) > 1 && sightMultAt(0) === 1);
+  assert.ok(rangeBonusAt(1) > 0 && rangeBonusAt(0) === 0);
+  assert.equal(canSeeAcrossLevels(0, 1, 300), false);
+  assert.equal(canSeeAcrossLevels(0, 1, ELEVATION.lowSeesHighWithin), true);
+  assert.equal(canSeeAcrossLevels(1, 0, 300), true);
+  assert.equal(canSeeAcrossLevels(1, 1, 300), true);
+  assert.equal(canStepLevels(0, 1, false, false), false);
+  assert.equal(canStepLevels(0, 1, false, true), true);
+  assert.equal(canStepLevels(1, 1, false, false), true);
 });
