@@ -22,6 +22,11 @@ const holds = new Set<string>();
 const holdListeners: ((h: Hold) => void)[] = [];
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 
+/** What the portal glue did, for the `?vcdebug=1` overlay (main.ts): checking a portal from inside its frame. */
+export const diag: Record<string, string> = { platform: 'starting' };
+const stamp = (): string => new Date().toTimeString().slice(0, 8);
+const errMsg = (e: unknown): string => (e instanceof Error ? e.message : JSON.stringify(e)).slice(0, 120);
+
 /** What a hold means for the game: losing focus only silences it; an ad or a portal pause freezes it too. */
 export interface Hold {
   mute: boolean;
@@ -66,10 +71,17 @@ function setHold(reason: string, on: boolean): void {
 
 /** Cloud copy wins only when it is newer than this device's (another device, or a cleared browser). */
 async function pullCloudSave(): Promise<void> {
-  const cloud = backend ? await withTimeout(backend.loadSave(), INIT_TIMEOUT_MS).catch(() => null) : null;
+  const cloud = backend ? await withTimeout(backend.loadSave(), INIT_TIMEOUT_MS).catch((e) => {
+    diag.cloudLoad = `error: ${errMsg(e)}`;
+    return null;
+  }) : null;
   const store = storage();
-  if (!cloud?.keys || !store) return;
+  if (!cloud?.keys || !store) {
+    diag.cloudLoad ??= 'empty';
+    return;
+  }
   const localAt = Number(store.getItem(SAVED_AT) ?? 0);
+  diag.cloudLoad = `found ${new Date(cloud.savedAt).toLocaleString()}${cloud.savedAt > localAt ? ' (applied)' : ' (local is newer)'}`;
   if ((cloud.savedAt ?? 0) <= localAt) return;
   for (const [k, v] of Object.entries(cloud.keys)) if (k.startsWith(PREFIX)) store.setItem(k, v);
   store.setItem(SAVED_AT, String(cloud.savedAt));
@@ -85,7 +97,10 @@ function pushNow(): void {
     if (k && k.startsWith(PREFIX) && k !== SAVED_AT) keys[k] = store.getItem(k) ?? '';
   }
   const save: CloudSave = { savedAt: Number(store.getItem(SAVED_AT) ?? Date.now()), keys };
-  backend.storeSave(save).catch(() => undefined);
+  diag.cloudSave = `sending ${stamp()}`;
+  backend.storeSave(save)
+    .then(() => (diag.cloudSave = `ok ${stamp()}`))
+    .catch((e) => (diag.cloudSave = `error ${stamp()}: ${errMsg(e)}`));
 }
 
 /** VK opens a mini app with signed `vk_*` launch parameters in the query string. */
@@ -123,9 +138,11 @@ export const Platform = {
         const { createYandexBackend } = await import('./YandexBackend');
         backend = await withTimeout(createYandexBackend(pause), INIT_TIMEOUT_MS);
       }
-    } catch {
+    } catch (e) {
+      diag.initError = errMsg(e);
       backend = null;
     }
+    diag.platform = backend ? `${backend.name} (lang ${backend.language ?? '-'})` : 'none';
     if (backend) await pullCloudSave();
   },
 
@@ -158,10 +175,15 @@ export const Platform = {
   /** A fullscreen ad between screens (never during a battle); resolves once it is closed or skipped. */
   async showInterstitial(): Promise<void> {
     if (!backend) return;
+    diag.ad = `asked ${stamp()}`;
     try {
-      await backend.showInterstitial(() => setHold('ad', true));
-    } catch {
-      /* no ad this time */
+      await backend.showInterstitial(() => {
+        diag.ad = `shown ${stamp()}`;
+        setHold('ad', true);
+      });
+      if (diag.ad.startsWith('asked')) diag.ad = `none available ${stamp()}`;
+    } catch (e) {
+      diag.ad = `error ${stamp()}: ${errMsg(e)}`;
     } finally {
       setHold('ad', false);
     }

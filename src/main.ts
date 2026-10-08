@@ -13,7 +13,7 @@ import { EncyclopediaScene } from './scenes/EncyclopediaScene';
 import { AudioSystem } from './systems/AudioSystem';
 import { Settings } from './systems/Settings';
 import { detectLanguage, setLanguage } from './i18n';
-import { Platform } from './platform/Platform';
+import { Platform, diag } from './platform/Platform';
 import { Voice } from './systems/VoiceSystem';
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -52,6 +52,17 @@ void Promise.all([titleFont, Platform.init().catch(() => undefined)]).then(() =>
   Settings.onChange((s) => setLanguage(s.language ?? detectLanguage()));
 
   const game = new Phaser.Game(config);
+  // `?vcdebug=1`: a corner readout of the portal glue (set it in the portal's app URL while testing).
+  if (/[?&]vcdebug=1/.test(window.location.search)) {
+    const box = document.createElement('pre');
+    box.style.cssText = 'position:fixed;top:4px;left:4px;z-index:9999;margin:0;padding:6px 8px;font:12px monospace;'
+      + 'color:#9f9;background:rgba(0,0,0,.75);pointer-events:none;white-space:pre-wrap;max-width:46vw';
+    document.body.appendChild(box);
+    setInterval(() => {
+      const h = Platform.hold;
+      box.textContent = Object.entries({ ...diag, hold: `mute=${h.mute} freeze=${h.freeze}` }).map(([k, v]) => `${k}: ${v}`).join('\n');
+    }, 500);
+  }
   if (import.meta.env.DEV) (window as unknown as { game: Phaser.Game }).game = game;
 
   // Ads and the platform's pause freeze the whole game; any hold (also a lost focus) silences it.
