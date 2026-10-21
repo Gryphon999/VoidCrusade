@@ -9,6 +9,7 @@ import { ABILITIES, AbilityId } from '../units/Abilities';
 import { Building } from '../buildings/Building';
 import { UnitId } from '../units/UnitDefs';
 import { Projection } from '../render/Projection';
+import { TouchGestures } from './TouchGestures';
 
 const DRAG_THRESHOLD = 8;
 const DOUBLE_MS = 350;
@@ -37,11 +38,33 @@ export class InputController {
   private lastGroupTap = { n: -1, at: 0 };
   private lastClick = { id: '', at: 0 };
   private idleIndex = 0;
+  /** Phone controls: fingers go through here, the mouse keeps the paths below. */
+  private gestures: TouchGestures<Phaser.Input.Pointer>;
+  private pinchZoom0 = 1;
 
   constructor(private battle: BattleScene) {
     const input = battle.input;
     input.on('pointerdown', this.onDown, this);
     input.on('pointerup', this.onUp, this);
+    input.on('pointermove', this.onMove, this);
+    const cam = (): BattleScene['cameraSystem'] => battle.cameraSystem;
+    this.gestures = new TouchGestures<Phaser.Input.Pointer>({
+      tap: (p) => this.onTap(p),
+      boxStart: (x, y) => (this.downAt = new Phaser.Math.Vector2(x, y)),
+      boxEnd: (p) => this.onBoxEnd(p),
+      pan: (dx, dy) => cam().panBy(dx, dy),
+      pinchStart: () => {
+        this.pinchZoom0 = cam().zoom;
+        // A box or a line half drawn by the first finger is dropped.
+        this.downAt = null;
+        this.dragRect.clear();
+      },
+      pinch: (scale, x, y, dx, dy) => {
+        cam().panBy(dx, dy);
+        cam().zoomAt(this.pinchZoom0 * scale, x, y);
+      },
+      dragTaken: () => battle.placement.isActive && battle.placement.draggable,
+    });
     this.dragRect = battle.add.graphics().setDepth(DEPTH.overlay);
     this.waypointLines = battle.add.graphics().setDepth(DEPTH.groundFx);
     this.aimGfx = battle.add.graphics().setDepth(DEPTH.overlay - 1);
@@ -297,6 +320,10 @@ export class InputController {
   }
 
   private onDown(p: Phaser.Input.Pointer): void {
+    if (p.wasTouch) {
+      this.gestures.down(p, this.battle.time.now, this.overUI(p));
+      return;
+    }
     if (this.overUI(p)) return;
     const b = this.battle;
     if (p.rightButtonDown()) {
@@ -400,7 +427,92 @@ export class InputController {
     });
   }
 
+  private onMove(p: Phaser.Input.Pointer): void {
+    if (p.wasTouch) this.gestures.move(p);
+  }
+
+  /**
+   * A finger tap. Without a mouse there is no right button, so a tap does what fits the spot:
+   * on our own squad it selects; elsewhere, with squads selected, it is the order (move, attack,
+   * board, garrison, repair — the right-click logic); otherwise it selects a building or clears.
+   */
+  private onTap(p: Phaser.Input.Pointer): void {
+    const b = this.battle;
+    if (this.overUI(p)) return;
+    if (this.targeting && this.confirmTarget(p)) return;
+    const w = this.world(p);
+    if (b.placement.isActive) {
+      b.placement.updatePointer(w.x, w.y);
+      b.placement.confirm(false);
+      return;
+    }
+    if (this.mode !== 'none') {
+      const enemy = this.enemyAt(p);
+      if (enemy && this.mode === 'attackMove') b.selection.squads.forEach((s) => s.attack(enemy));
+      else this.moveSquads(b.selection.squads, w.x, w.y, this.mode === 'attackMove');
+      b.effects.orderMarker(w.x, w.y, this.mode === 'attackMove');
+      this.acknowledge(this.mode === 'attackMove' ? 'attack' : this.orderKind(p, !!enemy));
+      this.setMode('none');
+      return;
+    }
+    const sel = b.selection;
+    const v = this.view(p);
+    const squad = b.units.squadAtView(v.x, v.y, 'player');
+    // Our own transport under the finger with infantry selected: climb in (the right-click path).
+    const boards = squad?.def.transport && sel.squads.some((s) => b.vehicles.canBoard(s, squad));
+    if (squad && !boards) {
+      const now = b.time.now;
+      if (this.lastClick.id === squad.def.id && now - this.lastClick.at < DOUBLE_MS) {
+        this.selectSameType(squad);
+        this.lastClick = { id: '', at: 0 };
+        return;
+      }
+      this.lastClick = { id: squad.def.id, at: now };
+      sel.selectSquads([squad]);
+      this.acknowledge();
+      return;
+    }
+    const building = b.buildings.buildingAtView(v.x, v.y);
+    const own = building && building.owner === 'player' ? building : null;
+    if (sel.hasSquads) {
+      // Our building is an order target only when the squads can use it (bunker, repairs); else it gets selected.
+      const usable = own && (sel.squads.some((s) => b.structures.canGarrison(s, own))
+        || ((own.hp < own.maxHp || !own.isReady) && sel.squads.some((s) => s.def.repairRate)));
+      if (own && !usable) sel.selectBuilding(own);
+      else this.issueRightClick(p);
+      return;
+    }
+    if (own) sel.selectBuilding(own);
+    else sel.clear();
+  }
+
+  /** The finger of a long-press box (or of a wall line being drawn) lifted. */
+  private onBoxEnd(p: Phaser.Input.Pointer): void {
+    const start = this.downAt;
+    this.downAt = null;
+    this.dragRect.clear();
+    if (!start) return;
+    const b = this.battle;
+    if (b.placement.isActive) {
+      if (!b.placement.draggable) return;
+      const a = b.cameraSystem.screenToWorld(start.x, start.y);
+      const w = this.world(p);
+      if (b.placement.placeLine(a.x, a.y, w.x, w.y) > 0) b.placement.cancel();
+      return;
+    }
+    const a = b.cameraSystem.screenToView(start.x, start.y);
+    const v = this.view(p);
+    const rect = new Phaser.Geom.Rectangle(Math.min(a.x, v.x), Math.min(a.y, v.y), Math.abs(v.x - a.x), Math.abs(v.y - a.y));
+    const found = b.units.squadsInViewRect(rect, 'player');
+    b.selection.selectSquads(found);
+    if (found.length) this.acknowledge();
+  }
+
   private onUp(p: Phaser.Input.Pointer): void {
+    if (p.wasTouch) {
+      this.gestures.up(p);
+      return;
+    }
     if (!this.downAt || p.button !== 0) return;
     const start = this.downAt;
     this.downAt = null;
@@ -484,10 +596,11 @@ export class InputController {
     this.refreshCursor();
     this.drawWaypoints();
     this.drawAim();
+    this.gestures.update(this.battle.time.now);
     const g = this.dragRect;
     if (!this.downAt || this.battle.placement.isActive) return;
     const p = this.battle.input.activePointer;
-    if (!p.leftButtonDown()) return;
+    if (p.wasTouch ? !this.gestures.boxing : !p.leftButtonDown()) return;
     if (Phaser.Math.Distance.Between(this.downAt.x, this.downAt.y, p.x, p.y) <= DRAG_THRESHOLD) return;
     const a = this.battle.cameraSystem.screenToView(this.downAt.x, this.downAt.y);
     const w = this.view(p);
@@ -500,5 +613,6 @@ export class InputController {
     const input = this.battle.input;
     input.off('pointerdown', this.onDown, this);
     input.off('pointerup', this.onUp, this);
+    input.off('pointermove', this.onMove, this);
   }
 }

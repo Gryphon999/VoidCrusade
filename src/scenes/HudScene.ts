@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { Platform } from '../platform/Platform';
+import { isTouchDevice } from '../platform/Touch';
 import type { BattleScene } from './BattleScene';
 import { TopBar, TOP_BAR_H } from '../ui/TopBar';
 import { normalizeModifiers } from '../battle/BattleModifiers';
@@ -10,6 +11,7 @@ import { MiniMap } from '../ui/MiniMap';
 import { CommandGrid } from '../ui/CommandGrid';
 import { commandsFor } from '../ui/Commands';
 import { Tooltip } from '../ui/Tooltip';
+import { Button } from '../ui/Button';
 import { Notifications, NoticeKind } from '../ui/Notifications';
 import { HUD } from '../ui/HudArt';
 import { showEndScreen } from '../ui/EndScreen';
@@ -128,6 +130,7 @@ export class HudScene extends Phaser.Scene {
       else if (this.page && !this.battle.placement.isActive) this.setPage(null);
     });
     this.hints = new HintToast(this, this.battle);
+    if (isTouchDevice()) this.createTouchButtons();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.hints.destroy());
     this.events.on('command-denied', (why: string) => this.notify(why, 'warn'));
     this.panel.refresh();
@@ -206,6 +209,25 @@ export class HudScene extends Phaser.Scene {
   notify(text: string, kind: NoticeKind = 'info'): void {
     this.notes.push(text, kind);
     this.events.emit('notice', text, kind);
+  }
+
+  /**
+   * Phones have no Ctrl+A and no "click empty ground to deselect" (a tap there is an order),
+   * so both get a button in the top-right corner.
+   */
+  private createTouchButtons(): void {
+    const w = 190;
+    const h = 46;
+    const x = GAME_WIDTH - w / 2 - 10;
+    const y0 = HUD.topH + 12 + h / 2;
+    const b = this.battle;
+    const all = new Button(this, { x, y: y0, w, h, label: t('touch.all'), onClick: () => {
+      b.selection.selectSquads(b.units.getSquads('player'));
+      b.inputController.acknowledge();
+    } });
+    const none = new Button(this, { x, y: y0 + h + 8, w, h, label: t('touch.deselect'), onClick: () => b.selection.clear() });
+    for (const btn of [all, none]) btn.container.setDepth(140);
+    this.addBlocker(new Phaser.Geom.Rectangle(x - w / 2, y0 - h / 2, w, h * 2 + 8));
   }
 
   addBlocker(rect: Phaser.Geom.Rectangle, active: () => boolean = () => true): void {

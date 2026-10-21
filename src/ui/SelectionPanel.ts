@@ -10,7 +10,7 @@ import { RESEARCH_DEFS } from '../systems/ResearchSystem';
 import { HUD } from './HudArt';
 import { researchGlyph } from './GlyphIcons';
 import { textStyle } from './uiStyle';
-import { dyn, plural, t } from '../i18n';
+import { dyn, plural, t, touchKey } from '../i18n';
 import { buildingDesc, buildingName, researchName, unitName } from '../i18n/names';
 
 const P = HUD.center;
@@ -36,7 +36,7 @@ export class SelectionPanel {
   constructor(private scene: Phaser.Scene, private battle: BattleScene) {
     this.content = scene.add.container(0, 0);
     this.bars = scene.add.graphics();
-    this.empty = scene.add.text(P.x + P.w / 2, P.y + P.h / 2, t('hud.empty'),
+    this.empty = scene.add.text(P.x + P.w / 2, P.y + P.h / 2, t(touchKey('hud.empty')),
       { ...textStyle(14, '#8a8478'), align: 'center' }).setOrigin(0.5);
   }
 

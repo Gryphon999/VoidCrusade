@@ -12,9 +12,10 @@ import { SubtitleScene } from './scenes/SubtitleScene';
 import { EncyclopediaScene } from './scenes/EncyclopediaScene';
 import { AudioSystem } from './systems/AudioSystem';
 import { Settings } from './systems/Settings';
-import { detectLanguage, setLanguage } from './i18n';
+import { detectLanguage, onLanguageChange, setLanguage, t } from './i18n';
 import { Platform, diag } from './platform/Platform';
 import { Voice } from './systems/VoiceSystem';
+import { isTouchDevice } from './platform/Touch';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -35,6 +36,8 @@ const config: Phaser.Types.Core.GameConfig = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   disableContextMenu: true,
+  // Two fingers for the pinch (plus one spare): Phaser makes a single touch pointer by default.
+  input: { activePointers: 3 },
   scene: [BootScene, PreloadScene, MenuScene, CampaignScene, BattleScene, HudScene, SettingsScene, EncyclopediaScene, SubtitleScene],
 };
 
@@ -78,3 +81,21 @@ void Promise.all([titleFont, Platform.init().catch(() => undefined)]).then(() =>
 const unlock = (): void => AudioSystem.unlock();
 window.addEventListener('pointerdown', unlock);
 window.addEventListener('keydown', unlock);
+// iOS Safari only lets audio start inside a touchend.
+window.addEventListener('touchend', unlock);
+
+// iOS Safari zooms the whole page on a pinch and ignores user-scalable=no: the pinch belongs to the game.
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, (e) => e.preventDefault());
+
+// Phones: the battlefield needs landscape, so portrait gets a "rotate your phone" screen (CSS shows it).
+if (isTouchDevice()) {
+  const rotate = document.createElement('div');
+  rotate.id = 'rotate';
+  rotate.innerHTML = '<div class="rotate-icon">⟳</div><div class="rotate-text"></div>';
+  document.body.appendChild(rotate);
+  const label = (): void => {
+    (rotate.querySelector('.rotate-text') as HTMLElement).textContent = t('rotate.hint');
+  };
+  label();
+  onLanguageChange(label);
+}

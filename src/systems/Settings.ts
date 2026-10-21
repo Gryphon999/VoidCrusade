@@ -3,6 +3,7 @@ import type { Lang } from '../i18n';
 import type { WargearPick } from '../campaign/Wargear';
 import { ModifierId, normalizeModifiers } from '../battle/BattleModifiers';
 import { Platform } from '../platform/Platform';
+import { isTouchDevice } from '../platform/Touch';
 
 const KEY = 'voidcrusade.settings.v1';
 
@@ -71,7 +72,8 @@ export const Settings = {
     } catch {
       /* storage unavailable */
     }
-    current = { ...DEFAULTS, ...loaded };
+    // Phones start on low graphics: iOS closes a tab that takes too much memory.
+    current = { ...DEFAULTS, ...(isTouchDevice() ? { graphics: 'low' as const } : {}), ...loaded };
     if (!['easy', 'normal', 'hard', 'brutal'].includes(current.difficulty)) current.difficulty = 'normal';
     if (current.language !== undefined && current.language !== 'en' && current.language !== 'ru') current.language = undefined;
     if (!['low', 'medium', 'high', 'ultra'].includes(current.graphics)) current.graphics = 'medium';

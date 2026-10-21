@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH, TITLE_FONT } from '../config';
-import { headingFont, onLanguageChange, t } from '../i18n';
+import { headingFont, onLanguageChange, t, touchKey } from '../i18n';
 import { CampaignState } from '../campaign/CampaignState';
 import { MenuBackground } from '../ui/MenuBackground';
 import { Button } from '../ui/Button';
@@ -64,7 +64,7 @@ export class MenuScene extends Phaser.Scene {
       b.container.setAlpha(0);
       this.tweens.add({ targets: b.container, alpha: 1, duration: 500, delay: 900 + i * 120 });
     });
-    this.add.text(GAME_WIDTH - 12, GAME_HEIGHT - 10, t('menu.hint'),
+    this.add.text(GAME_WIDTH - 12, GAME_HEIGHT - 10, t(touchKey('menu.hint')),
       textStyle(12, '#667')).setOrigin(1, 1);
     this.input.keyboard?.on('keydown-F1', () => !this.busy && this.openEncyclopedia());
     if (!Settings.get().tutorialPrompted) this.time.delayedCall(700, () => this.firstRun());

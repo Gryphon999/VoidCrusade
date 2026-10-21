@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
-import { dyn, t } from '../i18n';
+import { t, touchKey } from '../i18n';
+import { isTouchDevice } from '../platform/Touch';
 import { HUD } from '../ui/HudArt';
 import { GRID_COLS, GRID_KEYS, GRID_ROWS } from '../ui/CommandGrid';
 import { Button } from '../ui/Button';
@@ -8,9 +9,15 @@ import { textStyle } from '../ui/uiStyle';
 import { TutorialDirector, TutorialTarget } from './TutorialDirector';
 import type { BattleScene } from '../scenes/BattleScene';
 
+/** Phones shrink the 1280×720 screen about two times: the banner text and buttons grow to stay readable. */
+const K = isTouchDevice() ? 1.35 : 1;
+const sz = (n: number): number => Math.round(n * K);
 /** Task banner: top centre, under the resource bar. */
-const PANEL = { x: (GAME_WIDTH - 640) / 2, y: 46, w: 640 };
+const PANEL = { x: (GAME_WIDTH - sz(640)) / 2, y: 46, w: sz(640) };
 const PAD = 14;
+/** Room for the header row (step counter, progress) above the order line, and for the button row below. */
+const HEAD = sz(30);
+const FOOT = sz(34);
 
 /**
  * HUD layer for the tutorial: a short task banner (one order per step, details behind "?"),
@@ -40,20 +47,20 @@ export class TutorialOverlay {
     this.dim = scene.add.graphics().setDepth(150);
     this.hi = scene.add.graphics().setDepth(151);
     this.card = scene.add.graphics().setDepth(152);
-    this.header = scene.add.text(PANEL.x + PAD, PANEL.y + 10, '', textStyle(12, '#c9a044')).setDepth(153);
-    this.goal = scene.add.text(PANEL.x + PAD, PANEL.y + 30, '', { ...textStyle(19, HUD.goldHi), wordWrap: { width: PANEL.w - PAD * 2 } })
+    this.header = scene.add.text(PANEL.x + PAD, PANEL.y + 10, '', textStyle(sz(12), '#c9a044')).setDepth(153);
+    this.goal = scene.add.text(PANEL.x + PAD, PANEL.y + HEAD, '', { ...textStyle(sz(19), HUD.goldHi), wordWrap: { width: PANEL.w - PAD * 2 } })
       .setDepth(153).setStroke('#000', 3);
-    this.details = scene.add.text(PANEL.x + PAD, 0, '', { ...textStyle(13, '#e8e0c8'), wordWrap: { width: PANEL.w - PAD * 2 }, lineSpacing: 3 })
+    this.details = scene.add.text(PANEL.x + PAD, 0, '', { ...textStyle(sz(13), '#e8e0c8'), wordWrap: { width: PANEL.w - PAD * 2 }, lineSpacing: 3 })
       .setDepth(153);
-    this.status = scene.add.text(PANEL.x + PAD, 0, '', { ...textStyle(13, '#ffb050'), wordWrap: { width: PANEL.w - PAD * 2 }, lineSpacing: 2 })
+    this.status = scene.add.text(PANEL.x + PAD, 0, '', { ...textStyle(sz(13), '#ffb050'), wordWrap: { width: PANEL.w - PAD * 2 }, lineSpacing: 2 })
       .setDepth(153).setStroke('#000', 2);
     const right = PANEL.x + PANEL.w;
-    this.help = new Button(scene, { x: right - 236, y: 0, w: 36, h: 26, label: '?', onClick: () => {
+    this.help = new Button(scene, { x: right - sz(236), y: 0, w: sz(36), h: sz(26), label: '?', onClick: () => {
       this.showDetails = !this.showDetails;
       this.relayout();
     } });
-    this.skip = new Button(scene, { x: right - 152, y: 0, w: 120, h: 26, label: t('tut.skip'), onClick: () => director.skip() });
-    this.exit = new Button(scene, { x: right - 52, y: 0, w: 76, h: 26, label: t('tut.exit'), onClick: () => battle.scene.start('MenuScene') });
+    this.skip = new Button(scene, { x: right - sz(152), y: 0, w: sz(120), h: sz(26), label: t('tut.skip'), onClick: () => director.skip() });
+    this.exit = new Button(scene, { x: right - sz(52), y: 0, w: sz(76), h: sz(26), label: t('tut.exit'), onClick: () => battle.scene.start('MenuScene') });
     for (const b of [this.help, this.skip, this.exit]) b.container.setDepth(154);
   }
 
@@ -63,10 +70,10 @@ export class TutorialOverlay {
   }
 
   private cardHeight(): number {
-    let h = 30 + this.goal.height + 8;
+    let h = HEAD + this.goal.height + 8;
     if (this.details.visible) h += this.details.height + 6;
     if (this.statusText) h += this.status.height + 6;
-    return h + 34;
+    return h + FOOT;
   }
 
   update(dt: number): void {
@@ -91,9 +98,9 @@ export class TutorialOverlay {
     const n = Math.min(d.index + 1, d.steps.length);
     this.header.setText(t('tut.header', { lesson: d.lesson, n, max: d.steps.length }));
     if (this.praising) this.goal.setText(`✔ ${t('tut.praise')}`).setColor('#8fe07a');
-    else this.goal.setText(step ? t(dyn(`tut.${step.id}.goal`)) : t('tut.done')).setColor(HUD.goldHi);
-    let y = PANEL.y + 30 + this.goal.height + 8;
-    this.details.setText(step ? t(dyn(`tut.${step.id}.text`)) : '').setVisible(this.showDetails && !this.praising && !!step).setY(y);
+    else this.goal.setText(step ? t(touchKey(`tut.${step.id}.goal`)) : t('tut.done')).setColor(HUD.goldHi);
+    let y = PANEL.y + HEAD + this.goal.height + 8;
+    this.details.setText(step ? t(touchKey(`tut.${step.id}.text`)) : '').setVisible(this.showDetails && !this.praising && !!step).setY(y);
     if (this.details.visible) y += this.details.height + 6;
     this.status.setText(this.statusText ? `▸ ${this.statusText}` : '').setY(y);
     const h = this.cardHeight();
@@ -104,13 +111,13 @@ export class TutorialOverlay {
     // Progress: one segment per step, done ones filled (the praise beat already counts the step).
     const segs = d.steps.length;
     const done = d.index + (this.praising ? 1 : 0);
-    const bw = 220;
+    const bw = sz(220);
     const bx = PANEL.x + PANEL.w - PAD - bw;
     const sw = (bw - (segs - 1) * 4) / segs;
     for (let i = 0; i < segs; i++) {
-      g.fillStyle(i < done ? 0xc9a044 : i === done ? 0x6a5a30 : 0x2a2618, 1).fillRect(bx + i * (sw + 4), PANEL.y + 14, sw, 6);
+      g.fillStyle(i < done ? 0xc9a044 : i === done ? 0x6a5a30 : 0x2a2618, 1).fillRect(bx + i * (sw + 4), PANEL.y + 14, sw, sz(6));
     }
-    const by = PANEL.y + h - 20;
+    const by = PANEL.y + h - sz(20);
     this.help.container.setY(by).setVisible(!!step && !this.praising);
     this.skip.container.setY(by).setVisible(!!step && !this.praising);
     this.exit.container.setY(by);

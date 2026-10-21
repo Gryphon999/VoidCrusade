@@ -1,5 +1,6 @@
 import { EV } from '../events';
-import { dyn, t } from '../i18n';
+import { dyn, t, touchKey } from '../i18n';
+import { isTouchDevice } from '../platform/Touch';
 import { TILE_SIZE } from '../config';
 import { Building } from '../buildings/Building';
 import { BUILDING_DEFS, BUILD_CATEGORIES, BuildingId, buildList, defForRole } from '../buildings/BuildingDefs';
@@ -109,7 +110,7 @@ export class TutorialDirector {
       },
       {
         id: 'group', target: () => ({ kind: 'panel' }),
-        status: () => (b.selection.squads.length ? null : t('tut.st.selectFirst')),
+        status: () => (b.selection.squads.length ? null : t(touchKey('tut.st.selectFirst'))),
         done: () => this.flags.has('grouped') && this.flags.has('recalled'),
       },
       {
@@ -141,13 +142,16 @@ export class TutorialDirector {
         done: () => this.flags.has('trained'),
       },
       {
-        id: 'cover', target: () => needOr(noSquad(), { kind: 'world', ...ruin }),
+        // The ruins first; once a selected squad has reached them, the Hold button.
+        id: 'cover', target: () => needOr(noSquad(),
+          b.selection.squads.some((s) => Math.hypot(s.center.x - ruin.x, s.center.y - ruin.y) < 160)
+            ? { kind: 'grid', key: 'H' } : { kind: 'world', ...ruin }),
         status: () => noSquad()?.status ?? null,
         done: () => b.units.getSquads('player').some((s) => s.order === 'hold' && s.units.filter((u) => u.inCover).length >= s.units.length / 2),
       },
       {
         id: 'retreat', target: () => needOr(noSquad(), { kind: 'grid', key: b.selection.hasSquads ? 'T' : 'none' }),
-        status: () => noSquad()?.status ?? (b.selection.hasSquads ? null : t('tut.st.selectFirst')),
+        status: () => noSquad()?.status ?? (b.selection.hasSquads ? null : t(touchKey('tut.st.selectFirst'))),
         enter: () => {
           const hq = home();
           this.attackers = [0, 1].map((i) => {
@@ -192,7 +196,9 @@ export class TutorialDirector {
         done: () => b.buildings.getOwned('enemy').length === 0,
       },
     ];
-    this.steps = TUTORIAL_LESSONS[lesson].map((id) => all.find((s) => s.id === id) as TutorialStep);
+    // Control groups need a keyboard (Ctrl+1), so phones skip that step.
+    this.steps = TUTORIAL_LESSONS[lesson].filter((id) => !(id === 'group' && isTouchDevice()))
+      .map((id) => all.find((s) => s.id === id) as TutorialStep);
   }
 
   get current(): TutorialStep | null {
@@ -260,11 +266,11 @@ export class TutorialDirector {
       const p = b.tech.progress('player');
       if (p !== null) return { target: { kind: 'topbar' }, status: t('tut.st.tierBusy', { n: def.tier, p: Math.floor(p * 100) }) };
       const onHq = b.selection.building?.def.role === 'hq' && b.hud.pageIs(null);
-      return { target: this.viaHq(onHq ? 'Y' : 'none'), status: t('tut.st.tier', { what: name, n: def.tier }) };
+      return { target: this.viaHq(onHq ? 'Y' : 'none'), status: t(touchKey('tut.st.tier'), { what: name, n: def.tier }) };
     }
     this.topUp(def.cost);
     const onHq = b.selection.building?.def.role === 'hq';
-    return { target: this.viaHq(this.hqKey(id)), status: onHq ? t('tut.st.place', { what: name }) : t('tut.st.selectHq', { what: name }) };
+    return { target: this.viaHq(this.hqKey(id)), status: onHq ? t(touchKey('tut.st.place'), { what: name }) : t(touchKey('tut.st.selectHq'), { what: name }) };
   }
 
   /** How to train `unit`: get its production building first, then select it and press its key. */
@@ -281,10 +287,10 @@ export class TutorialDirector {
       const p = b.tech.progress('player');
       if (p !== null) return { target: { kind: 'topbar' }, status: t('tut.st.tierBusy', { n: d.tier, p: Math.floor(p * 100) }) };
       const onHq = b.selection.building?.def.role === 'hq' && b.hud.pageIs(null);
-      return { target: this.viaHq(onHq ? 'Y' : 'none'), status: t('tut.st.tier', { what: unitName(unit), n: d.tier }) };
+      return { target: this.viaHq(onHq ? 'Y' : 'none'), status: t(touchKey('tut.st.tier'), { what: unitName(unit), n: d.tier }) };
     }
     if (bld.queue.includes(unit)) return { target: { kind: 'world', x: bld.x, y: bld.y }, status: t('tut.st.training', { what: unitName(unit), p: Math.floor(bld.productionFraction() * 100) }) };
-    if (b.selection.building !== bld) return { target: { kind: 'world', x: bld.x, y: bld.y }, status: t('tut.st.selectBld', { what: buildingName(producer), unit: unitName(unit) }) };
+    if (b.selection.building !== bld) return { target: { kind: 'world', x: bld.x, y: bld.y }, status: t(touchKey('tut.st.selectBld'), { what: buildingName(producer), unit: unitName(unit) }) };
     const key = GRID_KEYS[bld.def.produces.indexOf(unit)] ?? 'Q';
     return { target: { kind: 'grid', key }, status: null };
   }
@@ -299,7 +305,7 @@ export class TutorialDirector {
     }
     if (!b.selection.squads.some((s) => s.def.abilities?.includes('frag'))) {
       const c = frag[0].center;
-      return { target: { kind: 'world', x: c.x, y: c.y }, status: t('tut.st.selectRifles') };
+      return { target: { kind: 'world', x: c.x, y: c.y }, status: t(touchKey('tut.st.selectRifles')) };
     }
     return null;
   }

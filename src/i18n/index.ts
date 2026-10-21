@@ -1,6 +1,7 @@
 import { en, MessageKey } from './en';
 import { ru } from './ru';
 import { Platform } from '../platform/Platform';
+import { isTouchDevice } from '../platform/Touch';
 
 export type Lang = 'en' | 'ru';
 export type { MessageKey };
@@ -63,6 +64,12 @@ export function headingFont(): string {
   return current === 'ru'
     ? 'Georgia, "Times New Roman", "PT Serif", serif'
     : '"UnifrakturMaguntia", "Old English Text MT", "Blackletter", Georgia, serif';
+}
+
+/** On a touch screen, `key.touch` when that variant exists ("tap" instead of "right-click"), else `key`. */
+export function touchKey(key: string): MessageKey {
+  const k = `${key}.touch`;
+  return (isTouchDevice() && (k in DICTS[current] || k in en) ? k : key) as MessageKey;
 }
 
 /** Returns `key` if it exists in the dictionary (for dynamic keys like unit names). */

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { CAMERA, PROJECTION } from '../config';
 import { Projection } from '../render/Projection';
+import { isTouchDevice } from '../platform/Touch';
 
 type ScrollKeys = Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
 
@@ -15,6 +16,7 @@ export class CameraSystem {
   private dragging = false;
   private dragLast = new Phaser.Math.Vector2();
   enabled = true;
+  private edgeScroll = !isTouchDevice();
   /** Scroll velocity (view px/s) with inertia, and the smoothed zoom target. */
   private vel = new Phaser.Math.Vector2();
   private targetZoom = 1;
@@ -129,7 +131,9 @@ export class CameraSystem {
       if (k.down.isDown) dy += 1;
     }
     const p = this.scene.input.activePointer;
-    if (this.scene.game.input.isOver && !this.dragging) {
+    // Edge scroll is for the mouse only. On a phone it is off altogether: a finger lifted near the edge
+    // leaves the pointer there for good, and iOS also fakes a mouse event after every tap.
+    if (this.edgeScroll && this.scene.game.input.isOver && !this.dragging && !p.wasTouch) {
       const e = CAMERA.edgeSize;
       const { width, height } = this.scene.scale;
       if (p.x <= e) dx -= 1;
@@ -146,6 +150,31 @@ export class CameraSystem {
     if (Math.abs(this.vel.x) < 1 && Math.abs(this.vel.y) < 1) this.vel.set(0, 0);
     this.cam.scrollX += this.vel.x * dtSec;
     this.cam.scrollY += this.vel.y * dtSec;
+  }
+
+  /** Finger drag: moves the view by a screen-pixel delta (the ground follows the finger). */
+  panBy(dx: number, dy: number): void {
+    if (!this.enabled || this.fly) return;
+    this.cam.scrollX -= dx / this.cam.zoom;
+    this.cam.scrollY -= dy / this.cam.zoom;
+    this.vel.set(0, 0);
+  }
+
+  get zoom(): number {
+    return this.cam.zoom;
+  }
+
+  /** Pinch: sets the zoom at once, keeping the ground under the screen point (sx, sy) in place. */
+  zoomAt(zoom: number, sx: number, sy: number): void {
+    if (!this.enabled || this.fly) return;
+    const before = this.cam.getWorldPoint(sx, sy);
+    this.cam.setZoom(Phaser.Math.Clamp(zoom, CAMERA.minZoom, CAMERA.maxZoom));
+    this.cam.preRender();
+    const after = this.cam.getWorldPoint(sx, sy);
+    this.cam.scrollX += before.x - after.x;
+    this.cam.scrollY += before.y - after.y;
+    this.targetZoom = this.lastZoom = this.cam.zoom;
+    this.zoomAnchor = null;
   }
 
   /** Lets another system take the wheel (e.g. turning a structure while placing it); returns true when used. */
