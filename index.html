@@ -2,24 +2,39 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>VoidCrusade</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231a1a2e'/%3E%3Cpath d='M16 4 L27 26 H5 Z' fill='%233a8dff'/%3E%3Crect x='6' y='15' width='20' height='3' fill='%23e8e8f0'/%3E%3C/svg%3E" />
     <!-- Yandex Games SDK: served by Yandex next to the game; missing (404) everywhere else, which is fine. -->
     <script src="/sdk.js"></script>
     <style>
-      html, body { margin: 0; padding: 0; height: 100%; background: #0b0b16; overflow: hidden; }
+      html { background: #0b0b16; }
+      html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
       /* No text selection, long-tap menu, pull-to-refresh or page scroll (Yandex requirements 1.6, 1.10). */
       html, body { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
         touch-action: none; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
-      #game { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+      /* Phaser (autoCenter) centres the canvas itself; flex centring on top of it pushed the game off-centre. */
+      #game { width: 100%; height: 100%; }
       canvas { display: block; }
+      /* Letterbox fill (VK moderation): a blurred battle shot in the game's palette instead of black bars. */
+      body::before { content: ''; position: fixed; inset: -40px; z-index: -1;
+        background: radial-gradient(ellipse at center, rgba(11,11,22,.2) 0%, rgba(11,11,22,.7) 80%),
+          url('./backdrop.jpg') center / cover no-repeat, #1a1a2e;
+        filter: blur(18px) saturate(1.15); }
+      #game > canvas:last-child { box-shadow: 0 0 48px 8px rgba(0,0,0,.7); }
+      /* Phones held upright: ask to rotate (the element exists only on touch devices, see main.ts). */
+      #rotate { display: none; position: fixed; inset: 0; z-index: 10000; background: #0b0b16;
+        flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+        color: #e8d9a8; font: 600 20px 'Trebuchet MS', Verdana, sans-serif; text-align: center; padding: 24px; }
+      #rotate .rotate-icon { font-size: 64px; color: #c9a044; animation: vc-turn 2.4s ease-in-out infinite; }
+      @keyframes vc-turn { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(90deg); } }
+      @media (orientation: portrait) { #rotate { display: flex; } }
     </style>
-    <script type="module" crossorigin src="./assets/index-CYvZdfYu.js"></script>
+    <script type="module" crossorigin src="./assets/index-Db5wTobg.js"></script>
     <link rel="modulepreload" crossorigin href="./assets/phaser-Czz4FBZH.js">
     <link rel="stylesheet" crossorigin href="./assets/index-DEjzAggQ.css">
   </head>
   <body>
-    <div id="game"></div>
+    <div id="game"></div>
   </body>
 </html>
