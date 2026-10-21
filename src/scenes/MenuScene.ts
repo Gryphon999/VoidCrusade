@@ -55,7 +55,7 @@ export class MenuScene extends Phaser.Scene {
       ...(hasSave ? [[t('menu.continue'), () => this.go('CampaignScene', {})] as [string, () => void]] : []),
       [t('menu.skirmish'), () => this.openSkirmish()],
       [t('menu.records'), () => this.openRecords()],
-      [t('menu.tutorial'), () => this.go('BattleScene', { mode: 'tutorial', difficulty: 'easy' })],
+      [t('menu.tutorial'), () => this.openTutorial()],
       [t('menu.encyclopedia'), () => this.openEncyclopedia()],
       [t('menu.settings'), () => this.openSettings()],
     ];
@@ -67,15 +67,28 @@ export class MenuScene extends Phaser.Scene {
     this.add.text(GAME_WIDTH - 12, GAME_HEIGHT - 10, t('menu.hint'),
       textStyle(12, '#667')).setOrigin(1, 1);
     this.input.keyboard?.on('keydown-F1', () => !this.busy && this.openEncyclopedia());
-    if (!Settings.get().tutorialPrompted) this.time.delayedCall(1600, () => this.promptTutorial());
+    if (!Settings.get().tutorialPrompted) this.time.delayedCall(700, () => this.firstRun());
   }
 
-  /** Asked once per profile: offer the tutorial to new players. */
-  private promptTutorial(): void {
+  /** First launch: straight into lesson 1, the game teaches itself by play (no question first). */
+  private firstRun(): void {
     if (this.busy) return;
     Settings.set({ tutorialPrompted: true });
-    this.confirm(t('prompt.title'), t('prompt.body'), t('prompt.yes'), t('prompt.no'),
-      () => this.go('BattleScene', { mode: 'tutorial', difficulty: 'easy' }));
+    this.startLesson(1);
+  }
+
+  private startLesson(lesson: 1 | 2): void {
+    this.go('BattleScene', { mode: 'tutorial', difficulty: 'easy', lesson });
+  }
+
+  /** Lesson 1 until it is done; after that a choice between the two lessons. */
+  private openTutorial(): void {
+    if ((Settings.get().tutorialDone ?? 0) < 1) {
+      this.startLesson(1);
+      return;
+    }
+    this.confirm(t('tutMenu.title'), t('tutMenu.body'), t('tutMenu.lesson2'), t('tutMenu.lesson1'),
+      () => this.startLesson(2), () => this.startLesson(1));
   }
 
   /** "New Campaign" over a campaign in progress overwrites it, so ask first. */
@@ -90,8 +103,11 @@ export class MenuScene extends Phaser.Scene {
       () => this.go('CampaignScene', { fresh: true }));
   }
 
-  /** A modal yes/no panel over the menu; "no" just closes it. */
-  private confirm(titleText: string, bodyText: string, yesLabel: string, noLabel: string, onYes: () => void): void {
+  /**
+   * A modal yes/no panel over the menu; "no" closes it (and runs `onNo` if given). With an `onNo`
+   * both buttons act, so a click on the dark backdrop is the way to just close it.
+   */
+  private confirm(titleText: string, bodyText: string, yesLabel: string, noLabel: string, onYes: () => void, onNo?: () => void): void {
     this.busy = true;
     const root = this.add.container(0, 0).setDepth(300);
     const dim = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.6).setOrigin(0).setInteractive();
@@ -107,7 +123,12 @@ export class MenuScene extends Phaser.Scene {
     const no = new Button(this, { x: GAME_WIDTH / 2 + 110, y: GAME_HEIGHT / 2 + 60, w: 190, h: 42, label: noLabel, onClick: () => {
       root.destroy();
       this.busy = false;
+      onNo?.();
     } });
+    if (onNo) dim.on('pointerdown', () => {
+      root.destroy();
+      this.busy = false;
+    });
     root.add([dim, g, title, body, yes.container, no.container]);
   }
 

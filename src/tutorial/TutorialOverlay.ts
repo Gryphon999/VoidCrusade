@@ -8,85 +8,112 @@ import { textStyle } from '../ui/uiStyle';
 import { TutorialDirector, TutorialTarget } from './TutorialDirector';
 import type { BattleScene } from '../scenes/BattleScene';
 
-const PANEL = { x: 12, y: 48, w: 380 };
+/** Task banner: top centre, under the resource bar. */
+const PANEL = { x: (GAME_WIDTH - 640) / 2, y: 46, w: 640 };
+const PAD = 14;
 
-/** HUD layer for the tutorial: step card, checklist, pulsing highlight with an arrow, dimmed HUD. */
+/**
+ * HUD layer for the tutorial: a short task banner (one order per step, details behind "?"),
+ * a progress bar, a "well done" beat after each step, and a pulsing highlight with an arrow.
+ */
 export class TutorialOverlay {
   private card: Phaser.GameObjects.Graphics;
   private header: Phaser.GameObjects.Text;
-  private title: Phaser.GameObjects.Text;
-  private body: Phaser.GameObjects.Text;
+  /** The one-line order for the step (or the praise). */
+  private goal: Phaser.GameObjects.Text;
+  /** Longer explanation, shown only after "?". */
+  private details: Phaser.GameObjects.Text;
   /** Live line: what blocks the step right now (construction, prerequisites…). */
   private status: Phaser.GameObjects.Text;
   private statusText = '';
-  private list: Phaser.GameObjects.Text;
-  private listBg: Phaser.GameObjects.Graphics;
   private hi: Phaser.GameObjects.Graphics;
   private dim: Phaser.GameObjects.Graphics;
+  private help: Button;
   private skip: Button;
   private exit: Button;
+  private showDetails = false;
   private shown = -1;
+  private praising = false;
   private pulse = 0;
 
   constructor(scene: Phaser.Scene, private battle: BattleScene, private director: TutorialDirector) {
     this.dim = scene.add.graphics().setDepth(150);
     this.hi = scene.add.graphics().setDepth(151);
     this.card = scene.add.graphics().setDepth(152);
-    this.header = scene.add.text(PANEL.x + 14, PANEL.y + 10, '', textStyle(12, '#c9a044')).setDepth(153);
-    this.title = scene.add.text(PANEL.x + 14, PANEL.y + 28, '', textStyle(17, HUD.goldHi)).setDepth(153).setStroke('#000', 3);
-    this.body = scene.add.text(PANEL.x + 14, PANEL.y + 54, '', { ...textStyle(13, '#e8e0c8'), wordWrap: { width: PANEL.w - 28 }, lineSpacing: 3 })
+    this.header = scene.add.text(PANEL.x + PAD, PANEL.y + 10, '', textStyle(12, '#c9a044')).setDepth(153);
+    this.goal = scene.add.text(PANEL.x + PAD, PANEL.y + 30, '', { ...textStyle(19, HUD.goldHi), wordWrap: { width: PANEL.w - PAD * 2 } })
+      .setDepth(153).setStroke('#000', 3);
+    this.details = scene.add.text(PANEL.x + PAD, 0, '', { ...textStyle(13, '#e8e0c8'), wordWrap: { width: PANEL.w - PAD * 2 }, lineSpacing: 3 })
       .setDepth(153);
-    this.status = scene.add.text(PANEL.x + 14, 0, '', { ...textStyle(13, '#ffb050'), wordWrap: { width: PANEL.w - 28 }, lineSpacing: 2 })
+    this.status = scene.add.text(PANEL.x + PAD, 0, '', { ...textStyle(13, '#ffb050'), wordWrap: { width: PANEL.w - PAD * 2 }, lineSpacing: 2 })
       .setDepth(153).setStroke('#000', 2);
-    this.skip = new Button(scene, { x: PANEL.x + PANEL.w - 190, y: 0, w: 130, h: 28, label: t('tut.skip'), onClick: () => director.skip() });
-    this.exit = new Button(scene, { x: PANEL.x + PANEL.w - 66, y: 0, w: 100, h: 28, label: t('tut.exit'), onClick: () => battle.scene.start('MenuScene') });
-    this.skip.container.setDepth(154);
-    this.exit.container.setDepth(154);
-    this.listBg = scene.add.graphics().setDepth(152);
-    this.list = scene.add.text(GAME_WIDTH - 250, 56, '', { ...textStyle(12, '#bcb4a0'), lineSpacing: 4 }).setDepth(153);
+    const right = PANEL.x + PANEL.w;
+    this.help = new Button(scene, { x: right - 236, y: 0, w: 36, h: 26, label: '?', onClick: () => {
+      this.showDetails = !this.showDetails;
+      this.relayout();
+    } });
+    this.skip = new Button(scene, { x: right - 152, y: 0, w: 120, h: 26, label: t('tut.skip'), onClick: () => director.skip() });
+    this.exit = new Button(scene, { x: right - 52, y: 0, w: 76, h: 26, label: t('tut.exit'), onClick: () => battle.scene.start('MenuScene') });
+    for (const b of [this.help, this.skip, this.exit]) b.container.setDepth(154);
   }
 
-  /** Blocks the world under the step card and checklist. */
+  /** Blocks the world under the banner. */
   contains(x: number, y: number): boolean {
-    const h = this.cardHeight();
-    return (x >= PANEL.x && x <= PANEL.x + PANEL.w && y >= PANEL.y && y <= PANEL.y + h)
-      || (x >= GAME_WIDTH - 262 && y >= 48 && y <= 48 + this.list.height + 16);
+    return x >= PANEL.x && x <= PANEL.x + PANEL.w && y >= PANEL.y && y <= PANEL.y + this.cardHeight();
   }
 
   private cardHeight(): number {
-    return 54 + this.body.height + (this.statusText ? this.status.height + 8 : 0) + 48;
+    let h = 30 + this.goal.height + 8;
+    if (this.details.visible) h += this.details.height + 6;
+    if (this.statusText) h += this.status.height + 6;
+    return h + 34;
   }
 
   update(dt: number): void {
     const d = this.director;
-    const st = d.current?.status?.() ?? '';
-    if (d.index !== this.shown || st !== this.statusText) {
+    const st = d.praise > 0 ? '' : d.current?.status?.() ?? '';
+    const praising = d.praise > 0;
+    if (d.index !== this.shown || st !== this.statusText || praising !== this.praising) {
+      if (d.index !== this.shown) this.showDetails = false;
       this.statusText = st;
+      this.praising = praising;
       this.relayout();
     }
     this.pulse += dt;
     const step = d.current;
-    this.drawTarget(step ? step.target() : { kind: 'none' });
+    this.drawTarget(step && !praising ? step.target() : { kind: 'none' });
   }
 
   private relayout(): void {
     const d = this.director;
     this.shown = d.index;
     const step = d.current;
-    this.header.setText(t('tut.header', { n: Math.min(d.index + 1, d.steps.length), max: d.steps.length }));
-    this.title.setText(step ? t(dyn(`tut.${step.id}.title`)) : t('tut.done'));
-    this.body.setText(step ? t(dyn(`tut.${step.id}.text`)) : t('tut.done.text'));
-    this.status.setText(this.statusText ? `▸ ${this.statusText}` : '').setY(PANEL.y + 54 + this.body.height + 6);
+    const n = Math.min(d.index + 1, d.steps.length);
+    this.header.setText(t('tut.header', { lesson: d.lesson, n, max: d.steps.length }));
+    if (this.praising) this.goal.setText(`✔ ${t('tut.praise')}`).setColor('#8fe07a');
+    else this.goal.setText(step ? t(dyn(`tut.${step.id}.goal`)) : t('tut.done')).setColor(HUD.goldHi);
+    let y = PANEL.y + 30 + this.goal.height + 8;
+    this.details.setText(step ? t(dyn(`tut.${step.id}.text`)) : '').setVisible(this.showDetails && !this.praising && !!step).setY(y);
+    if (this.details.visible) y += this.details.height + 6;
+    this.status.setText(this.statusText ? `▸ ${this.statusText}` : '').setY(y);
     const h = this.cardHeight();
     const g = this.card.clear();
-    g.fillStyle(0x0c0b10, 0.92).fillRect(PANEL.x, PANEL.y, PANEL.w, h);
+    g.fillStyle(0x0c0b10, 0.9).fillRect(PANEL.x, PANEL.y, PANEL.w, h);
     g.lineStyle(2, 0xc9a044, 1).strokeRect(PANEL.x + 0.5, PANEL.y + 0.5, PANEL.w - 1, h - 1);
     g.lineStyle(1, 0xc9a044, 0.35).strokeRect(PANEL.x + 4.5, PANEL.y + 4.5, PANEL.w - 9, h - 9);
-    this.skip.container.setY(PANEL.y + h - 24).setVisible(!!step);
-    this.exit.container.setY(PANEL.y + h - 24);
-    const lines = d.steps.map((s, i) => `${i < d.index ? '✔' : i === d.index ? '➤' : '·'} ${t(dyn(`tut.${s.id}.title`))}`);
-    this.list.setText(lines.join('\n'));
-    this.listBg.clear().fillStyle(0x0c0b10, 0.7).fillRect(GAME_WIDTH - 262, 48, 252, this.list.height + 16);
+    // Progress: one segment per step, done ones filled (the praise beat already counts the step).
+    const segs = d.steps.length;
+    const done = d.index + (this.praising ? 1 : 0);
+    const bw = 220;
+    const bx = PANEL.x + PANEL.w - PAD - bw;
+    const sw = (bw - (segs - 1) * 4) / segs;
+    for (let i = 0; i < segs; i++) {
+      g.fillStyle(i < done ? 0xc9a044 : i === done ? 0x6a5a30 : 0x2a2618, 1).fillRect(bx + i * (sw + 4), PANEL.y + 14, sw, 6);
+    }
+    const by = PANEL.y + h - 20;
+    this.help.container.setY(by).setVisible(!!step && !this.praising);
+    this.skip.container.setY(by).setVisible(!!step && !this.praising);
+    this.exit.container.setY(by);
   }
 
   /** Pulsing frame + arrow at the target; for HUD targets the rest of the bottom frame is dimmed. */
@@ -160,7 +187,8 @@ export class TutorialOverlay {
   }
 
   destroy(): void {
-    for (const o of [this.card, this.header, this.title, this.body, this.status, this.list, this.listBg, this.hi, this.dim]) o.destroy();
+    for (const o of [this.card, this.header, this.goal, this.details, this.status, this.hi, this.dim]) o.destroy();
+    this.help.destroy();
     this.skip.destroy();
     this.exit.destroy();
   }

@@ -10,6 +10,8 @@ import { Voice } from '../systems/VoiceSystem';
 import { AudioSystem } from '../systems/AudioSystem';
 import { buildingName, unitName } from '../i18n/names';
 import { Resources } from '../systems/ResourceSystem';
+import { Settings } from '../systems/Settings';
+import { TUTORIAL_LESSONS, TutorialLesson } from './data';
 import type { BattleScene } from '../scenes/BattleScene';
 
 /** Where a step's highlight points: a command-grid key, a HUD area, or a spot on the battlefield. */
@@ -48,6 +50,9 @@ interface Need {
  */
 export class TutorialDirector {
   readonly steps: TutorialStep[];
+  /** Seconds of "well done" left after a finished step before the next one starts. */
+  praise = 0;
+  static readonly PRAISE_TIME = 1.4;
   index = 0;
   finished = false;
   private flags = new Set<string>();
@@ -55,7 +60,7 @@ export class TutorialDirector {
   private spawnedAt = 0;
   private attackers: Squad[] = [];
 
-  constructor(private battle: BattleScene) {
+  constructor(private battle: BattleScene, readonly lesson: TutorialLesson = 1) {
     const b = battle;
     const ev = b.events;
     ev.on(EV.groupRecalled, () => this.flags.add('recalled'));
@@ -78,7 +83,7 @@ export class TutorialDirector {
     const ruin = { x: 23.5 * TILE_SIZE, y: 26 * TILE_SIZE };
     const noSquad = (): Need | null => (squads().length ? null : this.trainNeed('rifleman'));
     const needOr = (n: Need | null, t0: TutorialTarget): TutorialTarget => (n ? n.target : t0);
-    this.steps = [
+    const all: TutorialStep[] = [
       {
         id: 'camera', target: () => ({ kind: 'minimap' }),
         enter: () => {
@@ -187,6 +192,7 @@ export class TutorialDirector {
         done: () => b.buildings.getOwned('enemy').length === 0,
       },
     ];
+    this.steps = TUTORIAL_LESSONS[lesson].map((id) => all.find((s) => s.id === id) as TutorialStep);
   }
 
   get current(): TutorialStep | null {
@@ -208,6 +214,14 @@ export class TutorialDirector {
 
   private site(id: BuildingId): Building | undefined {
     return this.battle.buildings.buildings.find((q) => q.owner === 'player' && q.def.id === id && q.alive);
+  }
+
+  /** A command on the Bastion's grid; while the Bastion is not selected, point at the Bastion itself. */
+  private viaHq(key: string): TutorialTarget {
+    const b = this.battle;
+    if (b.selection.building?.def.role === 'hq') return { kind: 'grid', key };
+    const hq = b.buildings.getHQ('player');
+    return hq ? { kind: 'world', x: hq.x, y: hq.y } : { kind: 'none' };
   }
 
   /** Grid key leading to `id` from the HQ: its category page first, then its slot on that page. */
@@ -246,11 +260,11 @@ export class TutorialDirector {
       const p = b.tech.progress('player');
       if (p !== null) return { target: { kind: 'topbar' }, status: t('tut.st.tierBusy', { n: def.tier, p: Math.floor(p * 100) }) };
       const onHq = b.selection.building?.def.role === 'hq' && b.hud.pageIs(null);
-      return { target: { kind: 'grid', key: onHq ? 'Y' : 'none' }, status: t('tut.st.tier', { what: name, n: def.tier }) };
+      return { target: this.viaHq(onHq ? 'Y' : 'none'), status: t('tut.st.tier', { what: name, n: def.tier }) };
     }
     this.topUp(def.cost);
     const onHq = b.selection.building?.def.role === 'hq';
-    return { target: { kind: 'grid', key: this.hqKey(id) }, status: onHq ? t('tut.st.place', { what: name }) : t('tut.st.selectHq', { what: name }) };
+    return { target: this.viaHq(this.hqKey(id)), status: onHq ? t('tut.st.place', { what: name }) : t('tut.st.selectHq', { what: name }) };
   }
 
   /** How to train `unit`: get its production building first, then select it and press its key. */
@@ -267,7 +281,7 @@ export class TutorialDirector {
       const p = b.tech.progress('player');
       if (p !== null) return { target: { kind: 'topbar' }, status: t('tut.st.tierBusy', { n: d.tier, p: Math.floor(p * 100) }) };
       const onHq = b.selection.building?.def.role === 'hq' && b.hud.pageIs(null);
-      return { target: { kind: 'grid', key: onHq ? 'Y' : 'none' }, status: t('tut.st.tier', { what: unitName(unit), n: d.tier }) };
+      return { target: this.viaHq(onHq ? 'Y' : 'none'), status: t('tut.st.tier', { what: unitName(unit), n: d.tier }) };
     }
     if (bld.queue.includes(unit)) return { target: { kind: 'world', x: bld.x, y: bld.y }, status: t('tut.st.training', { what: unitName(unit), p: Math.floor(bld.productionFraction() * 100) }) };
     if (b.selection.building !== bld) return { target: { kind: 'world', x: bld.x, y: bld.y }, status: t('tut.st.selectBld', { what: buildingName(producer), unit: unitName(unit) }) };
@@ -299,16 +313,16 @@ export class TutorialDirector {
     AudioSystem.hint();
     Voice.say(dyn(`tut.${s.id}.vo`), 'commander', 'event', true);
     this.battle.events.emit(EV.tutorialStep, this.index);
-    // Bring a battlefield target into the clear middle of the screen (the step card and the
-    // checklist cover the top corners).
+    // Bring a battlefield target into the clear middle of the screen (the task banner covers the top).
     const tg = s.target();
     if (tg.kind === 'world') {
       const p = this.battle.cameraSystem.worldToScreen(tg.x, tg.y);
-      if (p.x < 420 || p.x > 980 || p.y < 120 || p.y > 500) this.battle.cameraSystem.centerOn(tg.x, tg.y);
+      if (p.x < 420 || p.x > 980 || p.y < 190 || p.y > 500) this.battle.cameraSystem.centerOn(tg.x, tg.y);
     }
   }
 
   skip(): void {
+    this.praise = 0;
     this.advance();
   }
 
@@ -318,6 +332,8 @@ export class TutorialDirector {
     this.index++;
     if (this.index >= this.steps.length) {
       this.finished = true;
+      const s = Settings.get();
+      if ((s.tutorialDone ?? 0) < this.lesson) Settings.set({ tutorialDone: this.lesson });
       this.battle.events.emit(EV.tutorialStep, this.index);
       this.battle.endBattle('player');
       return;
@@ -325,9 +341,16 @@ export class TutorialDirector {
     this.enterStep();
   }
 
-  update(): void {
+  update(dt: number): void {
     const s = this.current;
-    if (s && s.done()) this.advance();
+    // A finished step first gets a short "well done" beat, then the next one starts.
+    if (this.praise > 0) {
+      this.praise -= dt;
+      if (this.praise <= 0) this.advance();
+    } else if (s && s.done()) {
+      this.praise = TutorialDirector.PRAISE_TIME;
+      AudioSystem.captureChime('player');
+    }
     const b = this.battle;
     for (const a of this.attackers) {
       if (!a.alive) continue;

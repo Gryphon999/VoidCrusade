@@ -51,6 +51,8 @@ export interface GameSettings {
   hintsSeen?: string[];
   /** First-run tutorial prompt already shown. */
   tutorialPrompted?: boolean;
+  /** Highest tutorial lesson finished (0/undefined: none). */
+  tutorialDone?: number;
 }
 
 const DEFAULTS: GameSettings = { masterVolume: 0.85, musicVolume: 0.5, sfxVolume: 0.7, difficulty: 'normal', tilt: PROJECTION.defaultTilt, graphics: 'medium', screenShake: true, voiceVolume: 0.85, voiceEnabled: true };

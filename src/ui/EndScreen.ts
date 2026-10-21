@@ -20,11 +20,14 @@ export function showEndScreen(scene: Phaser.Scene, battle: BattleScene, result: 
   dim.setAlpha(0);
   scene.tweens.add({ targets: dim, alpha: 1, duration: 600 });
   const color = win ? '#ffd060' : '#ff3030';
-  const title = scene.add.text(cx, cy - 120, win ? t('end.victory') : t('end.defeat'), {
-    fontFamily: headingFont(), fontSize: '110px', color, stroke: '#000', strokeThickness: 10,
+  // A finished tutorial lesson is not a "victory": it says so and leads on to the next lesson.
+  const lesson = result.data.mode === 'tutorial' && win ? result.data.lesson ?? 1 : 0;
+  const titleText = lesson ? t('end.lessonDone') : win ? t('end.victory') : t('end.defeat');
+  const title = scene.add.text(cx, cy - 120, titleText, {
+    fontFamily: headingFont(), fontSize: lesson ? '84px' : '110px', color, stroke: '#000', strokeThickness: 10,
   }).setOrigin(0.5).setScale(3).setAlpha(0);
   scene.tweens.add({ targets: title, scale: 1, alpha: 1, duration: 700, ease: 'Back.easeOut', delay: 200 });
-  const sub = win ? t('end.victory.sub') : t('end.defeat.sub');
+  const sub = lesson === 1 ? t('end.lesson1.sub') : lesson === 2 ? t('tut.done.text') : win ? t('end.victory.sub') : t('end.defeat.sub');
   const subtitle = scene.add.text(cx, cy - 30, sub, textStyle(22, '#dde')).setOrigin(0.5).setAlpha(0);
   const s = result.stats;
   const lines = [
@@ -59,6 +62,13 @@ export function showEndScreen(scene: Phaser.Scene, battle: BattleScene, result: 
   const campaign = result.data.mode === 'campaign';
   const buttons: { label: string; action: () => void }[] = campaign
     ? [{ label: win ? t('end.continue') : t('end.backToCampaign'), action: () => battle.scene.start('CampaignScene', { result }) }]
+    : lesson === 1
+    ? [
+        { label: t('end.lesson2'), action: () => battle.scene.restart({ ...result.data, lesson: 2 }) },
+        { label: t('end.menu'), action: () => battle.scene.start('MenuScene') },
+      ]
+    : lesson === 2
+    ? [{ label: t('end.menu'), action: () => battle.scene.start('MenuScene') }]
     : [
         { label: t('end.again'), action: () => battle.scene.restart(result.data) },
         { label: t('end.menu'), action: () => battle.scene.start('MenuScene') },

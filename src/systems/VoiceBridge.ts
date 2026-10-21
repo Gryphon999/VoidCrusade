@@ -69,9 +69,12 @@ export class VoiceBridge {
     ev.on(EV.mapEvent, (kind: string, on: boolean) => kind === 'storm' && on && Voice.say('vo.storm', 'announcer', 'alert'));
     ev.on(EV.battleEnded, (r: BattleResult) => {
       Voice.stop();
+      // Tutorial lesson 1 ends with the outpost still standing: "the Horde is broken" would be wrong.
+      if (r.data.mode === 'tutorial' && (r.data.lesson ?? 1) === 1) return;
       Voice.say(r.winner === 'player' ? 'vo.victory' : 'vo.defeat', 'commander', 'alert');
     });
-    battle.time.delayedCall(1500, () => Voice.say('vo.battleStart', 'commander', 'event'));
+    // The tutorial's commander has his own opening line for the first step.
+    if (battle.tutorial === null) battle.time.delayedCall(1500, () => Voice.say('vo.battleStart', 'commander', 'event'));
     battle.events.once(Phaser.Scenes.Events.SHUTDOWN, () => Voice.stop());
   }
 

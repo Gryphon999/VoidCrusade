@@ -229,7 +229,7 @@ export class BattleScene extends Phaser.Scene {
     if (tutorial) {
       this.ai.enabled = false;
       this.aiOwners = [];
-      this.tutorial = new TutorialDirector(this);
+      this.tutorial = new TutorialDirector(this, data.lesson ?? 1);
     }
     this.r3d = this.render3d ? new Battle3D(this) : null;
     // The scene object is reused on restart ("play again", the next campaign battle): the old
@@ -347,7 +347,7 @@ export class BattleScene extends Phaser.Scene {
     this.morale.update(dt);
     this.world.update(dt);
     this.victory.update(dt);
-    this.tutorial?.update();
+    this.tutorial?.update(dt);
     this.cover?.update(dt);
     this.capture.update(dt);
     this.ai.update(dt);

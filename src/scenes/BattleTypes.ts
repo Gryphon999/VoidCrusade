@@ -15,6 +15,8 @@ export interface BattleData {
   mapIndex?: number;
   difficulty?: Difficulty;
   mode?: 'skirmish' | 'campaign' | 'tutorial';
+  /** Tutorial lesson (1: fighting, 2: base and assault). */
+  lesson?: 1 | 2;
   /** Skirmish victory condition. */
   winMode?: WinMode;
   /** Battle modifiers switched on in the skirmish setup (see BattleModifiers). */
