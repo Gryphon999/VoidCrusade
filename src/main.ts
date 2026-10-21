@@ -77,6 +77,20 @@ void Promise.all([titleFont, Platform.init().catch(() => undefined)]).then(() =>
   });
 });
 
+// `?vcdebug=1`: uncaught errors in a red box on screen (a phone has no console to read them in).
+if (/[?&]vcdebug=1/.test(window.location.search)) {
+  const errBox = document.createElement('pre');
+  errBox.style.cssText = 'position:fixed;bottom:4px;left:4px;right:4px;z-index:10000;margin:0;padding:6px 8px;'
+    + 'font:11px monospace;color:#fff;background:rgba(160,0,0,.9);white-space:pre-wrap;max-height:60vh;overflow:auto;display:none';
+  const show = (msg: string): void => {
+    errBox.style.display = 'block';
+    errBox.textContent += msg + '\n\n';
+    if (!errBox.isConnected) document.body.appendChild(errBox);
+  };
+  window.addEventListener('error', (e) => show(`${e.message}\n${e.error?.stack ?? `${e.filename}:${e.lineno}:${e.colno}`}`));
+  window.addEventListener('unhandledrejection', (e) => show(`promise: ${e.reason?.stack ?? e.reason}`));
+}
+
 // Browsers only allow audio after a user gesture.
 const unlock = (): void => AudioSystem.unlock();
 window.addEventListener('pointerdown', unlock);

@@ -6,13 +6,17 @@ import { createTerrainTextures } from '../render/TerrainTextures';
 import { ValueNoise } from '../render/Noise';
 import { detailTexture, groundMaterials, platingCanvas, rockTexture } from './Materials3D';
 import type { MapSystem } from '../systems/MapSystem';
+import { isTouchDevice } from '../platform/Touch';
 
 /** Height of raised cliff blocks in 3D (px). Nothing walks on cliffs, so this is purely visual. */
 export const CLIFF_3D = 105;
 /** Unplayable ring of mountains around the map so the view never shows a void (tiles). */
 export const MARGIN = 8;
-/** Texture resolution: canvas pixels per tile. */
-const TPX = 32;
+/**
+ * Texture resolution: canvas pixels per tile. Phones get half: iOS Safari kills the tab when canvases
+ * pass its memory budget, and a 32 px bake of a big map is ~40 MB per canvas.
+ */
+const TPX = isTouchDevice() ? 16 : 32;
 /** Mesh subdivisions per tile; large maps use fewer so the ground stays near the same triangle count. */
 const subFor = (w: number, h: number): number => ((w + MARGIN * 2) * (h + MARGIN * 2) > 8000 ? 3 : 4);
 /** Tiles along one side of a terrain chunk. */
@@ -611,6 +615,8 @@ float gIce;`)
       l.imageSmoothingEnabled = true;
       l.drawImage(mc, 0, 0, W, H);
       ctx.drawImage(lc, 0, 0);
+      // Free the scratch canvases now: Safari only returns canvas memory on GC, which comes too late.
+      lc.width = lc.height = mc.width = mc.height = 0;
     };
     const n = this.noise;
     const edge = (v: number, lo: number, hi: number): number => Math.min(1, Math.max(0, (v - lo) / (hi - lo)));
@@ -651,6 +657,8 @@ float gIce;`)
     t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
     t.generateMipmaps = true;
     t.minFilter = THREE.LinearMipmapLinearFilter;
+    // Phones: once the GPU has the texture, drop the CPU copy (the bake is never redrawn).
+    if (isTouchDevice()) t.onUpdate = () => { out.width = out.height = 0; };
     return t;
   }
 
